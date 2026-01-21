@@ -1,0 +1,56 @@
+sensor:
+  - name: "CCT Logic Core"
+    unique_id: cct_logic_core
+    unit_of_measurement: "K"
+    state: |
+      {% set elev = state_attr('sun.sun', 'elevation') | float %}
+      {% set now_dt = now().strftime('%H:%M') %}
+
+      {# Temperature Anchors from your Input Helpers #}
+      {% set temp_min = states('input_number.cct_min') | int(2000) %}
+      {% set temp_max = states('input_number.cct_max') | int(5500) %}
+      {% set temp_base = 3000 %}
+
+      {# Determine Wind-Down Start Time based on Mode Sensors #}
+      {% if is_state('binary_sensor.party_mode_active', 'on') %}
+        {% set wind_down_start = '01:00' %}
+      {% elif is_state('binary_sensor.guest_mode_active', 'on') %}
+        {% set wind_down_start = '00:00' %}
+      {% else %}
+        {% set wind_down_start = '21:30' %}
+      {% endif %}
+
+      {# Setup for Phase 4 (Wind-Down Slide) #}
+      {% set start_dt = today_at(wind_down_start) %}
+      {% set end_time = (start_dt + timedelta(minutes=30)).strftime('%H:%M') %}
+
+      {# PHASE 4: THE FORCED SLIDE (Night-time Wind-Down) #}
+      {% if now_dt >= end_time or (now_dt < '05:00' and wind_down_start != '01:00') %}
+        {{ temp_min }}
+      {% elif now_dt >= wind_down_start %}
+        {% set seconds_past_start = (now() - start_dt).total_seconds() %}
+        {% set progress = (seconds_past_start / 1800) * (pi / 2) %}
+        {{ (temp_min + (temp_base - temp_min) * cos(progress)) | int }}
+
+      {# PHASE 2: HIGH NOON PLATEAU (Sun above 15 degrees) #}
+      {% elif elev > 15 %}
+        {{ temp_max }}
+
+      {# PHASE 1 & 3: SOLAR TRACKING (Sun between 0 and 15 degrees) #}
+      {% elif elev >= 0 and elev <= 15 %}
+        {% set sine_factor = sin((elev * 6) | deg2rad) %}
+        {{ (temp_base + (temp_max - temp_base) * sine_factor) | int }}
+
+      {# PHASE 3.5: EVENING PAUSE (Sun below 0, holding until Wind-Down) #}
+      {% elif elev < 0 and now().hour >= 12 %}
+        {{ temp_base }}
+
+      {# MORNING ASCENT (Sun rising from -15 to 0 degrees) #}
+      {% elif elev < 0 and elev >= -15 and now().hour < 12 %}
+        {% set adjusted_elev = (elev + 15) * 6 %}
+        {% set sine_factor = sin(adjusted_elev | deg2rad) %}
+        {{ (temp_min + (temp_base - temp_min) * sine_factor) | int }}
+
+      {% else %}
+        {{ temp_min }}
+      {% endif %}
