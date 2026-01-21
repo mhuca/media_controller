@@ -1,0 +1,12 @@
+##binary_sensor:
+#  - platform: workday
+#    country: CA
+#    province: "ON"
+#  - platform: ping
+#    name: gateway
+ #   host: 104.158.138.129
+ #   scan_interval: 10
+ # - platform: ping
+   # name: google
+  #  host: 8.8.4.4
+  #  scan_interval: 300

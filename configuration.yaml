@@ -1,0 +1,49 @@
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Text to speech
+tts:
+  - platform: google_translate
+
+automation: !include automations.yaml
+binary_sensor: !include binary_sensor.yaml
+homekit: !include homekit.yaml
+light: !include light.yaml
+mqtt: !include mqtt.yaml
+sensor: !include sensor.yaml
+template: !include_dir_list templates/
+utility_meter: !include utility_meter.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+sql: !include sql.yaml
+switch: !include switch.yaml
+# panel_iframe: !include panel_iframe.yaml
+media_player: !include media_player.yaml
+zha: !include zha.yaml
+# Enable Home Assistant API
+api:
+logger:
+  default: info
+#  logs:
+#    homeassistant.components.zha: debug
+#    zigpy: debug
+
+homeassistant:
+  allowlist_external_dirs:
+    - /config/www
+recorder:
+  purge_keep_days: 7       # Keeps 7 days of history instead of 10
+  auto_purge: true        # Cleans up every night at 4:12 AM
+  auto_repack: true       # Compresses the database twice a month
+  exclude:
+    domains:
+      - automation         # Do you really need to see when every automation ran?
+      - updater
+      - scene
+    entity_globs:
+      - sensor.sun* # High-frequency, low-value data
+      - sensor.load_*
+      - sensor.memory_*
+    entities:
+      - sensor.date        # Updates every second/minute but never useful
+      - sensor.time

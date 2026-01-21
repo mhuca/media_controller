@@ -1,0 +1,2981 @@
+- id: '1710404467862'
+  name: Mark Office Bright
+  entities:
+    light.mark_office_bookcase:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 254
+      color_temp_kelvin: 2202
+      color_temp: 454
+      hs_color:
+      - 29.79
+      - 84.553
+      rgb_color:
+      - 255
+      - 146
+      - 39
+      xy_color:
+      - 0.579
+      - 0.388
+      entity_id:
+      - light.mark_office_bookcase_bulb1
+      - light.mark_office_bookcase_bulb2
+      - light.mark_office_bookcase_bulb3
+      icon: mdi:lightbulb-group
+      friendly_name: Mark Office Bookcase
+      supported_features: 40
+      state: 'on'
+    light.mark_office_gallery:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 254
+      color_temp_kelvin: 2202
+      color_temp: 454
+      hs_color:
+      - 29.79
+      - 84.553
+      rgb_color:
+      - 255
+      - 146
+      - 39
+      xy_color:
+      - 0.579
+      - 0.388
+      entity_id:
+      - light.mark_office_gallery_bulb1
+      - light.mark_office_gallery_bulb2
+      - light.mark_office_gallery_bulb3
+      icon: mdi:lightbulb-group
+      friendly_name: Mark Office Gallery
+      supported_features: 40
+      state: 'on'
+    light.mark_office_standing:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 191
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Texas Instruments Coordinator Standing Lamp
+      supported_features: 40
+      state: 'on'
+  icon: mdi:brightness-7
+  metadata:
+    light.mark_office_bookcase:
+      entity_only: true
+    light.mark_office_gallery:
+      entity_only: true
+    light.mark_office_standing:
+      entity_only: true
+- id: '1710405004132'
+  name: Mark Office Normal
+  entities:
+    light.mark_office_standing:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 191
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Mark Office Standing Lamp
+      supported_features: 40
+      icon: mdi:floor-lamp
+      state: 'on'
+    light.mark_office_bookcase:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 191
+      color_temp_kelvin: 2202
+      color_temp: 454
+      hs_color:
+      - 29.79
+      - 84.553
+      rgb_color:
+      - 255
+      - 146
+      - 39
+      xy_color:
+      - 0.579
+      - 0.388
+      entity_id:
+      - light.mark_office_bookcase_bulb1
+      - light.mark_office_bookcase_bulb2
+      - light.mark_office_bookcase_bulb3
+      icon: mdi:lightbulb-group
+      friendly_name: Mark Office Bookcase
+      supported_features: 40
+      state: 'on'
+    light.mark_office_gallery:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 191
+      color_temp_kelvin: 2202
+      color_temp: 454
+      hs_color:
+      - 29.79
+      - 84.553
+      rgb_color:
+      - 255
+      - 146
+      - 39
+      xy_color:
+      - 0.579
+      - 0.388
+      entity_id:
+      - light.mark_office_gallery_bulb1
+      - light.mark_office_gallery_bulb2
+      - light.mark_office_gallery_bulb3
+      icon: mdi:lightbulb-group
+      friendly_name: Mark Office Gallery
+      supported_features: 40
+      state: 'on'
+  icon: mdi:brightness-4
+  metadata:
+    light.mark_office_standing:
+      entity_only: true
+    light.mark_office_bookcase:
+      entity_only: true
+    light.mark_office_gallery:
+      entity_only: true
+- id: '1710405162332'
+  name: Mark Office Focus
+  entities:
+    light.mark_office_bookcase:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 89
+      color_temp_kelvin: 2202
+      color_temp: 454
+      hs_color:
+      - 29.79
+      - 84.553
+      rgb_color:
+      - 255
+      - 146
+      - 39
+      xy_color:
+      - 0.579
+      - 0.388
+      entity_id:
+      - light.mark_office_bookcase_bulb1
+      - light.mark_office_bookcase_bulb2
+      - light.mark_office_bookcase_bulb3
+      icon: mdi:lightbulb-group
+      friendly_name: Mark Office Bookcase
+      supported_features: 40
+      state: 'on'
+    light.mark_office_gallery:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 89
+      color_temp_kelvin: 2202
+      color_temp: 454
+      hs_color:
+      - 29.79
+      - 84.553
+      rgb_color:
+      - 255
+      - 146
+      - 39
+      xy_color:
+      - 0.579
+      - 0.388
+      entity_id:
+      - light.mark_office_gallery_bulb1
+      - light.mark_office_gallery_bulb2
+      - light.mark_office_gallery_bulb3
+      icon: mdi:lightbulb-group
+      friendly_name: Mark Office Gallery
+      supported_features: 40
+      state: 'on'
+    light.mark_office_standing:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 191
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Mark Office Standing Lamp
+      supported_features: 40
+      icon: mdi:floor-lamp
+      state: 'on'
+  icon: mdi:brightness-5
+  metadata:
+    light.mark_office_bookcase:
+      entity_only: true
+    light.mark_office_gallery:
+      entity_only: true
+    light.mark_office_standing:
+      entity_only: true
+- id: '1710405219594'
+  name: Mark Office Off
+  entities:
+    light.mark_office_bookcase:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      entity_id:
+      - light.mark_office_bookcase_bulb1
+      - light.mark_office_bookcase_bulb2
+      - light.mark_office_bookcase_bulb3
+      icon: mdi:lightbulb-group
+      friendly_name: Mark Office Bookcase
+      supported_features: 40
+      state: 'off'
+    light.mark_office_gallery:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      entity_id:
+      - light.mark_office_gallery_bulb1
+      - light.mark_office_gallery_bulb2
+      - light.mark_office_gallery_bulb3
+      icon: mdi:lightbulb-group
+      friendly_name: Mark Office Gallery
+      supported_features: 40
+      state: 'off'
+    light.mark_office_standing:
+      supported_color_modes:
+      - brightness
+      color_mode:
+      brightness:
+      off_with_transition: false
+      off_brightness: 191
+      friendly_name: Mark Office Standing Lamp
+      supported_features: 40
+      icon: mdi:floor-lamp
+      state: 'off'
+  icon: mdi:brightness-1
+  metadata:
+    light.mark_office_bookcase:
+      entity_only: true
+    light.mark_office_gallery:
+      entity_only: true
+    light.mark_office_standing:
+      entity_only: true
+- id: '1710766152015'
+  name: Living Room Dim
+  entities:
+    light.living_room_wall_sconce_up_light:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      entity_id:
+      - light.wall_sconce_left_up_light
+      - light.wall_sconce_right_up_light
+      icon: mdi:wall-sconce
+      friendly_name: Living Room Wall Sconce Up
+      supported_features: 40
+      state: 'off'
+    light.living_room_wall_sconce_down_light:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 128
+      color_temp_kelvin: 2994
+      color_temp: 334
+      hs_color:
+      - 27.835
+      - 57.058
+      rgb_color:
+      - 255
+      - 177
+      - 110
+      xy_color:
+      - 0.496
+      - 0.383
+      entity_id:
+      - light.wall_sconce_right_down_light
+      - light.wall_sconce_left_down_light
+      icon: mdi:wall-sconce
+      friendly_name: Living Room Wall Sconce Down Light
+      supported_features: 40
+      state: 'on'
+    light.living_room_lamp_light:
+      min_color_temp_kelvin: 1801
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 555
+      effect_list:
+      - Cycle down
+      - Cycle up
+      - Random
+      - Solid
+      - Wake up
+      supported_color_modes:
+      - color_temp
+      - hs
+      - xy
+      effect:
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      entity_id:
+      - light.living_room_lamp_bulb_1
+      - light.living_room_lamp_bulb_2
+      - light.living_room_lamp_left
+      icon: mdi:lightbulb-group
+      friendly_name: Living Room Lamps
+      supported_features: 36
+      state: 'off'
+    light.hallway_bar_servery:
+      supported_color_modes:
+      - brightness
+      color_mode:
+      brightness:
+      friendly_name: Hallway Bar Servery
+      supported_features: 0
+      state: 'off'
+    light.dining_room_main:
+      supported_color_modes:
+      - brightness
+      color_mode:
+      brightness:
+      friendly_name: Dining Room Main
+      supported_features: 0
+      state: 'off'
+    light.dining_room_fireplace:
+      supported_color_modes:
+      - brightness
+      color_mode:
+      brightness:
+      friendly_name: Dining Room Fireplace
+      supported_features: 0
+      state: 'off'
+    light.living_room_main:
+      supported_color_modes:
+      - color_temp
+      - hs
+      - xy
+      icon: mdi:wall-sconce-flat
+      friendly_name: Living Room Main
+      supported_features: 32
+      min_color_temp_kelvin: 1801
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 555
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      entity_id:
+      - light.living_room_main_bulb_1_2
+      - light.living_room_main_bulb_2_2
+      state: 'off'
+  icon: mdi:brightness-6
+  metadata:
+    light.living_room_wall_sconce_up_light:
+      entity_only: true
+    light.living_room_wall_sconce_down_light:
+      entity_only: true
+    light.living_room_lamp_light:
+      entity_only: true
+    light.hallway_bar_servery:
+      entity_only: true
+    light.dining_room_main:
+      entity_only: true
+    light.dining_room_fireplace:
+      entity_only: true
+    light.living_room_main:
+      entity_only: true
+- id: '1710766473638'
+  name: 'Living Room Normal '
+  entities:
+    light.living_room_lamps:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      entity_id:
+      - light.wall_sconce_bulb_1_light
+      - light.wall_sconce_bulb_2_light
+      - light.lamp_bulb_1_light
+      - light.lamp_bulb_2_light
+      icon: mdi:lightbulb-group
+      friendly_name: Living Room Lamps
+      supported_features: 40
+      state: 'off'
+    light.living_room_main:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      effect_list:
+      - Cycle down
+      - Cycle up
+      - Random
+      - Solid
+      - Wake up
+      supported_color_modes:
+      - color_temp
+      - hs
+      effect: Solid
+      color_mode: color_temp
+      brightness: 255
+      color_temp_kelvin: 2564
+      color_temp: 390
+      hs_color:
+      - 28.711
+      - 70.253
+      rgb_color:
+      - 255
+      - 161
+      - 75
+      xy_color:
+      - 0.541
+      - 0.389
+      entity_id:
+      - light.livingroom_main_bulb_1
+      - light.livingroom_main_bulb_2
+      icon: mdi:lightbulb-group
+      friendly_name: Living Room Main
+      supported_features: 36
+      state: 'on'
+    light.wall_sconce_down_light:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 171
+      friendly_name: Living Room Wall Sconce Down
+      supported_features: 40
+      state: 'off'
+    light.wall_sconce_up_light:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 254
+      color_temp_kelvin: 2564
+      color_temp: 390
+      hs_color:
+      - 28.711
+      - 70.253
+      rgb_color:
+      - 255
+      - 161
+      - 75
+      xy_color:
+      - 0.541
+      - 0.389
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Living Room Wall Sconce Up
+      supported_features: 40
+      state: 'on'
+    light.hallway_bar_servery:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 143
+      friendly_name: Hallway Bar Servery
+      supported_features: 0
+      state: 'on'
+  icon: mdi:brightness-1
+  metadata:
+    light.living_room_lamps:
+      entity_only: true
+    light.living_room_main:
+      entity_only: true
+    light.wall_sconce_down_light:
+      entity_only: true
+    light.wall_sconce_up_light:
+      entity_only: true
+    light.hallway_bar_servery:
+      entity_only: true
+- id: '1716516418051'
+  name: Movie
+  entities:
+    light.family_room_window:
+      supported_color_modes:
+      - onoff
+      color_mode: onoff
+      friendly_name: Family Room Window
+      supported_features: 0
+      state: 'on'
+    light.family_room_wall_sconce_bulb_1:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 254
+      friendly_name: Family Room Wall Sconce Bulb 1
+      supported_features: 40
+      state: 'off'
+    light.family_room_wall_sconce_bulb_2_light:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 254
+      friendly_name: Family Room Wall Sconce Bulb 2 Light
+      supported_features: 40
+      state: 'off'
+    light.family_room_picture:
+      min_color_temp_kelvin: 2020
+      max_color_temp_kelvin: 6329
+      min_mireds: 158
+      max_mireds: 495
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 76
+      friendly_name: Family Room Picture
+      supported_features: 40
+      state: 'off'
+    light.basement_kitchen_light:
+      supported_color_modes:
+      - brightness
+      color_mode:
+      brightness:
+      friendly_name: Basement Kitchen Light
+      supported_features: 40
+      state: 'off'
+    light.family_room_screen:
+      min_color_temp_kelvin: 2020
+      max_color_temp_kelvin: 6329
+      min_mireds: 158
+      max_mireds: 495
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 125
+      friendly_name: Family Room Screen
+      supported_features: 40
+      state: 'off'
+    light.basement_stairs_top:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 64
+      color_temp_kelvin: 5263
+      color_temp: 190
+      hs_color:
+      - 27.371
+      - 15.784
+      rgb_color:
+      - 255
+      - 233
+      - 215
+      xy_color:
+      - 0.362
+      - 0.346
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Basement Stairs Top
+      supported_features: 40
+      state: 'on'
+    light.basement_stairs_bottom:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 33
+      color_temp_kelvin: 5263
+      color_temp: 190
+      hs_color:
+      - 27.371
+      - 15.784
+      rgb_color:
+      - 255
+      - 233
+      - 215
+      xy_color:
+      - 0.362
+      - 0.346
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Basement Stairs Bottom
+      supported_features: 40
+      state: 'on'
+    light.family_room_downlights_front:
+      min_color_temp_kelvin: 2020
+      max_color_temp_kelvin: 6329
+      min_mireds: 158
+      max_mireds: 495
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 189
+      friendly_name: Family Room Downlights Front
+      supported_features: 40
+      state: 'off'
+    light.family_room_downlights_back:
+      min_color_temp_kelvin: 2020
+      max_color_temp_kelvin: 6329
+      min_mireds: 158
+      max_mireds: 495
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 189
+      friendly_name: Family Room Downlights Back
+      supported_features: 40
+      state: 'off'
+    light.family_room_table:
+      min_color_temp_kelvin: 2020
+      max_color_temp_kelvin: 6329
+      min_mireds: 158
+      max_mireds: 495
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 59
+      friendly_name: Family Room Table
+      supported_features: 40
+      state: 'off'
+  icon: mdi:movie
+  metadata: {}
+- id: '1716516506457'
+  name: Media
+  entities:
+    light.family_room_window:
+      supported_color_modes:
+      - onoff
+      color_mode: onoff
+      friendly_name: Family Room Window
+      supported_features: 0
+      state: 'on'
+    light.family_room_wall_sconce_bulb_1:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 254
+      friendly_name: Family Room Wall Sconce Bulb 1
+      supported_features: 40
+      state: 'off'
+    light.family_room_wall_sconce_bulb_2_light:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 254
+      friendly_name: Family Room Wall Sconce Bulb 2 Light
+      supported_features: 40
+      state: 'off'
+    light.family_room_picture:
+      min_color_temp_kelvin: 2020
+      max_color_temp_kelvin: 6329
+      min_mireds: 158
+      max_mireds: 495
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 130
+      color_temp_kelvin: 6329
+      color_temp: 158
+      hs_color:
+      - 37.231
+      - 3.66
+      rgb_color:
+      - 255
+      - 251
+      - 246
+      xy_color:
+      - 0.33
+      - 0.334
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Family Room Picture
+      supported_features: 40
+      state: 'on'
+    light.basement_kitchen_light:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 131
+      friendly_name: Basement Kitchen Light
+      supported_features: 40
+      state: 'on'
+    light.family_room_screen:
+      min_color_temp_kelvin: 2020
+      max_color_temp_kelvin: 6329
+      min_mireds: 158
+      max_mireds: 495
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 125
+      friendly_name: Family Room Screen
+      supported_features: 40
+      state: 'off'
+    light.family_room_downlights_front:
+      min_color_temp_kelvin: 2020
+      max_color_temp_kelvin: 6329
+      min_mireds: 158
+      max_mireds: 495
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 189
+      friendly_name: Family Room Downlights Front
+      supported_features: 40
+      state: 'off'
+    light.family_room_downlights_back:
+      min_color_temp_kelvin: 2020
+      max_color_temp_kelvin: 6329
+      min_mireds: 158
+      max_mireds: 495
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 189
+      friendly_name: Family Room Downlights Back
+      supported_features: 40
+      state: 'off'
+    light.family_room_table:
+      min_color_temp_kelvin: 2020
+      max_color_temp_kelvin: 6329
+      min_mireds: 158
+      max_mireds: 495
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: false
+      off_brightness: 51
+      friendly_name: Family Room Table
+      supported_features: 40
+      state: 'off'
+    light.basement_stairs_top:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 189
+      color_temp_kelvin: 5263
+      color_temp: 190
+      hs_color:
+      - 27.371
+      - 15.784
+      rgb_color:
+      - 255
+      - 233
+      - 215
+      xy_color:
+      - 0.362
+      - 0.346
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Basement Stairs Top
+      supported_features: 40
+      state: 'on'
+    light.basement_stairs_bottom:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 125
+      color_temp_kelvin: 5263
+      color_temp: 190
+      hs_color:
+      - 27.371
+      - 15.784
+      rgb_color:
+      - 255
+      - 233
+      - 215
+      xy_color:
+      - 0.362
+      - 0.346
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Basement Stairs Bottom
+      supported_features: 40
+      state: 'on'
+  icon: mdi:movie
+  metadata: {}
+- id: '1718207790128'
+  name: Basement On
+  entities:
+    light.family_room_fireplace:
+      supported_color_modes:
+      - brightness
+      color_mode:
+      brightness:
+      friendly_name: Family Room Fireplace
+      supported_features: 32
+      state: 'off'
+    light.family_room_decks_dimmer:
+      supported_color_modes:
+      - brightness
+      color_mode:
+      brightness:
+      friendly_name: Family Room Decks Dimmer
+      supported_features: 32
+      state: 'off'
+    light.family_room_front_dimmer:
+      supported_color_modes:
+      - brightness
+      color_mode:
+      brightness:
+      friendly_name: Family Room Front Dimmer
+      supported_features: 32
+      state: 'off'
+    light.family_room_main:
+      supported_color_modes:
+      - brightness
+      color_mode:
+      brightness:
+      friendly_name: Family Room Main
+      supported_features: 32
+      state: 'off'
+    light.family_room_table:
+      supported_color_modes:
+      - brightness
+      color_mode:
+      brightness:
+      friendly_name: Family Room Table
+      supported_features: 32
+      state: 'off'
+    light.family_room_window:
+      supported_color_modes:
+      - onoff
+      color_mode:
+      friendly_name: Family Room Window
+      supported_features: 0
+      state: 'off'
+    light.family_room_picture:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 255
+      friendly_name: Family Room Picture
+      supported_features: 32
+      state: 'on'
+  icon: mdi:movie
+  metadata: {}
+- id: '1718208113973'
+  name: Entertain
+  entities:
+    light.family_room_window:
+      supported_color_modes:
+      - onoff
+      color_mode: onoff
+      friendly_name: Family Room Window
+      supported_features: 0
+      state: 'on'
+    light.family_room_picture:
+      min_color_temp_kelvin: 2020
+      max_color_temp_kelvin: 6329
+      min_mireds: 158
+      max_mireds: 495
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 189
+      color_temp_kelvin: 5263
+      color_temp: 190
+      hs_color:
+      - 27.371
+      - 15.784
+      rgb_color:
+      - 255
+      - 233
+      - 215
+      xy_color:
+      - 0.362
+      - 0.346
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Family Room Picture
+      supported_features: 40
+      state: 'on'
+    light.family_room_wall_sconce_bulb_1:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 254
+      color_temp_kelvin: 5263
+      color_temp: 190
+      hs_color:
+      - 27.371
+      - 15.784
+      rgb_color:
+      - 255
+      - 233
+      - 215
+      xy_color:
+      - 0.362
+      - 0.346
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Family Room Wall Sconce Bulb 1
+      supported_features: 40
+      state: 'on'
+    light.family_room_wall_sconce_bulb_2_light:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 254
+      color_temp_kelvin: 5263
+      color_temp: 190
+      hs_color:
+      - 27.371
+      - 15.784
+      rgb_color:
+      - 255
+      - 233
+      - 215
+      xy_color:
+      - 0.362
+      - 0.346
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Family Room Wall Sconce Bulb 2 Light
+      supported_features: 40
+      state: 'on'
+    light.basement_kitchen_light:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 206
+      friendly_name: Basement Kitchen Light
+      supported_features: 40
+      state: 'on'
+    light.family_room_downlights_front:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 189
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Family Room Downlights Front
+      supported_features: 32
+      state: 'on'
+    light.family_room_downlights_back:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 189
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Family Room Downlights Back
+      supported_features: 32
+      state: 'on'
+    light.family_room_table:
+      min_color_temp_kelvin: 2020
+      max_color_temp_kelvin: 6329
+      min_mireds: 158
+      max_mireds: 495
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 189
+      color_temp_kelvin: 5263
+      color_temp: 190
+      hs_color:
+      - 27.371
+      - 15.784
+      rgb_color:
+      - 255
+      - 233
+      - 215
+      xy_color:
+      - 0.362
+      - 0.346
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Family Room Table
+      supported_features: 40
+      state: 'on'
+    light.family_room_screen:
+      min_color_temp_kelvin: 2020
+      max_color_temp_kelvin: 6329
+      min_mireds: 158
+      max_mireds: 495
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 125
+      color_temp_kelvin: 5263
+      color_temp: 190
+      hs_color:
+      - 27.371
+      - 15.784
+      rgb_color:
+      - 255
+      - 233
+      - 215
+      xy_color:
+      - 0.362
+      - 0.346
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Family Room Screen
+      supported_features: 40
+      state: 'on'
+    light.basement_stairs_bottom:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 254
+      color_temp_kelvin: 5263
+      color_temp: 190
+      hs_color:
+      - 27.371
+      - 15.784
+      rgb_color:
+      - 255
+      - 233
+      - 215
+      xy_color:
+      - 0.362
+      - 0.346
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Basement Stairs Bottom
+      supported_features: 40
+      state: 'on'
+    light.basement_stairs_top:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 254
+      color_temp_kelvin: 5263
+      color_temp: 190
+      hs_color:
+      - 27.371
+      - 15.784
+      rgb_color:
+      - 255
+      - 233
+      - 215
+      xy_color:
+      - 0.362
+      - 0.346
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Basement Stairs Top
+      supported_features: 40
+      state: 'on'
+  icon: mdi:movie
+  metadata: {}
+- id: '1722126942960'
+  name: Main Floor Entertain
+  entities:
+    light.livingroom_main_bulb_1:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      effect_list:
+      - Solid
+      - Wake up
+      - Cycle up
+      - Cycle down
+      - Random
+      supported_color_modes:
+      - color_temp
+      - hs
+      effect: Solid
+      color_mode: color_temp
+      brightness: 255
+      color_temp_kelvin: 2222
+      color_temp: 450
+      hs_color:
+      - 29.719
+      - 83.657
+      rgb_color:
+      - 255
+      - 147
+      - 41
+      xy_color:
+      - 0.577
+      - 0.388
+      friendly_name: LivingRoom Main Bulb 1
+      supported_features: 36
+      state: 'on'
+    light.livingroom_main_bulb_2:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      effect_list:
+      - Solid
+      - Wake up
+      - Cycle up
+      - Cycle down
+      - Random
+      supported_color_modes:
+      - color_temp
+      - hs
+      effect: Solid
+      color_mode: color_temp
+      brightness: 255
+      color_temp_kelvin: 2222
+      color_temp: 450
+      hs_color:
+      - 29.719
+      - 83.657
+      rgb_color:
+      - 255
+      - 147
+      - 41
+      xy_color:
+      - 0.577
+      - 0.388
+      friendly_name: LivingRoom Main Bulb 2
+      supported_features: 36
+      state: 'on'
+    light.hallway_bar_servery:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 89
+      friendly_name: Hallway Bar Servery
+      supported_features: 0
+      state: 'on'
+    light.dinng_room_main:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 130
+      friendly_name: Dining Room Main
+      supported_features: 0
+      state: 'on'
+    light.wall_sconce_right_down_light:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 254
+      color_temp_kelvin: 2222
+      color_temp: 450
+      hs_color:
+      - 29.719
+      - 83.657
+      rgb_color:
+      - 255
+      - 147
+      - 41
+      xy_color:
+      - 0.577
+      - 0.388
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Wall Sconce Right Down Light
+      supported_features: 40
+      state: 'on'
+    light.wall_sconce_left_up_light:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 254
+      color_temp_kelvin: 2222
+      color_temp: 450
+      hs_color:
+      - 29.719
+      - 83.657
+      rgb_color:
+      - 255
+      - 147
+      - 41
+      xy_color:
+      - 0.577
+      - 0.388
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Wall Sconce Left Up Light
+      supported_features: 40
+      state: 'on'
+  metadata: {}
+- id: '1733442032336'
+  name: VideoCall
+  entities:
+    light.mark_office_bookcase_bulb1:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 191
+      color_temp_kelvin: 2207
+      color_temp: 453
+      hs_color:
+      - 29.772
+      - 84.328
+      rgb_color:
+      - 255
+      - 147
+      - 40
+      xy_color:
+      - 0.577
+      - 0.389
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Mark Office Bookcase Bulb1 Light
+      supported_features: 40
+      state: 'on'
+    light.mark_office_bookcase_bulb2:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 191
+      color_temp_kelvin: 2207
+      color_temp: 453
+      hs_color:
+      - 29.772
+      - 84.328
+      rgb_color:
+      - 255
+      - 147
+      - 40
+      xy_color:
+      - 0.577
+      - 0.389
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Mark Office Bookcase Bulb2 Light
+      supported_features: 40
+      state: 'on'
+    light.mark_office_gallery_bulb1:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 191
+      color_temp_kelvin: 2207
+      color_temp: 453
+      hs_color:
+      - 29.772
+      - 84.328
+      rgb_color:
+      - 255
+      - 147
+      - 40
+      xy_color:
+      - 0.577
+      - 0.389
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Mark Office Gallery Bulb1 Light
+      supported_features: 40
+      state: 'on'
+    light.mark_office_gallery_bulb2:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 191
+      color_temp_kelvin: 2207
+      color_temp: 453
+      hs_color:
+      - 29.772
+      - 84.328
+      rgb_color:
+      - 255
+      - 147
+      - 40
+      xy_color:
+      - 0.577
+      - 0.389
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Mark Office Gallery Bulb2 Light
+      supported_features: 40
+      state: 'on'
+    light.mark_office_gallery_bulb3:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 191
+      color_temp_kelvin: 2207
+      color_temp: 453
+      hs_color:
+      - 29.772
+      - 84.328
+      rgb_color:
+      - 255
+      - 147
+      - 40
+      xy_color:
+      - 0.577
+      - 0.389
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Mark Office Gallery Bulb3 Light
+      supported_features: 40
+      state: 'on'
+    light.mark_office_desk_outlet:
+      supported_color_modes:
+      - onoff
+      color_mode:
+      friendly_name: Key Light
+      supported_features: 0
+      state: 'off'
+    light.mark_office_bookcase_bulb3:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 191
+      color_temp_kelvin: 2207
+      color_temp: 453
+      hs_color:
+      - 29.772
+      - 84.328
+      rgb_color:
+      - 255
+      - 147
+      - 40
+      xy_color:
+      - 0.577
+      - 0.389
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Mark Office Bookcase Bulb3 Light
+      supported_features: 40
+      state: 'on'
+    light.living_room_lamp_light:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      effect_list:
+      - Cycle down
+      - Cycle up
+      - Random
+      - Solid
+      - Wake up
+      supported_color_modes:
+      - color_temp
+      - hs
+      effect: Solid
+      color_mode: color_temp
+      brightness: 38
+      color_temp_kelvin: 2207
+      color_temp: 453
+      hs_color:
+      - 29.772
+      - 84.328
+      rgb_color:
+      - 255
+      - 147
+      - 40
+      xy_color:
+      - 0.577
+      - 0.389
+      entity_id:
+      - light.livingroom_lamp_bulb_1
+      - light.livingroom_lamp_bulb_2
+      icon: mdi:lightbulb-group
+      friendly_name: Living Room Lamps
+      supported_features: 36
+      state: 'on'
+    light.dining_room_window_light:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      off_with_transition: true
+      off_brightness: 128
+      friendly_name: Dining Room Window Light
+      supported_features: 40
+      state: 'off'
+  icon: mdi:video-account
+  metadata:
+    light.mark_office_bookcase_bulb1:
+      entity_only: true
+    light.mark_office_bookcase_bulb2:
+      entity_only: true
+    light.mark_office_gallery_bulb1:
+      entity_only: true
+    light.mark_office_gallery_bulb2:
+      entity_only: true
+    light.mark_office_gallery_bulb3:
+      entity_only: true
+    light.mark_office_desk_outlet:
+      entity_only: true
+    light.mark_office_bookcase_bulb3:
+      entity_only: true
+    light.living_room_lamp_light:
+      entity_only: true
+    light.dining_room_window_light:
+      entity_only: true
+- id: '1734655703609'
+  name: Living Room Entertain
+  entities:
+    light.living_room_main:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      effect_list:
+      - Cycle down
+      - Cycle up
+      - Random
+      - Solid
+      - Wake up
+      supported_color_modes:
+      - color_temp
+      - hs
+      effect: Solid
+      color_mode: color_temp
+      brightness: 138
+      color_temp_kelvin: 6535
+      color_temp: 153
+      hs_color:
+      - 54.768
+      - 1.6
+      rgb_color:
+      - 255
+      - 255
+      - 251
+      xy_color:
+      - 0.325
+      - 0.333
+      entity_id:
+      - light.livingroom_main_bulb_1
+      - light.livingroom_main_bulb_2
+      icon: mdi:wall-sconce-flat
+      friendly_name: Living Room Main
+      supported_features: 36
+      state: 'on'
+    light.living_room_lamp_light:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      effect_list:
+      - Cycle down
+      - Cycle up
+      - Random
+      - Solid
+      - Wake up
+      supported_color_modes:
+      - color_temp
+      - hs
+      effect: Solid
+      color_mode: color_temp
+      brightness: 255
+      color_temp_kelvin: 6535
+      color_temp: 153
+      hs_color:
+      - 54.768
+      - 1.6
+      rgb_color:
+      - 255
+      - 255
+      - 251
+      xy_color:
+      - 0.325
+      - 0.333
+      entity_id:
+      - light.livingroom_lamp_bulb_1
+      - light.livingroom_lamp_bulb_2
+      icon: mdi:lightbulb-group
+      friendly_name: Living Room Lamps
+      supported_features: 36
+      state: 'on'
+    light.living_room_wall_sconce_up_light:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 254
+      color_temp_kelvin: 4000
+      color_temp: 250
+      hs_color:
+      - 26.812
+      - 34.87
+      rgb_color:
+      - 255
+      - 206
+      - 166
+      xy_color:
+      - 0.42
+      - 0.365
+      entity_id:
+      - light.wall_sconce_left_up_light
+      - light.wall_sconce_right_up_light
+      icon: mdi:wall-sconce
+      friendly_name: Living Room Wall Sconce Up
+      supported_features: 40
+      state: 'on'
+    light.living_room_wall_sconce_down_light:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 128
+      color_temp_kelvin: 4000
+      color_temp: 250
+      hs_color:
+      - 26.812
+      - 34.87
+      rgb_color:
+      - 255
+      - 206
+      - 166
+      xy_color:
+      - 0.42
+      - 0.365
+      entity_id:
+      - light.wall_sconce_right_down_light
+      - light.wall_sconce_left_down_light
+      icon: mdi:wall-sconce
+      friendly_name: Living Room Wall Sconce Down Light
+      supported_features: 40
+      state: 'on'
+    light.dining_room_main:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 128
+      friendly_name: Dining Room Main
+      supported_features: 0
+      state: 'on'
+    light.dining_room_table:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 128
+      friendly_name: Dining Room Table
+      supported_features: 0
+      state: 'on'
+    light.hallway_bar_servery:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 255
+      friendly_name: Hallway Bar Servery
+      supported_features: 0
+      state: 'on'
+    light.hallway_back_light:
+      min_color_temp_kelvin: 2702
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 370
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 128
+      color_temp_kelvin: 6535
+      color_temp: 153
+      hs_color:
+      - 54.768
+      - 1.6
+      rgb_color:
+      - 255
+      - 255
+      - 251
+      xy_color:
+      - 0.325
+      - 0.333
+      friendly_name: Hallway Back Light
+      supported_features: 32
+      state: 'on'
+    light.hallway_back_ring_light:
+      supported_color_modes:
+      - hs
+      color_mode:
+      brightness:
+      hs_color:
+      rgb_color:
+      xy_color:
+      friendly_name: Hallway Back Ring Light
+      supported_features: 32
+      state: 'off'
+    light.hallway_front:
+      supported_color_modes:
+      - brightness
+      color_mode:
+      brightness:
+      friendly_name: Hallway Front
+      supported_features: 0
+      state: 'off'
+    light.hallway_side:
+      supported_color_modes:
+      - brightness
+      color_mode:
+      brightness:
+      friendly_name: Hallway Side
+      supported_features: 0
+      state: 'off'
+  metadata:
+    light.living_room_main:
+      entity_only: true
+    light.living_room_lamp_light:
+      entity_only: true
+    light.living_room_wall_sconce_up_light:
+      entity_only: true
+    light.living_room_wall_sconce_down_light:
+      entity_only: true
+    light.dining_room_main:
+      entity_only: true
+    light.dining_room_table:
+      entity_only: true
+    light.hallway_bar_servery:
+      entity_only: true
+    light.hallway_back_light:
+      entity_only: true
+    light.hallway_back_ring_light:
+      entity_only: true
+    light.hallway_front:
+      entity_only: true
+    light.hallway_side:
+      entity_only: true
+  icon: mdi:account-group
+- id: '1734705976834'
+  name: Living Room Day
+  entities:
+    light.living_room_main:
+      supported_color_modes:
+      - onoff
+      icon: mdi:wall-sconce-flat
+      friendly_name: Living Room Main
+      supported_features: 0
+      state: unavailable
+    light.living_room_lamp_light:
+      min_color_temp_kelvin: 1801
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 555
+      supported_color_modes:
+      - color_temp
+      - hs
+      color_mode: color_temp
+      brightness: 128
+      color_temp_kelvin: '{{  state_attr(''sensor.sun_solar_temperature'',''color_temp_kelvin'')
+        }}'
+      color_temp: 417
+      hs_color:
+      - 29.157
+      - 76.348
+      rgb_color:
+      - 255
+      - 155
+      - 60
+      xy_color:
+      - 0.557
+      - 0.39
+      entity_id:
+      - light.living_room_lamp_left
+      - light.living_room_lamp_right
+      icon: mdi:lightbulb-group
+      friendly_name: Living Room Lamps
+      supported_features: 32
+      state: 'on'
+    light.living_room_wall_sconce_up_light:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 254
+      color_temp_kelvin: 2398
+      color_temp: 417
+      hs_color:
+      - 29.157
+      - 76.348
+      rgb_color:
+      - 255
+      - 155
+      - 60
+      xy_color:
+      - 0.557
+      - 0.39
+      entity_id:
+      - light.wall_sconce_left_up_light
+      - light.wall_sconce_right_up_light
+      icon: mdi:wall-sconce
+      friendly_name: Living Room Wall Sconce Up
+      supported_features: 40
+      state: 'on'
+    light.living_room_wall_sconce_down_light:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode: color_temp
+      brightness: 254
+      color_temp_kelvin: 2398
+      color_temp: 417
+      hs_color:
+      - 29.157
+      - 76.348
+      rgb_color:
+      - 255
+      - 155
+      - 60
+      xy_color:
+      - 0.557
+      - 0.39
+      entity_id:
+      - light.wall_sconce_right_down_light
+      - light.wall_sconce_left_down_light
+      icon: mdi:wall-sconce
+      friendly_name: Living Room Wall Sconce Down Light
+      supported_features: 40
+      state: 'on'
+    light.dining_room_main:
+      supported_color_modes:
+      - brightness
+      color_mode:
+      brightness:
+      friendly_name: Dining Room Main
+      supported_features: 0
+      state: 'off'
+    light.hallway_bar_servery:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 102
+      friendly_name: Hallway Bar Servery
+      supported_features: 0
+      state: 'on'
+    light.hallway_back_light:
+      min_color_temp_kelvin: 2702
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 370
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      friendly_name: Hallway Back
+      supported_features: 0
+      state: 'off'
+    light.hallway_back_ring_light:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      - hs
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      friendly_name: Hallway Back Ring
+      supported_features: 0
+      state: 'off'
+    light.hallway_front:
+      supported_color_modes:
+      - brightness
+      color_mode:
+      brightness:
+      friendly_name: Hallway Front
+      supported_features: 0
+      state: 'off'
+    light.hallway_side:
+      supported_color_modes:
+      - brightness
+      color_mode:
+      brightness:
+      friendly_name: Hallway Side
+      supported_features: 0
+      state: 'off'
+    light.dining_room_window_light_2:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 9009
+      min_mireds: 111
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      - hs
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      friendly_name: Dining Room Window Light
+      supported_features: 0
+      state: 'off'
+  metadata:
+    light.living_room_main:
+      entity_only: true
+    light.living_room_lamp_light:
+      entity_only: true
+    light.living_room_wall_sconce_up_light:
+      entity_only: true
+    light.living_room_wall_sconce_down_light:
+      entity_only: true
+    light.dining_room_main:
+      entity_only: true
+    light.hallway_bar_servery:
+      entity_only: true
+    light.hallway_back_light:
+      entity_only: true
+    light.hallway_back_ring_light:
+      entity_only: true
+    light.hallway_front:
+      entity_only: true
+    light.hallway_side:
+      entity_only: true
+    light.dining_room_window_light_2:
+      entity_only: true
+  icon: mdi:account-group
+- id: '1739608652786'
+  name: Living Room Lights Off
+  entities:
+    light.living_room_wall_sconce_up_light:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      entity_id:
+      - light.wall_sconce_left_up_light
+      - light.wall_sconce_right_up_light
+      icon: mdi:wall-sconce
+      friendly_name: Living Room Wall Sconce Up
+      supported_features: 40
+      state: 'off'
+    light.living_room_wall_sconce_down_light:
+      min_color_temp_kelvin: 2202
+      max_color_temp_kelvin: 4000
+      min_mireds: 250
+      max_mireds: 454
+      supported_color_modes:
+      - color_temp
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      entity_id:
+      - light.wall_sconce_right_down_light
+      - light.wall_sconce_left_down_light
+      icon: mdi:wall-sconce
+      friendly_name: Living Room Wall Sconce Down Light
+      supported_features: 40
+      state: 'off'
+    light.living_room_lamp_light:
+      min_color_temp_kelvin: 1801
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 555
+      effect_list:
+      - Cycle down
+      - Cycle up
+      - Random
+      - Solid
+      - Wake up
+      supported_color_modes:
+      - color_temp
+      - hs
+      - xy
+      effect:
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      entity_id:
+      - light.living_room_lamp_bulb_1
+      - light.living_room_lamp_bulb_2
+      - light.living_room_lamp_left
+      icon: mdi:lightbulb-group
+      friendly_name: Living Room Lamps
+      supported_features: 36
+      state: 'off'
+    light.hallway_bar_servery:
+      supported_color_modes:
+      - brightness
+      color_mode:
+      brightness:
+      friendly_name: Hallway Bar Servery
+      supported_features: 0
+      state: 'off'
+    light.dining_room_fireplace:
+      supported_color_modes:
+      - brightness
+      color_mode:
+      brightness:
+      friendly_name: Dining Room Fireplace
+      supported_features: 0
+      state: 'off'
+    light.living_room_main:
+      supported_color_modes:
+      - color_temp
+      - hs
+      - xy
+      icon: mdi:wall-sconce-flat
+      friendly_name: Living Room Main
+      supported_features: 32
+      min_color_temp_kelvin: 1801
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 555
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      entity_id:
+      - light.living_room_main_bulb_1_2
+      - light.living_room_main_bulb_2_2
+      state: 'off'
+  icon: mdi:brightness-6
+  metadata:
+    light.living_room_wall_sconce_up_light:
+      entity_only: true
+    light.living_room_wall_sconce_down_light:
+      entity_only: true
+    light.living_room_lamp_light:
+      entity_only: true
+    light.hallway_bar_servery:
+      entity_only: true
+    light.dining_room_fireplace:
+      entity_only: true
+    light.living_room_main:
+      entity_only: true
+- id: watch_apple_tv
+  name: Watch Apple TV
+  entities:
+    media_player.vsx_933:
+      source_list:
+      - VIDEO2
+      - VIDEO3 ··· GAME/TV ··· GAME
+      - DVD
+      - AppleTV
+      - CD
+      - NETWORK
+      - AIRPLAY
+      - BLUETOOTH
+      sound_mode_list:
+      - STEREO
+      - DIRECT
+      - SURROUND
+      - ALL CH STEREO
+      - ENTERTAINMENT SHOW
+      volume_level: 0.48
+      is_volume_muted: false
+      source: AppleTV
+      sound_mode: ENTERTAINMENT SHOW
+      preset: 0
+      video_out: yes,out
+      audio_information:
+        audio_input_port: ANALOG
+        input_signal_format: ''
+        input_frequency: ''
+        input_channels: ''
+        listening_mode: Extended Stereo
+        output_channels: 5.1 ch
+        output_frequency: ''
+        precision_quartz_lock_system: 'Off'
+        auto_phase_control_delay: '---'
+        auto_phase_control_phase: Normal
+        upmix_mode: 'No'
+      video_information:
+        video_input_port: No Video
+        input_resolution: Unknown
+        input_color_schema: ''
+        input_color_depth: 24bit
+        video_output_port: MAIN
+        output_resolution: Unknown
+        output_color_schema: ''
+        output_color_depth: 24bit
+        picture_mode: ''
+      friendly_name: VSX-933
+      supported_features: 69516
+      state: 'on'
+    media_player.living_room_atv:
+      source_list:
+      - App Store
+      - Arcade
+      - BREAKFINITY
+      - Britbox
+      - CBC Gem
+      - CBC News
+      - CCTV Viewer
+      - Citytv
+      - CNN
+      - Computers
+      - Crave
+      - Crossy Road
+      - CTV
+      - dailymotionTV
+      - DAZN
+      - Disney+
+      - Facebook Watch
+      - FaceTime
+      - Fibe TV
+      - Fitness
+      - Fubo
+      - Global TV
+      - HomeCam
+      - ICI TOU.TV
+      - Infuse
+      - Infuse 4
+      - InstaTV
+      - IP Cam Soft Lite
+      - IPCams
+      - Knowledge Network
+      - Kool London TV
+      - Larix Player
+      - Lowe's TV
+      - Mixcloud
+      - Movies
+      - Music
+      - myTuner Radio Free
+      - NBA
+      - Nebula
+      - Netflix
+      - NVR Remote
+      - Photos
+      - Plex
+      - Podcasts
+      - Pokémon TV
+      - Prime Video
+      - QVR Viewer
+      - radio.net
+      - Roomstyler
+      - Search
+      - SecuritySpy
+      - Settings
+      - Sky News
+      - Solitaire
+      - Spaceteam
+      - Speedtest
+      - Sportsnet
+      - Spotify
+      - Surfshark
+      - Tubi
+      - TV
+      - TV Shows
+      - TV Streams
+      - Twitch
+      - Vevo
+      - VLC
+      - VMedia TV
+      - Webcam HQ
+      - WiiM Home
+      - YouIpCams
+      - YouTube
+      media_duration: 15
+      media_position: 0
+      media_position_updated_at: '2025-11-15T06:30:08.887924+00:00'
+      media_title: Mike Johnson SHUTS DOWN Congress AGAIN — Chaos ERUPTS Instantly
+      media_artist: Liberal Hub
+      media_album_name: ''
+      app_id: com.google.ios.youtube
+      app_name: YouTube
+      friendly_name: Living Room ATV
+      supported_features: 450487
+      state: paused
+  metadata: {}
+- id: everything_off
+  name: Everything Off
+  entities:
+    media_player.samsung_the_frame_65_2:
+      source_list:
+      - TV
+      - HDMI
+      device_class: tv
+      friendly_name: Samsung The Frame 65
+      supported_features: 24509
+      state: 'off'
+    media_player.vsx_933:
+      source_list:
+      - VIDEO2
+      - VIDEO3 ··· GAME/TV ··· GAME
+      - DVD
+      - AppleTV
+      - CD
+      - NETWORK
+      - AIRPLAY
+      - BLUETOOTH
+      sound_mode_list:
+      - STEREO
+      - DIRECT
+      - SURROUND
+      - ALL CH STEREO
+      - ENTERTAINMENT SHOW
+      friendly_name: VSX-933
+      supported_features: 69516
+      preset: 0
+      video_out: yes,out
+      audio_information:
+        audio_input_port: HDMI 4
+        input_signal_format: PCM
+        input_frequency: 48 kHz
+        input_channels: 2.0 ch
+        listening_mode: Entertainment Show
+        output_channels: 5.1 ch
+        output_frequency: 48 kHz
+        precision_quartz_lock_system: 'Off'
+        auto_phase_control_delay: '---'
+        auto_phase_control_phase: Normal
+        upmix_mode: DolbySurround
+      video_information:
+        video_input_port: HDMI 4
+        input_resolution: 4K(3840x2160) 59 Hz
+        input_color_schema: YCbCr420
+        input_color_depth: 24bit
+        video_output_port: MAIN
+        output_resolution: 4K(3840x2160) 59 Hz
+        output_color_schema: YCbCr420
+        output_color_depth: 24bit
+        picture_mode: ''
+      state: 'off'
+    media_player.living_room_atv:
+      source_list:
+      - App Store
+      - Arcade
+      - BREAKFINITY
+      - Britbox
+      - CBC Gem
+      - CBC News
+      - CCTV Viewer
+      - Citytv
+      - CNN
+      - Computers
+      - Crave
+      - Crossy Road
+      - CTV
+      - dailymotionTV
+      - DAZN
+      - Disney+
+      - Facebook Watch
+      - FaceTime
+      - Fibe TV
+      - Fitness
+      - Fubo
+      - Global TV
+      - HomeCam
+      - ICI TOU.TV
+      - Infuse
+      - Infuse 4
+      - InstaTV
+      - IP Cam Soft Lite
+      - IPCams
+      - Knowledge Network
+      - Kool London TV
+      - Larix Player
+      - Lowe's TV
+      - Mixcloud
+      - Movies
+      - Music
+      - myTuner Radio Free
+      - NBA
+      - Nebula
+      - Netflix
+      - NVR Remote
+      - Photos
+      - Plex
+      - Podcasts
+      - Pokémon TV
+      - Prime Video
+      - QVR Viewer
+      - radio.net
+      - Roomstyler
+      - Search
+      - SecuritySpy
+      - Settings
+      - Sky News
+      - Solitaire
+      - Spaceteam
+      - Speedtest
+      - Sportsnet
+      - Spotify
+      - Surfshark
+      - Tubi
+      - TV
+      - TV Shows
+      - TV Streams
+      - Twitch
+      - Vevo
+      - VLC
+      - VMedia TV
+      - Webcam HQ
+      - WiiM Home
+      - YouIpCams
+      - YouTube
+      media_duration: 15
+      media_position: 0
+      media_position_updated_at: '2025-11-15T06:30:08.887924+00:00'
+      media_title: Mike Johnson SHUTS DOWN Congress AGAIN — Chaos ERUPTS Instantly
+      media_artist: Liberal Hub
+      media_album_name: ''
+      app_id: com.google.ios.youtube
+      app_name: YouTube
+      friendly_name: Living Room ATV
+      supported_features: 450487
+      state: paused
+  metadata: {}
+- id: art_mode_music
+  name: Art Mode Music
+  entities:
+    media_player.vsx_933:
+      source_list:
+      - VIDEO2
+      - VIDEO3 ··· GAME/TV ··· GAME
+      - DVD
+      - AppleTV
+      - CD
+      - NETWORK
+      - AIRPLAY
+      - BLUETOOTH
+      sound_mode_list:
+      - STEREO
+      - DIRECT
+      - SURROUND
+      - ALL CH STEREO
+      - ENTERTAINMENT SHOW
+      volume_level: 0.2
+      is_volume_muted: false
+      source: CD
+      sound_mode: ALL CH STEREO
+      preset: 0
+      video_out: yes,out
+      audio_information:
+        audio_input_port: ANALOG
+        input_signal_format: ''
+        input_frequency: ''
+        input_channels: ''
+        listening_mode: Extended Stereo
+        output_channels: 5.1 ch
+        output_frequency: ''
+        precision_quartz_lock_system: 'Off'
+        auto_phase_control_delay: '---'
+        auto_phase_control_phase: Normal
+        upmix_mode: 'No'
+      video_information:
+        video_input_port: No Video
+        input_resolution: Unknown
+        input_color_schema: ''
+        input_color_depth: 24bit
+        video_output_port: MAIN
+        output_resolution: Unknown
+        output_color_schema: ''
+        output_color_depth: 24bit
+        picture_mode: ''
+      friendly_name: VSX-933
+      supported_features: 69516
+      state: 'on'
+    media_player.living_room_atv:
+      source_list:
+      - App Store
+      - Arcade
+      - BREAKFINITY
+      - Britbox
+      - CBC Gem
+      - CBC News
+      - CCTV Viewer
+      - Citytv
+      - CNN
+      - Computers
+      - Crave
+      - Crossy Road
+      - CTV
+      - dailymotionTV
+      - DAZN
+      - Disney+
+      - Facebook Watch
+      - FaceTime
+      - Fibe TV
+      - Fitness
+      - Fubo
+      - Global TV
+      - HomeCam
+      - ICI TOU.TV
+      - Infuse
+      - Infuse 4
+      - InstaTV
+      - IP Cam Soft Lite
+      - IPCams
+      - Knowledge Network
+      - Kool London TV
+      - Larix Player
+      - Lowe's TV
+      - Mixcloud
+      - Movies
+      - Music
+      - myTuner Radio Free
+      - NBA
+      - Nebula
+      - Netflix
+      - NVR Remote
+      - Photos
+      - Plex
+      - Podcasts
+      - Pokémon TV
+      - Prime Video
+      - QVR Viewer
+      - radio.net
+      - Roomstyler
+      - Search
+      - SecuritySpy
+      - Settings
+      - Sky News
+      - Solitaire
+      - Spaceteam
+      - Speedtest
+      - Sportsnet
+      - Spotify
+      - Surfshark
+      - Tubi
+      - TV
+      - TV Shows
+      - TV Streams
+      - Twitch
+      - Vevo
+      - VLC
+      - VMedia TV
+      - Webcam HQ
+      - WiiM Home
+      - YouIpCams
+      - YouTube
+      media_duration: 15
+      media_position: 0
+      media_position_updated_at: '2025-11-15T06:30:08.887924+00:00'
+      media_title: Mike Johnson SHUTS DOWN Congress AGAIN — Chaos ERUPTS Instantly
+      media_artist: Liberal Hub
+      media_album_name: ''
+      app_id: com.google.ios.youtube
+      app_name: YouTube
+      friendly_name: Living Room ATV
+      supported_features: 450487
+      state: paused
+  metadata: {}
+- id: '1763212623978'
+  name: Art Mode
+  entities:
+    media_player.samsung_the_frame_65_2:
+      source_list:
+      - TV
+      - HDMI
+      device_class: tv
+      friendly_name: Samsung The Frame 65
+      supported_features: 24509
+      volume_level: 0
+      is_volume_muted: false
+      state: 'on'
+    media_player.vsx_933:
+      source_list:
+      - VIDEO2
+      - VIDEO3 ··· GAME/TV ··· GAME
+      - DVD
+      - AppleTV
+      - CD
+      - NETWORK
+      - AIRPLAY
+      - BLUETOOTH
+      sound_mode_list:
+      - STEREO
+      - DIRECT
+      - SURROUND
+      - ALL CH STEREO
+      - ENTERTAINMENT SHOW
+      preset: 0
+      video_out: yes,out
+      audio_information:
+        audio_input_port: ANALOG
+        input_signal_format: ''
+        input_frequency: ''
+        input_channels: ''
+        listening_mode: Extended Stereo
+        output_channels: 5.1 ch
+        output_frequency: ''
+        precision_quartz_lock_system: 'Off'
+        auto_phase_control_delay: '---'
+        auto_phase_control_phase: Normal
+        upmix_mode: 'No'
+      video_information:
+        video_input_port: No Video
+        input_resolution: Unknown
+        input_color_schema: ''
+        input_color_depth: 24bit
+        video_output_port: MAIN
+        output_resolution: Unknown
+        output_color_schema: ''
+        output_color_depth: 24bit
+        picture_mode: ''
+      friendly_name: VSX-933
+      supported_features: 69516
+      state: 'off'
+    media_player.living_room_atv:
+      source_list:
+      - App Store
+      - Arcade
+      - BREAKFINITY
+      - Britbox
+      - CBC Gem
+      - CBC News
+      - CCTV Viewer
+      - Citytv
+      - CNN
+      - Computers
+      - Crave
+      - Crossy Road
+      - CTV
+      - dailymotionTV
+      - DAZN
+      - Disney+
+      - Facebook Watch
+      - FaceTime
+      - Fibe TV
+      - Fitness
+      - Fubo
+      - Global TV
+      - HomeCam
+      - ICI TOU.TV
+      - Infuse
+      - Infuse 4
+      - InstaTV
+      - IP Cam Soft Lite
+      - IPCams
+      - Knowledge Network
+      - Kool London TV
+      - Larix Player
+      - Lowe's TV
+      - Mixcloud
+      - Movies
+      - Music
+      - myTuner Radio Free
+      - NBA
+      - Nebula
+      - Netflix
+      - NVR Remote
+      - Photos
+      - Plex
+      - Podcasts
+      - Pokémon TV
+      - Prime Video
+      - QVR Viewer
+      - radio.net
+      - Roomstyler
+      - Search
+      - SecuritySpy
+      - Settings
+      - Sky News
+      - Solitaire
+      - Spaceteam
+      - Speedtest
+      - Sportsnet
+      - Spotify
+      - Surfshark
+      - Tubi
+      - TV
+      - TV Shows
+      - TV Streams
+      - Twitch
+      - Vevo
+      - VLC
+      - VMedia TV
+      - Webcam HQ
+      - WiiM Home
+      - YouIpCams
+      - YouTube
+      media_duration: 15
+      media_position: 0
+      media_position_updated_at: '2025-11-15T06:30:08.887924+00:00'
+      media_title: Mike Johnson SHUTS DOWN Congress AGAIN — Chaos ERUPTS Instantly
+      media_artist: Liberal Hub
+      media_album_name: ''
+      app_id: com.google.ios.youtube
+      app_name: YouTube
+      friendly_name: Living Room ATV
+      supported_features: 450487
+      state: paused
+  metadata: {}
+- id: '1765748793467'
+  name: Plex
+  entities:
+    media_player.vsx_933:
+      source_list:
+      - VIDEO2
+      - VIDEO3 ··· GAME/TV ··· GAME
+      - DVD
+      - AppleTV
+      - CD
+      - NETWORK
+      - AIRPLAY
+      - BLUETOOTH
+      sound_mode_list:
+      - STEREO
+      - DIRECT
+      - SURROUND
+      - ENTERTAINMENT SHOW
+      - ALL CH STEREO
+      preset: 0
+      video_out: yes,out
+      audio_information:
+        audio_input_port: ANALOG
+        input_signal_format: ''
+        input_frequency: ''
+        input_channels: ''
+        listening_mode: Entertainment Show
+        output_channels: 5.1 ch
+        output_frequency: ''
+        precision_quartz_lock_system: 'Off'
+        auto_phase_control_delay: '---'
+        auto_phase_control_phase: Normal
+        upmix_mode: DolbySurround
+      video_information:
+        video_input_port: HDMI 4
+        input_resolution: 4K(3840x2160) 59 Hz
+        input_color_schema: YCbCr420
+        input_color_depth: 24bit
+        video_output_port: MAIN
+        output_resolution: 4K(3840x2160) 59 Hz
+        output_color_schema: YCbCr420
+        output_color_depth: 24bit
+        picture_mode: ''
+      friendly_name: VSX-933
+      supported_features: 69516
+      volume_level: 0.58
+      is_volume_muted: false
+      source: AppleTV
+      sound_mode: ENTERTAINMENT SHOW
+      state: 'on'
+    media_player.living_room_atv:
+      source_list:
+      - App Store
+      - Arcade
+      - BREAKFINITY
+      - Britbox
+      - CBC Gem
+      - CBC News
+      - CCTV Viewer
+      - Citytv
+      - CNN
+      - Computers
+      - Couch Control
+      - Crave
+      - Crossy Road
+      - CTV
+      - dailymotionTV
+      - DAZN
+      - Disney+
+      - Facebook Watch
+      - FaceTime
+      - Fibe TV
+      - Fitness
+      - Fubo
+      - Global TV
+      - HomeCam
+      - ICI TOU.TV
+      - Infuse
+      - Infuse 4
+      - InstaTV
+      - IP Cam Soft Lite
+      - IPCams
+      - Knowledge Network
+      - Kool London TV
+      - Larix Player
+      - Lowe's TV
+      - Mixcloud
+      - Movies
+      - Music
+      - myTuner Radio Free
+      - NBA
+      - Nebula
+      - Netflix
+      - NVR Remote
+      - Photos
+      - Plex
+      - Podcasts
+      - Pokémon TV
+      - Prime Video
+      - QVR Viewer
+      - radio.net
+      - Roomstyler
+      - Search
+      - SecuritySpy
+      - Settings
+      - Sky News
+      - Solitaire
+      - Spaceteam
+      - Speedtest
+      - Sportsnet
+      - Spotify
+      - Steam Link
+      - Tubi
+      - TV
+      - TV Shows
+      - TV Streams
+      - Twitch
+      - Vevo
+      - VLC
+      - VMedia TV
+      - Webcam HQ
+      - WiiM Home
+      - YouIpCams
+      - YouTube
+      friendly_name: Living Room ATV
+      supported_features: 450487
+      app_id: com.google.ios.youtube
+      app_name: YouTube
+      state: idle
+    media_player.samsung_the_frame_65_2:
+      source_list:
+      - TV
+      - HDMI
+      volume_level: 0
+      is_volume_muted: false
+      device_class: tv
+      friendly_name: Samsung The Frame 65
+      supported_features: 24509
+      state: 'on'
+  icon: mdi:movie
+  metadata:
+    media_player.vsx_933:
+      entity_only: true
+    media_player.living_room_atv:
+      entity_only: true
+    media_player.samsung_the_frame_65_2:
+      entity_only: true
+- id: '1765748985614'
+  name: Home Music
+  entities:
+    media_player.vsx_933:
+      source_list:
+      - VIDEO2
+      - VIDEO3 ··· GAME/TV ··· GAME
+      - DVD
+      - AppleTV
+      - CD
+      - NETWORK
+      - AIRPLAY
+      - BLUETOOTH
+      sound_mode_list:
+      - STEREO
+      - DIRECT
+      - SURROUND
+      - ENTERTAINMENT SHOW
+      - ALL CH STEREO
+      preset: 0
+      video_out: yes,out
+      audio_information:
+        audio_input_port: ANALOG
+        input_signal_format: ''
+        input_frequency: ''
+        input_channels: ''
+        listening_mode: Extended Stereo
+        output_channels: 5.1 ch
+        output_frequency: ''
+        precision_quartz_lock_system: 'Off'
+        auto_phase_control_delay: '---'
+        auto_phase_control_phase: Normal
+        upmix_mode: 'No'
+      video_information:
+        video_input_port: No Video
+        input_resolution: Unknown
+        input_color_schema: ''
+        input_color_depth: 24bit
+        video_output_port: MAIN
+        output_resolution: Unknown
+        output_color_schema: ''
+        output_color_depth: 24bit
+        picture_mode: ''
+      friendly_name: VSX-933
+      supported_features: 69516
+      volume_level: 0.5
+      is_volume_muted: false
+      source: CD
+      sound_mode: ALL CH STEREO
+      state: 'on'
+    media_player.samsung_the_frame_65_2:
+      source_list:
+      - TV
+      - HDMI
+      volume_level: 0
+      is_volume_muted: false
+      device_class: tv
+      friendly_name: Samsung The Frame 65
+      supported_features: 24509
+      state: 'on'
+  icon: mdi:home-outline
+  metadata:
+    media_player.vsx_933:
+      entity_only: true
+    media_player.samsung_the_frame_65_2:
+      entity_only: true

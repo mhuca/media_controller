@@ -1,0 +1,177 @@
+substitutions:
+  # The device_type is now only used for logging/naming in the components that include this file.
+  device_type: Light # Default to Light
+  board: esp01_1m
+
+# This file contains the generic logic for the KS-602S hardware and the timer/switch logic.
+# A device configuration will include this file PLUS a component file (e.g., generic_602_light_component.yaml).
+
+esphome:
+  project:
+    name: Generic.TimerBase
+    version: "0.9"
+
+
+  
+# Global variables from device_base.yaml are relied upon here:
+# - glbl_timeout_enabled (bool)
+# - glbl_timeout_length_ticks (int, default 300)
+# - _glbl_current_tick_count (int)
+
+# -----------------------------------------------------------------------------
+# Time Component (Needed for 1-second ticks)
+# -----------------------------------------------------------------------------
+time:
+  - platform: sntp
+    id: esptime_generic
+    timezone: "America/Toronto" 
+    # The tick script is executed every five seconds for optimization.
+    on_time:
+      - seconds: /15 # <-- UPDATED FREQUENCY
+        then:
+           - if:
+              condition:
+                - switch.is_on: switch_internal   # <-- COMPONENT-SPECIFIC ON CHECK ADDED HERE
+                # ESSENTIAL CHECK ADDED HERE: Must be enabled AND count > 0.
+                - lambda: 'return id(glbl_timeout_enabled);'
+                # - lambda: 'return id(_glbl_current_tick_count) > 0;'
+              then:
+                - script.execute: timer_tick
+          
+# -----------------------------------------------------------------------------
+# User-Configurable Timer Settings (via Home Assistant)
+# -----------------------------------------------------------------------------
+number:
+  - platform: template
+    name: ${friendly_name} Auto-Off Timer
+    id: timeout_minutes
+    icon: mdi:timer-settings-outline
+    unit_of_measurement: min
+    min_value: 0
+    max_value: 120 # Max 2 hours (120 minutes)
+    step: 5
+    lambda: 'return id(glbl_timeout_length_ticks); '
+
+    set_action:
+      - globals.set:
+          id: glbl_timeout_length_ticks
+          value:  !lambda "return x;" # Convert input minutes (x) back to seconds
+
+# -----------------------------------------------------------------------------
+# Timer Scripts (Agnsotic to Light or Fan)
+# These scripts will execute the 'turn_off' action on the component ID 
+# that is defined in the specialization files (e.g., light_1 or fan_1).
+# -----------------------------------------------------------------------------
+script:
+  # 1. Start the Timer: Reset count, start the one-second loop.
+  - id: start_timer
+    then:
+      - logger.log:
+          format: "Starting timer for %d seconds."
+          args: [ 'id(glbl_timeout_length_ticks)' ]
+      - globals.set:
+          id: _glbl_current_tick_count
+          value: 'id(glbl_timeout_length_ticks)'
+
+  # 2. Stop the Timer: Executed if the component is turned off manually or countdown finishes.
+  # THIS SCRIPT MUST BE OVERRIDDEN IN THE COMPONENT FILES TO ADD THE TURN_OFF ACTION!
+  - id: on_timer_stop
+    then:
+      - logger.log:
+          format: "Timer stopped."
+      - globals.set:
+          id: _glbl_current_tick_count
+          value: '0'
+      # !!! WARNING: The specific component TURN_OFF action is added by the specialized component file. !!!
+
+  # 3. The Tick Script: Executed every second.
+  # THIS SCRIPT MUST BE OVERRIDDEN IN THE COMPONENT FILES TO ADD THE is_on() CHECK!
+  - id: timer_tick
+    then:
+      - if:
+          condition:
+            - switch.is_on: switch_internal   # <-- COMPONENT-SPECIFIC ON CHECK ADDED HERE
+            # ESSENTIAL CHECK ADDED HERE: Must be enabled AND count > 0.
+            - lambda: 'return id(glbl_timeout_enabled);'
+            - lambda: 'return id(_glbl_current_tick_count) > 0;'
+          then:
+            # Decrement the counter
+            - globals.set:
+                id: _glbl_current_tick_count
+                value: 'id(_glbl_current_tick_count) - 5' # <-- UPDATED DECREMENT
+
+            # Log the remaining time every 30 seconds for debugging
+            - if:
+                condition:
+                  lambda: 'return id(_glbl_current_tick_count) % 30 == 0;'
+                then:
+                  - logger.log:
+                      format: "Timer: %d seconds remaining."
+                      args: [ 'id(_glbl_current_tick_count)' ]
+            
+            # CHECK FOR COMPLETION: If the counter hits zero, execute stop script (which handles turn_off)
+            - if:
+                condition:
+                  lambda: 'return id(_glbl_current_tick_count) == 0;'
+                then:
+                  - logger.log:
+                      format: "Countdown complete. Triggering component turn off."
+                  # NOTE: on_timer_stop is called, which will execute the turn_off defined 
+                  # in the specialization file (light or fan)
+                  - script.execute: on_timer_stop
+          else:
+            # This handles cases where the count is zero OR glbl_timeout_enabled is false.
+            - logger.log:
+                level: DEBUG
+                format: "Timer tick ignored. Timer disabled or count is zero."
+
+# -----------------------------------------------------------------------------
+# Output & Generic Input Definitions
+# -----------------------------------------------------------------------------
+output:
+  - id: relay_1
+    platform: gpio
+    pin:
+      number: 14
+        
+  - id: button_1_pin
+    platform: gpio
+    pin:
+      number: 13
+
+# -----------------------------------------------------------------------------
+# Generic Switch and Binary Sensor
+# -----------------------------------------------------------------------------
+# NOTE: The switch component is complex because it depends on the light/fan ID.
+# We will define a generic switch template that must be implemented 
+# by the specialized component files.
+
+switch:
+  - id: switch_internal
+    name: ${friendly_name} internal Switch
+    platform: template
+    optimistic: true
+    internal: false
+    # State reflects the component's state (light or fan)
+    lambda: 'return id(relay_1);'
+    
+binary_sensor:
+  - id: button_1_local
+    platform: template
+    internal: true
+    lambda: return id(button_1).state;
+
+text:
+  - id: timer_entity_id
+    platform: template
+    name: ${device_type} Timer"
+    optimistic: true
+    min_length: 0
+    max_length: 100
+    mode: text
+    restore_value: true
+    on_value:
+      then:
+        - logger.log:
+            format: "Timer Entity ID value changed to %s"
+            args: ['x.c_str()']

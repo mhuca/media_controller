@@ -1,0 +1,24 @@
+- id: AutoGen2-1154-4917-a55d-f7997f73481a
+  alias: zDelete - Timer Powder Room Light Timer changes Event
+  description: Native Timer Powder Room Light Timer changes Event
+  triggers:
+  - trigger: event
+    event_type: timer.finished
+    event_data:
+      entity_id: timer.powder_room_light_timer
+  conditions: []
+  actions:
+  - sequence:
+    - action: light.turn_off
+      metadata: {}
+      data:
+        transition: 60
+      target:
+        area_id:
+        - powder_room
+    - action: input_boolean.turn_off
+      metadata: {}
+      data: {}
+      target:
+        entity_id:
+        - input_boolean.powder_room_light_override

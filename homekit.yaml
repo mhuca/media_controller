@@ -1,0 +1,26 @@
+- name: Front Porch Bridge
+  port: 21092
+  mode: bridge
+  filter:
+    include_entities:
+      - binary_sensor.doorbell_person
+      - binary_sensor.doorbell_vehicle
+      - light.front_porch_front_porch
+      - camera.front_porch_fluent
+      - camera.doorbell_fluent
+      - lock.lock_mechanism
+      - binary_sensor.front_porch_door
+  entity_config:
+    camera.doorbell_fluent:
+      name: Doorbell
+      linked_doorbell_sensor: binary_sensor.doorbell_visitor
+      support_audio: true
+    camera.front_porch_fluent:
+      name: Front Porch
+      support_audio: true
+    lock.lock_mechanism:
+      name: Front Porch Lock
+    binary_sensor.front_porch_door:
+      name: Front Door
+      linked_battery_sensor: sensor.front_porch_battery
+      low_battery_threshold: 25

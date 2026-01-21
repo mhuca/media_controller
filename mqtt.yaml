@@ -1,0 +1,112 @@
+#mqtt:
+sensor:
+
+binary_sensor:
+  # - name: Amryl Remote Trigger
+  #   state_topic: "BasementStairs/tele/SENSOR"
+  #   payload_on: "ON"
+  #   payload_off: "OFF"
+  #   value_template: "{{ value_json.Switch8 }}"
+  #   unique_id: amryl_remote_trigger
+  #   device:
+  #     identifiers:
+  #       - lutron_caseta
+  #         68844907
+  # - name: "Basement Stairs Switch"
+  #   state_topic: "BasementStairs/tele/SENSOR"
+  #   payload_on: "ON"
+  #   payload_off: "OFF"
+  #   value_template: "{{ value_json.Switch8 }}"
+  #   unique_id: basement_stair_switch
+  #   device:
+  #     connections:
+  #       - - mac
+  #         - 84:F3:EB:BE:07:73
+  # - name: "Garage Door Sensor"
+  #   state_topic: "rfHub/tele/SENSOR"
+  #   payload_on: 1
+  #   payload_off: 0
+  #   device_class: door
+  #   value_template: "{{ value_json.MCP230XX.D1 }}"
+  #   unique_id: rfhub_mcp230xx_d1
+  #   device:
+  #     connections:
+  #       - - mac
+  #         - DC:4F:22:CB:31:7C
+  # - name: "Panel Room Door Sensor"
+  #   state_topic: "rfHub/tele/SENSOR"
+  #   payload_on: 1
+  #   payload_off: 0
+  #   device_class: door
+  #   value_template: "{{ value_json.MCP230XX.D7 }}"
+  #   unique_id: rfhub_mcp230xx_d7
+  #   device:
+  #     connections:
+  #       - - mac
+  #         - DC:4F:22:CB:31:7C
+  # - name: "Back Yard Door Sensor"
+  #   state_topic: "rfHub/tele/SENSOR"
+  #   payload_on: 1
+  #   payload_off: 0
+  #   device_class: door
+  #   value_template: "{{ value_json.MCP230XX.D5 }}"
+  #   unique_id: rfhub_mcp230xx_d5
+  #   device:
+  #     connections:
+  #       - - mac
+  #         - DC:4F:22:CB:31:7C
+  # - name: "Server Room Door Sensor"
+  #   state_topic: "rfHub/tele/SENSOR"
+  #   payload_on: 1
+  #   payload_off: 0
+  #   device_class: door
+  #   value_template: "{{ value_json.MCP230XX.D3 }}"
+  #   unique_id: rfhub_mcp230xx_d3
+  #   device:
+  #     connections:
+  #       - - mac
+  #         - DC:4F:22:CB:31:7C
+  # - name: "Mark Office Motion"
+  #   state_topic: "MarkOfficeMotion/cmnd/POWER8"
+  #   payload_on: "ON"
+  #   payload_off: "OFF"
+  #   device_class: motion
+  #   unique_id: mark_office_dimmer_switch8
+  #   device:
+  #     connections:
+  #       - - mac
+  #         - CC:50:E3:46:BA:B6
+
+  # - name: Living Room Occupancy
+  #   state_topic: "LivingRoom/tele/SENSOR"
+  #   device_class: occupancy
+  #   payload_on: "on"
+  #   payload_off: "off"
+  #   value_template: >
+  #     {{ value_json.Occupancy}}
+  #   #{% if value_json.ENERGY.Power | int >= 60 %}
+  #   #    {{'ON'}}
+  #   #  {% else %}
+  #   #    {{'OFF'}}
+  #   #  {% endif %}
+  #   unique_id: living_room_occupancy
+  #   device:
+  #     connections:
+  #       - - mac
+  #         - B0:99:D7:CD:80:B4
+  # - name: Mark Office Desk Trigger
+  #   unique_id: mark_office_desk_trigger
+  #   state_topic: "triggers/binary_sensor/mark_office_desk_trigger"
+  #   device_class: running
+  #   payload_on: "on"
+  #   payload_off: "off"
+  #   device:
+  #     connections:
+  #       - - device_id
+  #         - 42b95b2f368c431da9a08d196757a04e
+  #       # - 68745595
+  #       # 42b95b2f368c431da9a08d196757a04e
+  #       # office_test
+  #       # 01J650RW2YP4T4GNXR481TD4PZ
+
+cover:

@@ -1,0 +1,1870 @@
+press_office_remote_stop:
+  alias: press Office Remote Stop
+  sequence:
+  - device_id: ee7e3f786279e7e0f19333e68db25712
+    domain: button
+    entity_id: 8010b7ebd75c9c68e7024c899c846263
+    type: press
+  - event: pico_action_press
+    event_data:
+      trigger:
+        key: lutron_devices.42b95b2f368c431da9a08d196757a04e.buttons
+        value: 0
+        actionType: press
+        topic: lutron_devices.42b95b2f368c431da9a08d196757a04e.buttons
+        triggerObj:
+          trigger_type: singleAction
+          trigger_enabled: true
+          post_action_state: auto
+          action: turn_on.light.mark_office_standing&75
+  description: ''
+night_lights_sensor_on:
+  sequence:
+  - if:
+    - condition: state
+      entity_id: binary_sensor.night_lights_sensor
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.visitor_mode
+      state: 'off'
+    then:
+    - action: light.turn_off
+      data:
+        transition: 60
+      target:
+        area_id:
+        - hallway
+    - action: light.turn_off
+      data:
+        transition: 60
+      target:
+        area_id:
+        - dining_room
+    - action: light.turn_off
+      data:
+        transition: 60
+      target:
+        entity_id:
+        - light.living_room_main_bulb_1
+        - light.living_room_main_bulb_2
+    - if:
+      - condition: state
+        entity_id: binary_sensor.hallway_presence
+        state: 'off'
+      then:
+      - action: light.turn_off
+        metadata: {}
+        data:
+          transition: 60
+        target:
+          area_id: kitchen
+    - if:
+      - condition: state
+        entity_id: binary_sensor.mark_office_presence_sensor
+        state: 'on'
+      then:
+      - action: light.turn_on
+        metadata: {}
+        data:
+          brightness_pct: 75
+        target:
+          area_id: mark_office
+      else:
+      - action: light.turn_off
+        metadata: {}
+        data:
+          transition: 10
+        target:
+          area_id: mark_office
+    - action: input_boolean.turn_off
+      metadata: {}
+      data: {}
+      target:
+        entity_id:
+        - input_boolean.mark_office_wall_override
+        - input_boolean.garage_light_override
+        - input_boolean.mud_room_light_override
+    - action: timer.start
+      metadata: {}
+      data: {}
+      target:
+        entity_id: timer.door_open_timer
+  alias: Night Lights Sensor On
+  description: State of night_lights_sensor is On
+outside_person_night_light_on:
+  sequence:
+  - condition: state
+    entity_id: binary_sensor.night_lights_sensor
+    state: 'on'
+  - if:
+    - condition: state
+      state: 'on'
+      entity_id: binary_sensor.outside_person
+    then:
+    - action: light.turn_on
+      metadata: {}
+      data: {}
+      target:
+        entity_id: light.front_porch_light
+    - action: timer.cancel
+      metadata: {}
+      data: {}
+      target:
+        entity_id: timer.front_porch_light_timer
+    else:
+    - action: timer.start
+      metadata: {}
+      data: {}
+      target:
+        entity_id:
+        - timer.front_porch_light_timer
+  alias: Outside Person Night Light On
+  description: Turn On Front Porch lights when person is detected outside house
+powder_room_presence:
+  sequence:
+  - if:
+    - condition: state
+      entity_id: binary_sensor.powder_room_fan_motion
+      state: 'off'
+    then:
+    - if:
+      - condition: state
+        entity_id: binary_sensor.powder_room_door
+        state: 'off'
+        enabled: true
+      then:
+      - stop: Door Is Closed
+      else:
+      - action: timer.start
+        metadata: {}
+        data: {}
+        target:
+          entity_id:
+          - timer.powder_room_fan_timer
+        enabled: false
+      - if:
+        - condition: state
+          entity_id: input_boolean.powder_room_light_override
+          state: 'on'
+        then:
+        - stop: Light Overide is on
+        else:
+        - action: timer.start
+          metadata: {}
+          data: {}
+          target:
+            entity_id:
+            - timer.powder_room_light_timer
+    else:
+    - action: switch.turn_on
+      metadata: {}
+      data: {}
+      target:
+        entity_id: switch.powder_room_fan
+      enabled: false
+    - action: timer.cancel
+      metadata: {}
+      data: {}
+      target:
+        entity_id:
+        - timer.powder_room_fan_timer
+      enabled: false
+    - action: timer.cancel
+      metadata: {}
+      data: {}
+      target:
+        entity_id:
+        - timer.powder_room_light_timer
+    - if:
+      - condition: state
+        entity_id: binary_sensor.powder_room_door
+        state: 'off'
+      then:
+      - stop: Door Is Closed
+      else:
+      - if:
+        - condition: state
+          entity_id: input_boolean.powder_room_light_override
+          state: 'off'
+        then:
+        - if:
+          - condition: state
+            entity_id: binary_sensor.night_lights_sensor
+            state: 'on'
+          then:
+          - action: light.turn_on
+            metadata: {}
+            data:
+              brightness_pct: 35
+              color_temp_kelvin: '{{  state_attr(''sensor.sun_solar_temperature'',''color_temp_kelvin'')
+                }}'
+            target:
+              entity_id:
+              - light.powder_room_bulb_1_light
+              - light.powder_room_bulb_2_light
+              - light.powder_room_bulb_3_light
+              - light.powder_room_lights
+          else:
+          - action: light.turn_on
+            metadata: {}
+            data:
+              brightness_pct: 75
+              color_temp_kelvin: '{{  state_attr(''sensor.sun_solar_temperature'',''color_temp_kelvin'')
+                }}'
+            target:
+              entity_id:
+              - light.powder_room_bulb_1_light
+              - light.powder_room_bulb_2_light
+              - light.powder_room_bulb_3_light
+              - light.powder_room_lights
+  alias: Powder Room Presence
+  description: Powder Room Presence
+mark_office_lights:
+  sequence:
+  - condition: state
+    entity_id: input_boolean.mark_office_wall_override
+    state: 'off'
+  - if:
+    - condition: state
+      entity_id: binary_sensor.mark_office_presence_sensor
+      state: 'on'
+    then:
+    - action: light.turn_on
+      metadata: {}
+      data:
+        brightness_pct: 75
+      target:
+        area_id: mark_office
+    else:
+    - action: light.turn_off
+      metadata: {}
+      data:
+        transition: 10
+      target:
+        area_id: mark_office
+  alias: Mark Office Lights
+  description: Automate Mark Office lights based on Presences with Override
+living_room_movie:
+  sequence:
+  - parallel:
+    - action: light.turn_on
+      metadata: {}
+      data:
+        brightness_pct: 50
+        color_temp_kelvin: '{{ states(''sensor.cct_calculation'') }}'
+      target:
+        entity_id:
+        - light.wall_sconce_right_down_light
+        - light.wall_sconce_left_down_light
+    - action: light.turn_off
+      metadata: {}
+      data: {}
+      target:
+        entity_id:
+        - light.hallway_back_ring_light
+        - light.dining_room_window_light_2
+        - light.dining_room_fireplace
+        - light.hallway_bar_servery
+        - light.wall_sconce_left_up_light
+        - light.wall_sconce_right_up_light
+        - light.living_room_lamp_right
+        - light.living_room_lamp_left
+        - light.living_room_main_bulb_1
+        - light.living_room_main_bulb_2
+        - light.living_room_main
+  alias: Living Room 10. Movie
+  description: ''
+living_room_day:
+  sequence:
+  - parallel:
+    - action: light.turn_on
+      metadata: {}
+      data:
+        brightness_pct: 50
+        color_temp_kelvin: '{{ states(''sensor.cct_calculation'') }}'
+      target:
+        entity_id:
+        - light.living_room_main_bulb_1
+        - light.living_room_main_bulb_2
+        - light.living_room_lamp_light
+        - light.living_room_lamp_left
+        - light.living_room_lamp_right
+    - action: light.turn_on
+      metadata: {}
+      data:
+        brightness_pct: '{{  states(''sensor.cct_percentage_2'') }}'
+      target:
+        entity_id:
+        - light.hallway_bar_servery
+    - action: light.turn_on
+      metadata: {}
+      data:
+        brightness_pct: 100
+        color_temp_kelvin: '{{ states(''sensor.cct_calculation'') }}'
+      target:
+        entity_id:
+        - light.wall_sconce_left_up_light
+        - light.wall_sconce_right_up_light
+        - light.wall_sconce_right_down_light
+        - light.wall_sconce_left_down_light
+    - action: light.turn_off
+      metadata: {}
+      data: {}
+      target:
+        entity_id:
+        - light.dining_room_main
+        - light.dining_room_window_light_2
+        - light.dining_room_fireplace
+  alias: Living Room 50. Day
+  description: ''
+living_room_entertain:
+  sequence:
+  - parallel:
+    - action: light.turn_on
+      metadata: {}
+      data:
+        brightness_pct: 80
+        color_temp_kelvin: '{{ states(''sensor.cct_calculation'') }}'
+      target:
+        entity_id:
+        - light.living_room_lamp_right
+        - light.living_room_lamp_left
+        - light.living_room_main_bulb_1
+        - light.living_room_main_bulb_2
+    - action: light.turn_on
+      metadata: {}
+      data:
+        brightness_pct: 100
+        color_temp_kelvin: '{{ states(''sensor.cct_calculation'') }}'
+      target:
+        entity_id:
+        - light.wall_sconce_left_up_light
+        - light.wall_sconce_right_up_light
+        - light.wall_sconce_right_down_light
+        - light.wall_sconce_left_down_light
+    - action: light.turn_off
+      metadata: {}
+      data: {}
+      target:
+        entity_id:
+        - light.dining_room_main
+        - light.hallway_back_ring
+    - action: light.turn_on
+      metadata: {}
+      data:
+        brightness_pct: 35
+      target:
+        entity_id:
+        - light.dining_room_fireplace
+    - action: light.turn_on
+      metadata: {}
+      data:
+        brightness_pct: '{{ states(''sensor.cct_percentage_2'') }}'
+      target:
+        entity_id:
+        - light.hallway_bar_servery
+    - if:
+      - condition: state
+        entity_id: sun.sun
+        state: below_horizon
+      then:
+      - action: light.turn_on
+        metadata: {}
+        data:
+          brightness_pct: 100
+          color_temp_kelvin: '{{ states(''sensor.cct_percentage'') }}'
+        target:
+          entity_id: light.dining_room_window_light_2
+      else:
+      - action: light.turn_off
+        metadata: {}
+        data: {}
+        target:
+          entity_id: light.dining_room_window_light_2
+  alias: Living Room 80. Entertain
+  description: ''
+living_room_lights_off:
+  sequence:
+  - sequence:
+    - action: light.turn_off
+      metadata: {}
+      data: {}
+      target:
+        entity_id:
+        - light.hallway_back_ring_light
+        - light.dining_room_main
+        - light.dining_room_window_light_2
+        - light.dining_room_fireplace
+        - light.hallway_bar_servery
+        - light.wall_sconce_left_up_light
+        - light.wall_sconce_right_up_light
+        - light.wall_sconce_right_down_light
+        - light.wall_sconce_left_down_light
+        - light.living_room_lamp_right
+        - light.living_room_lamp_left
+        - light.living_room_main_bulb_1
+        - light.living_room_main_bulb_2
+  - action: select.select_option
+    metadata: {}
+    data:
+      option: '{{ this.entity_id }}'
+    enabled: false
+    target:
+      entity_id: select.living_room_lighting_selector
+  alias: Living Room 00. Lights Off
+  description: ''
+kitchen_night_light:
+  sequence:
+  - condition: state
+    entity_id: binary_sensor.night_lights_sensor
+    state: 'on'
+  - if:
+    - condition: state
+      entity_id: binary_sensor.hallway_presence
+      state: 'on'
+    then:
+    - action: light.turn_on
+      metadata: {}
+      data:
+        brightness_pct: 35
+      target:
+        entity_id:
+        - light.kitchen_counter_light
+        - light.kitchen_island_light
+    - action: timer.cancel
+      metadata: {}
+      data: {}
+      target:
+        entity_id: timer.kitchen_light_timer
+    else:
+    - if:
+      - condition: state
+        entity_id: input_boolean.visitor_mode
+        state: 'off'
+      then:
+      - action: timer.start
+        metadata: {}
+        data: {}
+        target:
+          entity_id: timer.kitchen_light_timer
+  alias: Kitchen Night Light
+  description: ''
+back_yard_person_night_light_on:
+  sequence:
+  - condition: state
+    entity_id: binary_sensor.night_lights_sensor
+    state: 'on'
+    enabled: true
+  - if:
+    - condition: state
+      state: 'on'
+      entity_id: binary_sensor.rlc_520a_person
+      enabled: false
+    - condition: template
+      value_template: '{{ person }}'
+    then:
+    - action: light.turn_on
+      metadata: {}
+      data: {}
+      target:
+        area_id: pool
+    - action: timer.cancel
+      metadata: {}
+      data: {}
+      target:
+        entity_id: timer.back_yard_light_timer
+    else:
+    - action: timer.start
+      metadata: {}
+      data: {}
+      target:
+        entity_id:
+        - timer.back_yard_light_timer
+  alias: 'Back Yard Person Night Light On '
+  description: Turn On Back Yard lights when person is detected outside house
+  fields:
+    person:
+      selector:
+        boolean: {}
+      name: person
+      description: Has Person been detected
+powder_room_presence_duplicate:
+  sequence:
+  - if:
+    - condition: state
+      entity_id: binary_sensor.powder_room_motion
+      state: 'off'
+    then:
+    - if:
+      - condition: state
+        entity_id: binary_sensor.powder_room_door
+        state: 'off'
+        enabled: true
+      then:
+      - stop: Door Is Closed
+      else:
+      - action: timer.start
+        metadata: {}
+        data: {}
+        target:
+          entity_id:
+          - timer.powder_room_fan_timer
+      - if:
+        - condition: state
+          entity_id: input_boolean.powder_room_light_override
+          state: 'on'
+        then:
+        - stop: Light Overide is on
+        else:
+        - action: timer.start
+          metadata: {}
+          data: {}
+          target:
+            entity_id:
+            - timer.powder_room_light_timer
+    else:
+    - action: switch.turn_on
+      metadata: {}
+      data: {}
+      target:
+        entity_id: switch.powder_room_fan
+    - action: timer.cancel
+      metadata: {}
+      data: {}
+      target:
+        entity_id:
+        - timer.powder_room_light_timer
+        - timer.powder_room_fan_timer
+    - if:
+      - condition: state
+        entity_id: binary_sensor.powder_room_door
+        state: 'off'
+      then:
+      - stop: Door Is Closed
+      else:
+      - if:
+        - condition: state
+          entity_id: input_boolean.powder_room_light_override
+          state: 'off'
+        then:
+        - if:
+          - condition: state
+            entity_id: binary_sensor.night_lights_sensor
+            state: 'on'
+          then:
+          - action: light.turn_on
+            metadata: {}
+            data:
+              brightness_pct: 35
+              color_temp_kelvin: '{{  state_attr(''sensor.sun_solar_temperature'',''color_temp_kelvin'')
+                }}'
+            target:
+              entity_id:
+              - light.powder_room_bulb_1_light
+              - light.powder_room_bulb_2_light
+              - light.powder_room_bulb_3_light
+              - light.powder_room_lights
+          else:
+          - action: light.turn_on
+            metadata: {}
+            data:
+              brightness_pct: 75
+              color_temp_kelvin: '{{  state_attr(''sensor.sun_solar_temperature'',''color_temp_kelvin'')
+                }}'
+            target:
+              entity_id:
+              - light.powder_room_bulb_1_light
+              - light.powder_room_bulb_2_light
+              - light.powder_room_bulb_3_light
+              - light.powder_room_lights
+    enabled: false
+  alias: Powder Room Presence (Duplicate)
+  description: Powder Room Presence
+pico_advanced_click_hold_handler:
+  fields:
+    pico_serial:
+      description: The serial number of the Pico remote (e.g., 69226113).
+      example: '69226113'
+      required: true
+      selector:
+        text:
+    pico_button_type:
+      description: The type of button pressed (e.g., raise, main, lower, off).
+      example: raise
+      required: true
+      selector:
+        text:
+    target_entity:
+      description: The entity ID to be controlled by the single click (e.g., light.living_room).
+      example: light.living_room
+      required: true
+      selector:
+        target:
+    single_click_service:
+      description: The service to call on a single click (e.g., light.toggle, script.turn_on).
+      example: light.toggle
+      required: true
+      selector:
+        text:
+    double_click_service:
+      description: The service to call on a double click (e.g., light.turn_on, scene.turn_on).
+      example: light.turn_on
+      required: true
+      selector:
+        text:
+    hold_script_id:
+      description: The script to call on a hold (e.g., script.start_dim_up).
+      example: script.start_dim_up
+      required: true
+      selector:
+        target:
+      name: Hold Script
+  sequence:
+  - variables:
+      CLICK_TIMEOUT: '0.4'
+  - wait_for_trigger:
+    - event_type: lutron_caseta_button_event
+      id: release_one
+      event_data:
+        serial: '{{ pico_serial }}'
+        button_type: '{{ pico_button_type }}'
+        action: release
+      trigger: event
+    timeout: '{{ CLICK_TIMEOUT }}'
+    continue_on_timeout: true
+  - if:
+    - condition: template
+      value_template: '{{ wait.trigger == none }}'
+    then:
+    - target:
+        entity_id: '{{ hold_script_id }}'
+      action: script.turn_on
+    - wait_for_trigger:
+      - event_type: lutron_caseta_button_event
+        event_data:
+          serial: '{{ pico_serial }}'
+          button_type: '{{ pico_button_type }}'
+          action: release
+        trigger: event
+      continue_on_timeout: true
+    - stop: Hold and Release Handled
+  - wait_for_trigger:
+    - event_type: lutron_caseta_button_event
+      id: press_two
+      event_data:
+        serial: '{{ pico_serial }}'
+        button_type: '{{ pico_button_type }}'
+        action: press
+      trigger: event
+    timeout: '{{ CLICK_TIMEOUT }}'
+    continue_on_timeout: true
+  - if:
+    - condition: template
+      value_template: '{{ wait.trigger == none }}'
+    then:
+    - target:
+        entity_id: '{{ target_entity }}'
+      action: '{{ single_click_service }}'
+    - stop: Single Click Handled
+  - data:
+      brightness_pct: 100
+    target:
+      entity_id: '{{ target_entity }}'
+    action: '{{ double_click_service }}'
+  - stop: Double Click Handled
+  alias: Pico Advanced Click/Hold Handler
+  description: ''
+  mode: single
+new_script:
+  sequence:
+  - variables:
+      current_volume: '{{ state_attr(''media_player.kitchen_display_2'', ''volume_level'')
+        | float(0.5) }}'
+  - target:
+      entity_id:
+      - media_player.kitchen_display_2
+    data:
+      volume_level: 0.5
+    action: media_player.volume_set
+  - data:
+      cache: true
+      message: WaGwan!!! Unno know di kar nah plug in? The car battery is currently
+        at {{ states.sensor.lady_grace_humphrey_battery.state }}% and is {{ state_translated("binary_sensor.lady_grace_humphrey_charger")
+        }}
+      media_player_entity_id: media_player.kitchen_display_2
+    target:
+      entity_id: tts.google_ai_tts
+    action: tts.speaky
+  - data:
+      volume_level: '{{ current_volume }}'
+    action: media_player.volume_set
+    target:
+      entity_id: media_player.kitchen_display_2
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 2
+      milliseconds: 0
+    enabled: false
+  mode: single
+  alias: Announce Car Unplugged
+  description: ''
+'1762215746961':
+  sequence:
+  - variables:
+      current_volume: '{{ state_attr(''media_player.blue'', ''volume_level'') | float(0.5)
+        }}'
+  - data:
+      volume_level: 0.7
+    action: media_player.volume_set
+    target:
+      entity_id: media_player.blue
+  - delay:
+      seconds: 0.5
+    enabled: false
+  - data:
+      cache: true
+      message: WaGwan!!! Unno know di kar nah plug in?
+      media_player_entity_id: media_player.blue
+    target:
+      entity_id: tts.google_ai_tts
+    action: tts.speak
+  - target:
+      entity_id:
+      - media_player.blue
+    data:
+      volume_level: '{{ current_volume }}'
+    action: media_player.volume_set
+  - delay:
+      seconds: 4
+  mode: single
+  alias: Announce Car Unplugged (Duplicate)
+  description: ''
+basement_bathroom_match_family_rm_source:
+  sequence:
+  - action: media_player.select_source
+    metadata: {}
+    data:
+      source: SOURCE
+    target:
+      entity_id:
+      - media_player.dhc_60_7_zone_2
+  - action: media_player.select_source
+    metadata: {}
+    data:
+      source: DVD
+    target:
+      entity_id: media_player.vsx_933_zone_2
+  alias: Basement Bathroom Match Family RM Source
+  description: ''
+living_rm_play_cd_with_art_mode:
+  sequence:
+  - action: media_player.select_source
+    metadata: {}
+    data:
+      source: CD
+    target:
+      entity_id: media_player.vsx_933
+  - alias: If TV is Off Turn On TV
+    if:
+    - condition: state
+      entity_id: media_player.samsung_the_frame_65_2
+      state: 'off'
+    then:
+    - target:
+        entity_id: media_player.samsung_the_frame_65_2
+      action: media_player.turn_on
+    - delay:
+        hours: 0
+        minutes: 0
+        seconds: 10
+        milliseconds: 500
+    enabled: true
+  - alias: If Art Mode Off Turn On Art
+    if:
+    - condition: state
+      entity_id: binary_sensor.art_mode_frame_tv
+      state:
+      - 'off'
+    then:
+    - action: remote.send_command
+      metadata: {}
+      data:
+        command:
+        - KEY_POWER
+        - KEY_POWER
+        delay_secs: 0.1
+      target:
+        entity_id: remote.samsung_the_frame_65
+    - delay:
+        hours: 0
+        minutes: 0
+        seconds: 3
+        milliseconds: 0
+    enabled: true
+  - if:
+    - condition: state
+      state:
+      - 'on'
+      entity_id: binary_sensor.art_mode_frame_tv
+    then:
+    - stop: System already in Art Mode and powered on; audio initiated.
+    else:
+    - action: media_player.select_source
+      metadata: {}
+      data:
+        source: CD
+      target:
+        entity_id: media_player.vsx_933
+    enabled: false
+  alias: Living RM Play CD with Art Mode
+  description: ''
+simple_cd_mode:
+  sequence:
+  - action: media_player.select_source
+    metadata: {}
+    data:
+      source: CD
+    target:
+      entity_id: media_player.vsx_933
+  - action: media_player.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id: media_player.samsung_the_frame_65_2
+  alias: Simple CD Mode
+  description: ''
+living_rm_play_cd_with_art_mode_duplicate:
+  sequence:
+  - action: media_player.select_source
+    metadata: {}
+    data:
+      source: CD
+    target:
+      entity_id: media_player.vsx_933
+  - if:
+    - condition: state
+      entity_id: input_boolean.tv_is_in_art_mode
+      state: 'on'
+    - condition: state
+      entity_id: media_player.samsung_the_frame_65_2
+      state: 'on'
+    then:
+    - stop: System already in Art Mode and powered on; audio initiated.
+    else:
+    - if:
+      - condition: state
+        entity_id: input_boolean.tv_is_in_art_mode
+        state: 'on'
+      - condition: state
+        entity_id: media_player.samsung_the_frame_65_2
+        state: 'off'
+      then:
+      - target:
+          entity_id: media_player.samsung_the_frame_65_2
+        action: media_player.turn_on
+      - stop: TV turned on; booted directly into Art Mode.
+      else:
+      - if:
+        - condition: state
+          state:
+          - 'off'
+          entity_id: media_player.living_room_atv
+        then:
+        - action: media_player.turn_on
+          data: {}
+          target:
+            entity_id: media_player.living_room_atv
+        - wait_for_trigger:
+          - trigger: state
+            entity_id:
+            - media_player.samsung_the_frame_65_2
+            to:
+            - 'on'
+          timeout:
+            hours: 0
+            minutes: 0
+            seconds: 15
+            milliseconds: 0
+          continue_on_timeout: false
+        - delay:
+            hours: 0
+            minutes: 0
+            seconds: 2
+            milliseconds: 0
+      - action: remote.send_command
+        metadata: {}
+        data:
+          command:
+          - KEY_POWER
+          - KEY_POWER
+          delay_secs: 0.1
+        target:
+          entity_id: remote.samsung_the_frame_65
+      - action: input_boolean.turn_on
+        metadata: {}
+        data: {}
+        target:
+          entity_id: input_boolean.tv_is_in_art_mode
+        enabled: true
+      - delay:
+          hours: 0
+          minutes: 0
+          seconds: 1
+          milliseconds: 500
+      - action: media_player.select_source
+        metadata: {}
+        data:
+          source: CD
+        target:
+          entity_id: media_player.vsx_933
+        enabled: true
+  alias: Living RM Play CD with Art Mode (Duplicate)
+  description: ''
+living_rm_watch_apple_tv:
+  sequence:
+  - parallel:
+    - sequence:
+      - alias: If TV is Off Turn On TV
+        if:
+        - condition: state
+          entity_id: media_player.samsung_the_frame_65_2
+          state: 'off'
+        then:
+        - target:
+            entity_id: media_player.samsung_the_frame_65_2
+          action: media_player.turn_on
+        - delay:
+            hours: 0
+            minutes: 0
+            seconds: 5
+            milliseconds: 500
+        enabled: true
+      - alias: If Art Mode Off Turn On Art
+        if:
+        - condition: state
+          entity_id: binary_sensor.art_mode_frame_tv
+          state:
+          - 'on'
+        then:
+        - action: remote.send_command
+          metadata: {}
+          data:
+            command:
+            - KEY_POWER
+            - KEY_POWER
+            delay_secs: 0.1
+          target:
+            entity_id: remote.samsung_the_frame_65
+        enabled: true
+    - action: media_player.turn_on
+      metadata: {}
+      data: {}
+      target:
+        entity_id: media_player.living_room_atv
+    - sequence:
+      - action: media_player.select_source
+        metadata: {}
+        data:
+          source: AppleTV
+        target:
+          entity_id: media_player.vsx_933
+      - action: media_player.select_sound_mode
+        metadata: {}
+        data:
+          sound_mode: ENTERTAINMENT SHOW
+        target:
+          entity_id: media_player.vsx_933
+  alias: Living RM Watch Apple TV
+  description: ''
+living_rm_art_mode:
+  sequence:
+  - alias: If TV is Off Turn On TV
+    if:
+    - condition: state
+      entity_id: media_player.samsung_the_frame_65_2
+      state: 'off'
+    then:
+    - target:
+        entity_id: media_player.samsung_the_frame_65_2
+      action: media_player.turn_on
+    - delay:
+        hours: 0
+        minutes: 0
+        seconds: 5
+        milliseconds: 500
+    enabled: true
+  - alias: If Art Mode Off Turn On Art
+    if:
+    - condition: state
+      entity_id: binary_sensor.art_mode_frame_tv
+      state:
+      - 'off'
+    then:
+    - action: remote.send_command
+      metadata: {}
+      data:
+        command:
+        - KEY_POWER
+        - KEY_POWER
+        delay_secs: 0.1
+      target:
+        entity_id: remote.samsung_the_frame_65
+    enabled: true
+  alias: Living RM Art Mode
+  description: ''
+living_room_set_lighting_level:
+  alias: Living Room - Set Lighting Level
+  description: Sets the current state of the selector and executes the target script.
+  fields:
+    target_script_id:
+      name: Target Script ID
+      required: true
+      selector:
+        entity:
+          domain: script
+  sequence:
+  - alias: Store State to Persistent Helper
+    target:
+      entity_id: input_text.living_room_scene_state
+    data:
+      value: '{{ target_script_id }}'
+    action: input_text.set_value
+  - alias: Execute Lighting Script
+    target:
+      entity_id: '{{ target_script_id }}'
+    action: script.turn_on
+command_router:
+  alias: Command Router
+  description: Routes actions based on URL query parameters and dynamically finds
+    target media entities.
+  fields:
+    command_input:
+      name: Command String (e.g., scene.next)
+      required: true
+      selector:
+        text:
+    area_key:
+      name: Target Area
+      required: true
+      selector:
+        area:
+    action_value:
+      name: Optional Action Value (e.g., Plex, Home, Volume Level)
+      required: false
+      selector:
+        text:
+    media_player_id:
+      name: Target Media Player (Override)
+      required: false
+      selector:
+        entity:
+          domain: media_player
+    remote_id:
+      name: Target Remote (Override)
+      required: false
+      selector:
+        entity:
+          domain: remote
+    light_id:
+      name: Target Lights (Override)
+      required: false
+      selector:
+        entity:
+          multiple: true
+    data_payload:
+      name: Data Payload
+      description: Optional dictionary for passing extra data (e.g., hold_secs, brightness).
+      required: false
+      selector:
+        object: {}
+  sequence:
+  - alias: Determine Targets
+    variables:
+      command: '{{ command_input }}'
+      dynamic_media_player: "{% set receivers = label_entities('receiver') \n  | select('match',
+        'media_player.')\n  | list\n%}\n{% set media_players = area_entities(area_key)
+        \n  | select('match', 'media_player.') \n  | difference( receivers )\n  |
+        list \n%}  \n{{ media_players[0] if media_players | length > 0 else none \n}}\n"
+      dynamic_remote: "{% set remotes = area_entities(area_key) \n  | select('match',
+        'remote.') \n  | list\n%}  \n{{ remotes[0] if remotes | length > 0 else none
+        }}\n"
+      target_media_player: '{{ media_player_id | default(dynamic_media_player, true
+        ) }}'
+      target_remote: '{{ remote_id | default(dynamic_remote, true ) }}'
+      target_lighting_script: script.{{ area_key }}_set_lighting_level
+      target_cycle_options: sensor.{{ area_key }}_cycle_options
+      cycle_script_options: '{{ state_attr(target_cycle_options, ''scripts'') }}'
+  - alias: Define Command Mapping
+    variables:
+      command_map:
+        light.on:
+          action_type: light_call
+        light.off:
+          action_type: light_call
+          service: light.turn_off
+        dim.up:
+          action_type: light_call
+        dim.down:
+          action_type: light_call
+        light.max_brightness:
+          action_type: light_call
+        scene.next:
+          action_type: cycling
+        scene.previous:
+          action_type: cycling
+        scene.min:
+          action_type: cycling
+        scene.max:
+          action_type: cycling
+        scene.music:
+          action_type: script_call
+          target_script: script.living_rm_play_cd_with_art_mode
+        volume.up:
+          action_type: media_call
+          service: media_player.volume_up
+        volume.down:
+          action_type: media_call
+          service: media_player.volume_down
+        volume.mute:
+          action_type: media_call
+          service: media_player.volume_mute
+          data:
+            is_volume_muted: '{{ not state_attr(target_media_player, ''is_volume_muted'')
+              }}'
+        play.toggle:
+          action_type: media_call
+          service: media_player.media_play_pause
+        track.next:
+          action_type: media_call
+          service: media_player.media_next_track
+        media.toggle:
+          action_type: media_call
+          service: media_player.media_play_pause
+        media.source:
+          action_type: source_select
+        remote_send:
+          action_type: remote_send
+        media.command:
+          action_type: remote_send
+  - alias: Define Actions
+    variables:
+      action_details: '{{ command_map[command] if command in command_map else none
+        }}'
+      action_type: '{{ action_details.action_type }}'
+      target_script: '{{ action_details.target_script | default(none) }}'
+      target_data: '{{ action_details.data | default({}) }}'
+      derived_service: '{{ command_map[command].service | default(none) }}'
+      target_service: "{% if action_type == 'light_call' and derived_service is none
+        %}\n  light.turn_on\n{% else %}\n  {{ derived_service }}\n{% endif %}\n"
+      has_light: "{{ area_key \n  | area_entities \n  | select(\"search\", \"light.\")
+        \n  | list \n  | count > 0 \n}}\n"
+      has_media: "{{ area_key \n  | area_entities\n  | select(\"search\",\"media_player.\")
+        \n  | list \n  | count > 0 \n}}\n"
+      target_service_old: '{{ action_details.service | default(none) }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ action_type == ''cycling'' }}'
+      sequence:
+      - variables:
+          target_state_entity: input_text.{{ area_key }}_scene_state
+          target_label: lighting
+          all_labels: '{{ label_entities(''lighting'') }}
+
+            '
+          options: "{% set all_scripts = states.script %}    \n{{ all_scripts\n  |
+            selectattr('entity_id', 'in', area_entities(area_key))\n  | selectattr('entity_id',
+            'in', label_entities(target_label))\n  | map(attribute='entity_id')\n
+            \ | list | sort(reverse=false)\n}}\n"
+          current_state: '{{ states(''input_text.'' ~ area_key ~ ''_scene_state'')
+            }}
+
+            '
+          current: '{{ current_state | default(options[1] if options | length > 0
+            else none) }}
+
+            '
+          current_index: '{{ options.index(current) if current in options else -1
+            }}
+
+            '
+          next_script_id: none
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: '{{ command == ''scene.next'' }}'
+          sequence:
+          - variables:
+              new_index: "{% if current_index == -1 %}\n  0\n{% elif current_index
+                >= options | length - 1 %}\n  {{ current_index }}\n{% else %}\n  {{
+                current_index + 1 }}\n{% endif %}\n"
+              next_script_id: '{{ options[new_index] }}'
+          alias: Scene Next
+        - conditions:
+          - condition: template
+            value_template: '{{ command == ''scene.previous'' }}'
+          sequence:
+          - variables:
+              new_index: "{% if current_index <= 0 %}\n  0\n{% else %}\n  {{ current_index
+                - 1 }}\n{% endif %}\n"
+              next_script_id: '{{ options[new_index] }}'
+          alias: Scene Previous
+        - conditions:
+          - condition: template
+            value_template: '{{ command == ''scene.min'' }}'
+          sequence:
+          - variables:
+              next_script_id: '{{ options[0] if options | length > 0 else none }}'
+          alias: Scene First
+        - conditions:
+          - condition: template
+            value_template: '{{ command == ''scene.max'' }}'
+          sequence:
+          - variables:
+              next_script_id: '{{ options[-1] if options | length > 0 else none }}'
+          alias: Scene Last
+        default:
+        - data:
+            level: warning
+            message: 'Command Router: Cycling failed for {{ area_key }}. No cycle
+              scripts found with the ''lighting_cycle'' label.'
+          action: system_log.write
+      - condition: template
+        value_template: '{{ next_script_id is not none }}'
+      - alias: Store New Scene State
+        data:
+          value: '{{ next_script_id }}'
+        target:
+          entity_id: '{{ target_state_entity }}'
+        action: input_text.set_value
+      - alias: Execute Lighting Script
+        action: script.turn_on
+        data: {}
+        target:
+          entity_id: '{{ next_script_id }}'
+      alias: Lighting Cycle
+    - conditions:
+      - condition: template
+        value_template: '{{ action_type == ''light_call'' }}'
+      sequence:
+      - variables:
+          dim_factor: 7
+          transition: 0.2
+          brightness_pct: 100
+          brightness_step_pct: "{% if command == 'dim.up' %}\n  1\n{% elif command
+            == 'dim.down' %}\n  -1\n{% else %}\n  0\n{% endif %}\n"
+          final_data: "{% set data_block = [\"'transition': 0.2\"] %}\n\n{% if command
+            == 'light.max_brightness' %}\n    {% set data_block = data_block +  ['\"brightness_pct\":
+            100'] %} \n{% elif command in ['dim.up', 'dim.down'] %}\n    {% if command
+            == 'dim.up' %}\n      {% set data_block = data_block +  ['\"brightness_step_pct\":
+            ' ~ dim_factor] %} \n    {% elif command == 'dim.down' %}\n       {% set
+            data_block = data_block +  ['\"brightness_step_pct\": ' ~ -1*dim_factor]
+            %} \n    {% endif %}\n{% endif %}\n\n{% set data = \"{\" ~ (data_block)
+            | join(',') ~ \"}\" %}\n\n{{ data | to_json }}\n"
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: '{{ has_light }}'
+          sequence:
+          - if:
+            - alias: Override Default Service
+              condition: template
+              value_template: '{{ derived_service is not none }}'
+            then:
+            - action: light.turn_off
+              metadata: {}
+              data: {}
+              target:
+                area_id: '{{ area_key }}'
+            else:
+            - action: light.turn_on
+              metadata: {}
+              data: '{{ final_data | from_json }}'
+              target:
+                area_id: '{{ area_key }}'
+        default:
+        - data:
+            title: Command Router Error
+            message: 'No Light entities found in Area: {{ area_key }}'
+          action: persistent_notification.create
+      alias: Send Light Call
+    - conditions:
+      - condition: template
+        value_template: '{{ action_details.action_type == ''script_call'' }}'
+      sequence:
+      - target:
+          entity_id: '{{ action_details.target_script }}'
+        action: script.turn_on
+        data:
+          area_key: '{{ area_key }}'
+      alias: Call Script
+    - conditions:
+      - condition: template
+        value_template: '{{ action_details.action_type == ''source_select'' }}'
+      sequence:
+      - alias: Wake Up Media Player if off
+        choose:
+        - conditions:
+          - condition: template
+            value_template: '{{ states(target_media_player) in [''off'', ''standby'',
+              ''unavailable''] }}
+
+              '
+          sequence:
+          - alias: Send Wake-Up Command
+            action: media_player.turn_on
+            data: {}
+            target:
+              entity_id: '{{ target_media_player }}'
+          - delay:
+              hours: 0
+              minutes: 0
+              seconds: 0
+              milliseconds: 500
+      - alias: Select Media Source
+        target:
+          entity_id: '{{ target_media_player }}'
+        data:
+          source: '{{ action_value }}'
+        action: media_player.select_source
+      - condition: state
+        state:
+        - 'on'
+        entity_id: binary_sensor.art_mode_frame_tv
+      - condition: template
+        value_template: '{{ area_key == "living_room" }}'
+      - alias: Send Power Command End Art Mode
+        data:
+          command:
+          - KEY_POWER
+          - KEY_POWER
+          delay_secs: 0.1
+        action: remote.send_command
+        target:
+          entity_id: remote.samsung_the_frame_65
+      alias: Select Source
+    - conditions:
+      - condition: template
+        value_template: '{{ action_details.action_type == ''remote_send'' }}'
+      sequence:
+      - alias: Wake Up Media Player if off
+        choose:
+        - conditions:
+          - condition: template
+            value_template: '{{ states(target_media_player) in [''off'', ''standby'',
+              ''unavailable''] }}
+
+              '
+            alias: ATV is Off
+          sequence:
+          - alias: Send Wake-Up Command
+            action: media_player.turn_on
+            data: {}
+            target:
+              entity_id: '{{ target_media_player }}'
+          - delay:
+              hours: 0
+              minutes: 0
+              seconds: 0
+              milliseconds: 500
+      - action: remote.send_command
+        metadata: {}
+        target:
+          entity_id: '{{ target_remote }}'
+        data:
+          command: '{{ action_value }}'
+          hold_secs: '{{ data_payload["hold_secs"] | int(0) }}'
+      - condition: state
+        state:
+        - 'on'
+        entity_id: binary_sensor.art_mode_frame_tv
+      - condition: template
+        value_template: '{{ area_key == "living_room" }}'
+      - alias: Send Power Command End Art Mode
+        data:
+          command:
+          - KEY_POWER
+          - KEY_POWER
+          delay_secs: 0.1
+        action: remote.send_command
+        target:
+          entity_id: remote.samsung_the_frame_65
+      alias: Send Raw Remote Command
+    - conditions:
+      - condition: template
+        value_template: '{{ action_type == ''media_call'' }}'
+      sequence:
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: '{{ has_media }}'
+          sequence:
+          - data: '{{ target_data }}'
+            target:
+              area_id: '{{ area_key }}'
+            action: '{{ target_service }}'
+        default:
+        - data:
+            title: Command Router Error
+            message: 'No Media Player found in Area: {{ area_key }}'
+          action: persistent_notification.create
+      alias: Send Media Call
+    default:
+    - alias: Log Error for Unmapped Command
+      data:
+        logger: custom_loggers.command_router
+        level: warning
+        message: 'Command Router received unmapped command: {{ command_input }}'
+      action: homeassistant.log
+configure_area_configuration_item_ci:
+  alias: Configure Area Configuration Item (CI)
+  description: Creates or updates the default media/lighting targets for a given area,
+    storing the config in JSON format.
+  fields:
+    area_key:
+      name: Area Key (e.g., 'living_room')
+      required: true
+      selector:
+        text:
+    media_player_id:
+      name: Default Media Player
+      required: false
+      selector:
+        entity:
+          domain: media_player
+    remote_id:
+      name: Default Remote
+      required: false
+      selector:
+        entity:
+          domain: remote
+    lighting_script_id:
+      name: Default Lighting Script (e.g., script.living_room_set_lighting_level)
+      required: false
+      selector:
+        entity:
+          domain: script
+    cycle_options_id:
+      name: Cycle Options Sensor (e.g., sensor.living_room_cycle_options)
+      required: false
+      selector:
+        entity:
+          domain: sensor
+  sequence:
+  - alias: 1. Get Current CI Map and Construct New Data
+    variables:
+      current_ci_map: '{{ states(''input_text.area_configuration_json'') | from_json(default={})
+        }}'
+      new_area_data:
+        media_player: '{{ media_player_id | default(none) }}'
+        remote: '{{ remote_id | default(none) }}'
+        lighting_script: '{{ lighting_script_id | default(none) }}'
+        cycle_options: '{{ cycle_options_id | default(none) }}'
+  - alias: 2. Calculate JSON and Store Temporarily (TRIGGER)
+    target:
+      entity_id: input_text.temp_json_output
+    data:
+      value: '{% set new_area_dict = {area_key: new_area_data} %} {% set updated_map
+        = current_ci_map | combine(new_area_dict) %} {{ updated_map | tojson }}
+
+        '
+    action: input_text.set_value
+  mode: single
+universal_media_activity_orchestrator:
+  alias: Universal Media Activity Orchestrator
+  description: Calculates state difference and executes minimal actions to reach target
+    state based on Bitmask XOR.
+  icon: mdi:remote-tv
+  fields:
+    activity_key:
+      name: Activity Key
+      required: true
+      example: Watch_Plex
+      selector:
+        text: {}
+  sequence:
+  - alias: 0.0 Sync Intent Boolean to Physical Reality
+    action: '{{ ''input_boolean.turn_on'' if is_state(''binary_sensor.art_mode_frame_tv'',
+      ''on'') else ''input_boolean.turn_off'' }}
+
+      '
+    target:
+      entity_id: input_boolean.art_mode_intent
+    enabled: false
+  - alias: 1.1 Define VSX Audio Profile
+    variables:
+      VSX_A_Profile:
+        required_state_mask: 50432
+        action_mapping:
+          '1':
+            mask: 28672
+            action_type: source_select
+            service: media_player.select_source
+            target:
+              entity_id: media_player.vsx_933
+            data:
+              source: CD
+          '2':
+            mask: 1024
+            action_type: power_on
+            service: media_player.turn_on
+            target:
+              entity_id: media_player.samsung_the_frame_65_2
+          '3':
+            mask: 256
+            action_type: power_on
+            service: switch.turn_on
+            target:
+              entity_id: switch.the_frame_art_mode
+  - alias: 1.1 Define VSX Video Profile
+    variables:
+      VIDEO2_Profile:
+        required_state_mask: 37376
+        action_mapping:
+          '1':
+            mask: 4096
+            action_type: source_select
+            service: media_player.select_source
+            target:
+              entity_id: media_player.vsx_933
+            data:
+              source: AirPlay
+          '2':
+            mask: 1024
+            action_type: power_on
+            service: media_player.turn_on
+            target:
+              entity_id: media_player.samsung_the_frame_65_2
+          '3':
+            mask: 512
+            action_type: script_call
+            service: script.art_mode_toggle_controller
+            target: {}
+            data:
+              action: disable
+  - alias: 1.2 Define ATV Profile
+    variables:
+      ATV_Profile:
+        required_state_mask: 48640
+        action_mapping:
+          '1':
+            mask: 28672
+            action_type: source_select
+            service: media_player.select_source
+            target:
+              entity_id: media_player.vsx_933
+            data:
+              source: AppleTV
+          '2':
+            mask: 2048
+            action_type: power_on
+            service: media_player.turn_on
+            target:
+              entity_id: media_player.living_room_atv
+          '3':
+            mask: 1024
+            action_type: power_on
+            service: media_player.turn_on
+            target:
+              entity_id: media_player.samsung_the_frame_65_2
+          '4':
+            mask: 512
+            action_type: power_on
+            service: switch.turn_off
+            target:
+              entity_id: switch.the_frame_art_mode
+  - alias: 1.2 Define ATV Profile
+    variables:
+      ATV_Profile:
+        required_state_mask: 40448
+        receiver_source_string: AppleTV
+        action_mapping:
+          '512':
+            action_type: script_call
+            service: script.art_mode_toggle_controller
+            target: {}
+            data:
+              action: disable
+          '1024':
+            action_type: power_on
+            service: media_player.turn_on
+            target: media_player.samsung_the_frame_65_2
+          '2048':
+            action_type: power_on
+            service: media_player.turn_on
+            target: media_player.living_room_atv
+          '4096':
+            action_type: source_select
+            service: media_player.select_source
+            target: media_player.vsx_933
+            data: {}
+    enabled: false
+  - alias: 1.3 Define VIDEO2 Profile
+    variables:
+      VIDEO2_Profile:
+        required_state_mask: 38392
+        action_mapping:
+          '1':
+            mask: 4096
+            action_type: source_select
+            service: media_player.select_source
+            target:
+              entity_id: media_player.vsx_933
+            data:
+              source: VIDEO2
+          '2':
+            mask: 1024
+            action_type: power_on
+            service: media_player.turn_on
+            target:
+              entity_id: media_player.samsung_the_frame_65_2
+          '3':
+            mask: 512
+            action_type: script_call
+            service: script.art_mode_toggle_controller
+            target: {}
+            data:
+              action: disable
+  - alias: 2.0 Define Core Variables
+    variables:
+      activity_map:
+        watch_plex:
+          profile: '{{ ATV_Profile }}'
+          app: Plex
+          command:
+        watch_youtube:
+          profile: '{{ ATV_Profile }}'
+          app: YouTube
+          command:
+        watch_netflix:
+          profile: '{{ ATV_Profile }}'
+          app: Netflix
+          command:
+        home_music:
+          profile: '{{ VSX_A_Profile }}'
+          app:
+          command:
+        watch_video2:
+          profile: '{{ VIDEO2_Profile }}'
+          app:
+          command:
+        home:
+          profile: '{{ ATV_Profile }}'
+          app:
+          command: top_menu
+      activity_key_lower: '{{ activity_key | lower }}'
+      profile_map_entry: '{% set entry = activity_map[activity_key_lower] | default(activity_map[''home_music''])
+        %} {{ entry }}
+
+        '
+      activity_base_config: '{{ profile_map_entry.profile }}'
+      required_state_mask: '{{ activity_base_config.required_state_mask | int(0) }}'
+      action_mapping: '{{ activity_base_config.action_mapping }}'
+      app_to_launch: '{{ profile_map_entry.app | default(none) }}'
+      command_to_send: '{{ profile_map_entry.command | default(none) }}'
+      current_state_mask: '{{ states(''sensor.living_room_media_current_state_mask'')
+        | int(0) }}'
+      action_code: '{{ required_state_mask | bitwise_xor(current_state_mask) }}'
+      inter_step_delay: 0.1
+  - alias: 3. Iterate and Execute Required Actions
+    repeat:
+      for_each: '{{ action_mapping.keys() | sort | list }}'
+      sequence:
+      - variables:
+          action_details: '{{ action_mapping[repeat.item] }}'
+          field_mask: '{{ action_details.mask | int }}'
+          needs_action: "{{ (current_state_mask | int | bitwise_and(field_mask)) !=
+            \n   (required_state_mask | int | bitwise_and(field_mask)) }}\n"
+      - if:
+        - condition: template
+          value_template: '{{ needs_action }}'
+        then:
+        - action: '{{ action_details.service }}'
+          target: '{{ action_details.target | default({}) }}'
+          data: '{{ action_details.data | default({}) }}'
+        - delay: '{{ action_details.delay | default(''00:00:00.100'') }}'
+  - alias: 4.1 Launch Activity App
+    if:
+    - condition: template
+      value_template: '{{ app_to_launch is not none and app_to_launch != '''' }}'
+    then:
+    - alias: Launch Activity App
+      target:
+        entity_id: media_player.living_room_atv
+      data:
+        source: '{{ app_to_launch }}'
+      action: media_player.select_source
+    - delay:
+        hours: 0
+        minutes: 0
+        seconds: 0
+        milliseconds: 50
+  - alias: 4.2 Send ATV command
+    if:
+    - condition: template
+      value_template: '{{ command_to_send is not none and command_to_send != ''''
+        }}'
+    then:
+    - action: remote.send_command
+      metadata: {}
+      target:
+        entity_id: remote.living_room_atv
+      data:
+        command: '{{ command_to_send }}'
+    - delay:
+        hours: 0
+        minutes: 0
+        seconds: 0
+        milliseconds: 50
+  - alias: 4.0 Post-Action Art Mode Correction (Simplified Frame TV Fix)
+    if:
+    - condition: template
+      value_template: '{{ (required_state_mask | bitwise_and(1024)) > 0 }}'
+    - condition: template
+      value_template: '{{ (required_state_mask | bitwise_and(512)) > 0 }}'
+    then:
+    - alias: Wait for TV Boot Sequence to Pass Default Art Mode
+      delay:
+        hours: 0
+        minutes: 0
+        seconds: 10
+        milliseconds: 0
+      enabled: false
+    - alias: Force Art Mode OFF (Disable)
+      data:
+        action: disable
+      action: script.art_mode_toggle_controller
+      enabled: false
+    enabled: false
+  - alias: 3. Cleanup/Finalization
+    data:
+      name: Activity Engine
+      message: 'Activity ''{{ activity_key }}'' executed. Action Code (Binary Difference):
+        {{ action_code }}. Required State: {{ required_state_mask }}. Current State:
+        {{ current_state_mask }}'
+    action: logbook.log
+  mode: single
+art_mode_toggle_controller:
+  alias: Art Mode Toggle Controller
+  mode: single
+  sequence:
+  - variables:
+      is_physically_art: '{{ is_state(''binary_sensor.frame_physical_art_state'',
+        ''on'')}}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ not (action == ''enable'' and is_physically_art) }}'
+      sequence: []
+    - conditions:
+      - condition: template
+        value_template: '{{ not (action == ''disable'' and not is_physically_art)
+          }}'
+      sequence: []
+    enabled: false
+  - alias: Abort if Reality already matches Action
+    condition: template
+    value_template: '{{ not (action == ''enable'' and is_physically_art) and not (action
+      == ''disable'' and not is_physically_art) }}
+
+      '
+  - alias: Update Intent (Instant UI Feedback)
+    action: '{{ ''input_boolean.turn_on'' if action == ''enable'' else ''input_boolean.turn_off''
+      }}
+
+      '
+    target:
+      entity_id: input_boolean.art_mode_intent
+  - alias: Send Physical Command
+    action: remote.send_command
+    data:
+      command:
+      - KEY_POWER
+      - KEY_POWER
+      delay_secs: 0.1
+    target:
+      entity_id: remote.samsung_the_frame_65
+  - alias: 4. Short Wait
+    delay: 1
+  - alias: Log successful Art Mode Toggle
+    data:
+      name: Art Mode Controller
+      message: Successfully toggled Art Mode for action '{{ action }}'.
+    action: logbook.log
+  fields:
+    action:
+      name: Select Action
+      description: Choose whether to enable or disable Art Mode.
+      required: true
+      selector:
+        select:
+          options:
+          - label: Enable Art Mode
+            value: enable
+          - label: Disable Art Mode
+            value: disable
+basement_stairs_80_entertain:
+  sequence:
+  - action: scene.turn_on
+    metadata: {}
+    target:
+      entity_id: scene.entertain
+    data: {}
+  fields: {}
+  alias: Basement Stairs 80. Entertain
+  description: ''
+basement_stairs_50_media:
+  sequence:
+  - action: scene.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id: scene.media
+  fields: {}
+  alias: Basement Stairs 50. Media
+  description: ''
+basement_stairs_50_movie:
+  sequence:
+  - action: scene.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id: scene.movie
+  fields: {}
+  alias: Basement Stairs 10. Movie
+  description: ''
+basement_stairs_00_all_off:
+  sequence:
+  - action: light.turn_off
+    metadata: {}
+    target:
+      area_id:
+      - basement_stairs
+      - basement_kitchen
+      - family_room
+      - furnace_room
+      - gym
+      - panel_room
+    data: {}
+  fields: {}
+  alias: Basement Stairs 00. All Off
+  description: ''
+basement_stairs_60_media_kitchen:
+  sequence:
+  - action: scene.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id: scene.media
+  - action: light.turn_on
+    metadata: {}
+    target:
+      area_id: basement_kitchen
+      device_id:
+      - ab938c0751d231e4f9a7993bc46cacb8
+      - c1f9ac413dc31bb3c34cdde8bdab7918
+    data: {}
+  fields: {}
+  alias: Basement Stairs 60. Media & Kitchen
+  description: ''

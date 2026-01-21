@@ -1,0 +1,117 @@
+# Example configuration.yaml
+  - name: Sun Last Rising
+    unique_id: sun_last_rising
+    query: >
+      SELECT
+        states.state
+      FROM
+        states
+      WHERE
+        state_id = (
+          SELECT
+            states.old_state_id
+          FROM
+            states
+          WHERE
+            metadata_id = (
+              SELECT
+                metadata_id
+              FROM
+                states_meta
+              WHERE
+                entity_id = 'sensor.sun_next_rising'
+            )
+            AND old_state_id IS NOT NULL
+          ORDER BY
+            last_updated_ts DESC
+          LIMIT
+            1
+        )
+    column: "state"
+  - name: Sun Last Setting
+    unique_id: sun_last_setting
+    query: >
+      SELECT
+        states.state
+      FROM
+        states
+      WHERE
+        state_id = (
+          SELECT
+            states.old_state_id
+          FROM
+            states
+          WHERE
+            metadata_id = (
+              SELECT
+                metadata_id
+              FROM
+                states_meta
+              WHERE
+                entity_id = 'sensor.sun_next_setting'
+            )
+            AND old_state_id IS NOT NULL
+          ORDER BY
+            last_updated_ts DESC
+          LIMIT
+            1
+        )
+    column: "state"
+  - name: Sun Last noon
+    unique_id: sun_last_noon
+    query: >
+      SELECT
+        states.state
+      FROM
+        states
+      WHERE
+        state_id = (
+          SELECT
+            states.old_state_id
+          FROM
+            states
+          WHERE
+            metadata_id = (
+              SELECT
+                metadata_id
+              FROM
+                states_meta
+              WHERE
+                entity_id = 'sensor.sun_next_noon'
+            )
+            AND old_state_id IS NOT NULL
+          ORDER BY
+            last_updated_ts DESC
+          LIMIT
+            1
+        )
+    column: "state"
+  - name: Sun Last midnight
+    unique_id: sun_last_midnight
+    query: >
+      SELECT
+        states.state
+      FROM
+        states
+      WHERE
+        state_id = (
+          SELECT
+            states.old_state_id
+          FROM
+            states
+          WHERE
+            metadata_id = (
+              SELECT
+                metadata_id
+              FROM
+                states_meta
+              WHERE
+                entity_id = 'sensor.sun_next_midnight'
+            )
+            AND old_state_id IS NOT NULL
+          ORDER BY
+            last_updated_ts DESC
+          LIMIT
+            1
+        )
+    column: "state"

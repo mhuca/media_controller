@@ -1,0 +1,26 @@
+substitutions:
+  name: soundtown-amp #change
+  friendly_name: Soundtown Amp #change
+  icon: "mdi:light-switch"
+  event: nodered_automation
+  button: button
+  board: esp01_1m
+
+esphome:
+  project:
+    name: Sonoff.S31 Lite 
+    version: "1.0"
+
+packages:   # as a list
+  - !include common/switch_base.yaml
+  
+api:
+
+
+switch:
+  - platform: gpio
+    name: Relay
+    pin: GPIO12
+    id: relay
+     # Resume last state on boot if possible. Else, off
+    restore_mode: RESTORE_DEFAULT_OFF

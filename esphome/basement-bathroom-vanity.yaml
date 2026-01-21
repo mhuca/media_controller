@@ -1,0 +1,72 @@
+substitutions:
+  name: basement-bathroom-vanity #change
+  friendly_name: Basement Bathroom Vanity #change
+  icon: "mdi:light-switch"
+  event: nodered_automation
+  button: button
+  board: esp01_1m
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  project:
+    name: "TOPGREENER.TGWF500D"
+    version: "2.0"
+
+esp8266:
+  board: ${board}
+  restore_from_flash: true
+
+# Use the 'common/wifi.yaml' if you prefer, or just add wifi details here
+packages:
+  - !include common/wifi.yaml
+
+# Essential Communication
+api:
+ota:
+  - platform: esphome
+
+logger:
+  level: DEBUG
+  baud_rate: 0 # Important: Disables logging to hardware UART so it doesn't interfere with Tuya
+
+web_server:
+  port: 80
+
+time:
+  - platform: sntp
+    id: esptime
+    timezone: "America/Toronto"
+
+# --- Hardware Communication ---
+# The TopGreener uses these pins to talk to the Tuya Dimmer MCU
+uart:
+  rx_pin: GPIO13
+  tx_pin: GPIO15
+  baud_rate: 9600
+
+tuya:
+
+# --- Light Component ---
+light:
+  - platform: "tuya"
+    id: coffee_bar_light
+    name: ${friendly_name}
+    dimmer_datapoint: 3
+    switch_datapoint: 1
+    min_value: 10
+    max_value: 255
+    # Prevents "Command Flooding" which causes the Unexpected Disconnects
+    default_transition_length: 0s 
+
+# --- Diagnostic Sensors ---
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+    entity_category: "diagnostic"
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+    entity_category: "diagnostic"

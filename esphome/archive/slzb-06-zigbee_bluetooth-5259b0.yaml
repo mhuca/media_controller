@@ -1,0 +1,10 @@
+substitutions:
+  name: slzb-06-zigbee_bluetooth-5259b0
+packages:
+  SMLIGHT.SLZB-06*(Zigbee+Bluetooth): github://smlight-dev/slzb-06-fw-esphome/configs/zb-bt.yaml
+esphome:
+  name: ${name}
+  name_add_mac_suffix: false
+api:
+  encryption:
+    key: /7EdWwnE1FmPtn/va3BO7YK7ppcI/IdJjso8koKJIZw=

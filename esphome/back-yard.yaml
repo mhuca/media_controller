@@ -1,0 +1,9 @@
+substitutions:
+  name: back-yard
+  friendly_name: Back Yard
+  board: esp01_1m
+  device_model: KS-602S
+
+packages:
+  # This now pulls in the entire clean, timer-enabled light component structure.
+  - !include common/generic_602_light_component.yaml

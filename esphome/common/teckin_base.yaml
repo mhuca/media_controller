@@ -1,0 +1,98 @@
+substitutions:
+  event: nodered_automation
+  button: button
+
+packages:   # as a list
+  - !include wifi.yaml
+  - !include formatted_uptime_sensor.yaml
+  - !include sensor_base.yaml
+
+esphome:
+  name: ${name}
+  name_add_mac_suffix: false
+  friendly_name: ${friendly_name}
+  
+esp8266:
+  board: ${board}
+  restore_from_flash: true
+
+preferences:
+  flash_write_interval: 30s
+
+# Enable logging
+logger:
+
+ota:
+  - platform: esphome
+
+
+# -----------------------------------------------------------------------------
+# Core Components for Communication (Essential for Safety & HA)
+# -----------------------------------------------------------------------------
+# API for Home Assistant communication (mandatory for lights/sensors)
+api:
+
+# Use the time component to track the current time, often useful for automations
+# The server is defaulted to pool.ntp.org
+time:
+  - platform: sntp
+    id: esptime
+    timezone: "America/Toronto" # Your preferred timezone
+    
+# Enable web server for easy configuration access over the network
+web_server:
+  port: 80
+
+# The ultimate safety net for Wi-Fi issues
+captive_portal:
+  # This creates a fallback access point if Wi-Fi connection fails
+
+  
+globals:
+  # - id: glbl_relay_state
+  #   type: bool
+  #   restore_value: true
+  #   initial_value: "false"
+  
+  # - id: glbl_detach_relay
+  #   type: bool
+  #   restore_value: true
+  #   initial_value: "false"
+
+  # - id: glbl_remote_mode
+  #   type: bool
+  #   restore_value: true
+  #   initial_value: "false"
+
+  # For the auto-off automation
+  - id: glbl_timeout_enabled
+    type: bool
+    restore_value: true
+    initial_value: "true"
+
+  #   # Mirror Home Assistant Timer
+  # - id: glbl_ha_timer_enabled
+  #   type: bool
+  #   restore_value: true
+  #   initial_value: "false"
+
+  - id: glbl_timeout_length_ticks
+    type: int
+    restore_value: true
+    initial_value: "5"
+
+  - id: _glbl_current_tick_count
+    type: int
+    restore_value: false
+    initial_value: "0"
+    
+binary_sensor:
+  - id: button_1
+    name: ${friendly_name} Button
+    platform: gpio
+    internal: true
+    entity_category: "diagnostic"
+    pin:
+      number: GPIO13
+      inverted: true
+    

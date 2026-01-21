@@ -1,0 +1,417 @@
+#template:
+
+
+# - binary_sensor:
+#     # This is required for the entity to be editable in the UI and linkable to a device
+#     - unique_id: my_custom_cloned_sensor
+
+#       # The state template remains the same
+#       name: "Cloned Attribute Sensor"
+#       state: "{{ states('binary_sensor.living_room_sensor_ping') }}"
+#       device_class: connectivity
+#       # --- REQUIRED: Attributes Section ---
+#       attributes:
+#         host: "{{ state_attr('binary_sensor.living_room_sensor_ping','host') }}"
+
+      # --- REQUIRED: Device Linking Section ---
+      # This tells Home Assistant where to show the entity.
+#      device:
+#        id: 16617c5730efedbcf353f80f4c1ea246
+
+#- trigger:
+#    - platform: time_pattern
+#      hours: "*"
+#      minutes: "*"
+#      seconds: 1
+
+# - trigger:
+#   - trigger: time_pattern
+#     # This will update every night
+#     hours: "0"
+#     minutes: "0"
+# sensor:
+#   # Keep track how many days have past since a date
+#   - name: "Not smoking"
+#     state: '{{ ( ( as_timestamp(now()) - as_timestamp(strptime("06.07.2018", "%d.%m.%Y")) ) / 86400 ) | round(default=0) }}'
+#     unit_of_measurement: "Days"
+
+# - binary_sensor:
+# - name: "Mud Room Door Sensor"
+#   unique_id: mud_room_door_sensor
+#   device_class: door
+#   attributes:
+#     zone: "Perimeter"
+#     sensor: "Contact Sensor"
+#   state: >
+#     {{states('sensor.rf_hub_mcp230xx_d1') }}
+# - name: "Server Room Door Sensor"
+#   unique_id: server_room_door_sensor
+#   device_class: door
+#   attributes:
+#     zone: "Interior"
+#     sensor: "Contact Sensor"
+#   state: >
+#     {{states('sensor.rf_hub_mcp230xx_d3') }}
+# - name: "Back Door Sensor"
+#   unique_id: back_door_sensor_new
+#   device_class: door
+#   attributes:
+#     zone: "Perimeter"
+#     sensor: "Contact Sensor"
+#   state: >
+#     {{states('sensor.rf_hub_mcp230xx_d5') }}
+# - name: "Panel Room Door Sensor"
+#   unique_id: panel_room_door_sensor
+#   device_class: door
+#   attributes:
+#     zone: "Interior"
+#     sensor: "Contact Sensor"
+#   state: >
+#     {{states('sensor.rf_hub_mcp230xx_d7') }}
+# - name: "Night Lights Sensor"
+#   unique_id: night_lights_sensor
+#   device_class: light
+#   attributes: {}
+#   state: >
+#     {%- set currentHour = now().hour |int -%}
+#     {% if ((currentHour < 7) or (currentHour >= 23)) and is_state("sun.sun", "below_horizon") %}
+#       {{true}}
+#     {% else %}
+#       {{false}}
+#     {% endif %}
+# - name: "Daily Lights Sensor"
+#   unique_id: daily_lights_sensor
+#   device_class: light
+#   attributes: {}
+#   state: >
+#     {%- set currentHour = now().hour |int -%}
+#     {% if ((currentHour >= 7) and (currentHour < 9) or (currentHour >= 16) and (currentHour < 23)) and is_state("sun.sun", "below_horizon") %}
+#       {{true}}
+#     {% else %}
+#       {{false}}
+#     {%endif %}
+# - name: "Weekend Lights Sensor"
+#   unique_id: weekemd_lights_sensor
+#   device_class: light
+#   attributes: {}
+#   state: >
+#     {%- set currentHour = now().hour |int -%}
+#     {% if (currentHour >= 7) and (currentHour < 23) and is_state("sun.sun", "below_horizon") and is_state("binary_sensor.workday_sensor", "off")  %}
+#       {{true}}
+#     {% else %}
+#       {{false}}
+#     {%endif %}
+# - name: "Weekday Lights Sensor"
+#   unique_id: weekday_lights_sensor
+#   device_class: light
+#   attributes: {}
+#   state: >
+#     {%- set currentHour = now().hour |int -%}
+#     {% if ((currentHour >= 7) and (currentHour < 9) or (currentHour >= 16) and (currentHour < 23)) and is_state("sun.sun", "below_horizon") and is_state("binary_sensor.workday_sensor", "on")  %}
+#       {{true}}
+#     {% else %}
+#       {{false}}
+#     {%endif %}
+
+# Crucial: Use the device ID string (not the entity ID) of the target device.
+# You can get this ID from the HA UI URL when viewing the device.
+
+# - name: Sun Solar Temperature
+#   unique_id: sun_solar_temperature
+#   device_class: "temperature"
+#   unit_of_measurement: "K"
+#   state: >
+#     {% set temp_min = states.input_number.cct_min.state |int %}
+#     {% set temp_max = states.input_number.cct_max.state |int %}
+#     {% if is_state("sun.sun", "above_horizon") %}
+#       {% set daylight_factor = 1 %}
+#     {%- else -%}
+#       {% set daylight_factor = 0 %}
+#     {% endif %}
+#     {% set elevation_factor =  sin(state_attr('sun.sun', 'elevation')*pi/180) %}
+#     {% set cloud_factor = (state_attr('weather.home', 'cloud_coverage')*10*elevation_factor*daylight_factor) | int %}
+#     {% set azimuth = state_attr('sun.sun', 'azimuth') | float  %}
+#     {% set cct_difference = (temp_max - temp_min) %}
+#     {% set angle = 1 - cos(azimuth*pi/180) %}
+#     {{ ((((( angle )*(cct_difference ))/2)+temp_min) |int ) + cloud_factor }}
+
+#   # {% if is_state("sun.sun", "above_horizon") %}
+#   #    {{ ((((( angle )*(cct_difference ))/2)+temp_min) |int ) + cloud_factor }}
+#   #  {%- else -%}
+#   #    {{ ((((( angle )*(cct_difference ))/2)+temp_min) |int ) }}
+#   #  {% endif %}
+#   #         {% set day_start = states.input_datetime.sun_rise_today.attributes.timestamp |int + 10800 |int %}
+#   #         {% set day_end = states.input_datetime.sun_set_today.attributes.timestamp |int - 10800 |int %}
+#   #         {% set r1_0 = states.input_datetime.sun_rise_today.attributes.timestamp |int %}
+#   #         {% set r1_1 = day_start %}
+#   #         {% set r2_0 = 0 |int %}
+#   #         {% set r2_1 = 180 |int %}
+#   #         {% set r3_0 = day_end %}
+#   #         {% set r3_1 = states.input_datetime.sun_set_today.attributes.timestamp |int %}
+#   #         {% set r4_0 = 180 |int %}
+#   #         {% set r4_1 = 360 |int %}
+#   #         {% set temp_min = 2202 |int %}
+#   #         {% set temp_max = 4524 |int %}
+#   #         {% set currentTime = as_timestamp(now()) | int %}
+#   #         {% set morning_curve = ((currentTime - r1_0) * (r2_1 - r2_0) / (r1_1 - r1_0) + r2_0) | float %}
+#   #         {% set evening_curve = ((currentTime - r3_0) * (r4_1 - r4_0) / (r3_1 - r3_0) + r4_0) | float %}
+#   # #
+
+#   #              {% if is_state("sun.sun", "above_horizon") %}
+#   #                {{ ((((( angle )*(cct_difference ))/2)+temp_min) |int ) + cloud_factor }}
+#   # {% if currentTime <= day_start -%}
+#   #   {{ (((1-cos(morning_curve*pi/180))*(temp_max - temp_min)/2) | int + temp_min) | int }}
+#   # {%- elif currentTime >= day_end -%}
+#   #   {{ (((1-cos(evening_curve*pi/180))*(temp_max - temp_min)/2) | int + temp_min) | int }}
+#   # {%- else -%}
+#   #   {{temp_max | int }}
+#   #   {% endif %}
+#   # {%- else -%}
+#   #   {{temp_min | int }}
+#   # {% endif %}
+#   attributes:
+#     description: "circadian light - color temperature"
+#     min_color_temp_kelvin: >
+#       {{ states.input_number.cct_min.state | int }}
+#     max_color_temp_kelvin: >
+#       {{ states.input_number.cct_max.state | int }}
+#     color_temp_percent: >
+#       {% set elevation_factor =  sin(state_attr('sun.sun', 'elevation')*pi/180) %}
+#       {% set cloud_factor = (state_attr('weather.home', 'cloud_coverage')*10*elevation_factor ) | int %}
+#       {% set min_color_temp_kelvin = states.input_number.cct_min.state | int + cloud_factor %}
+#       {% set max_color_temp_kelvin = states.input_number.cct_max.state | int + cloud_factor %}
+#       {{ (((states.sensor.sun_solar_temperature.state | int - min_color_temp_kelvin | int ) / (max_color_temp_kelvin - min_color_temp_kelvin) | int ) * 100) | round(0, 'floor') }}
+#     color_temp_percent2: >
+#       {% set elevation_factor =  sin(state_attr('sun.sun', 'elevation')*pi/180) %}
+#       {% set cloud_factor = (state_attr('weather.home', 'cloud_coverage')*10*elevation_factor ) | int %}
+#       {% set min_color_temp_kelvin = states.input_number.cct_min.state | int + cloud_factor %}
+#       {% set max_color_temp_kelvin = states.input_number.cct_max.state | int + cloud_factor %}
+#       {{ ((((states.sensor.sun_solar_temperature.state | int - min_color_temp_kelvin | int ) / (max_color_temp_kelvin - min_color_temp_kelvin) | int ) * 65) | round(0, 'floor') ) + 35 | int}}
+#     color_temp_kelvin: >
+#       {{ states.sensor.sun_solar_temperature.state | int }}
+#     cloud_effect: >
+#       {% if is_state("sun.sun", "above_horizon") %}
+#         {% set daylight_factor = 1 %}
+#       {%- else -%}
+#         {% set daylight_factor = 0 %}
+#       {% endif %}
+#       {% set elevation_factor =  sin(state_attr('sun.sun', 'elevation')*pi/180) %}
+#       {{ (state_attr('weather.home', 'cloud_coverage')*10*elevation_factor*daylight_factor ) | int }}
+#     brightness: >
+#       {{ (state_attr('sensor.sun_solar_temperature', 'color_temp_percent')*2.55 ) | round(0, 'floor') }}
+
+# - name: "Average Cloud Cover Next 8 Hours"
+#   unique_id: average_cloud_cover_next_8_hours
+#   unit_of_measurement: "%"
+#   icon: mdi:weather-cloudy-clock
+#   state: >
+#     {% if hourly and hourly['weather.home'] %}
+#       {{ hourly['weather.home'].forecast[:8] | map(attribute='cloud_coverage') | list | average | round(0) }}
+#     {% else %}
+#       unavailable
+#     {% endif %}
+# - name: length_of_day_factor
+#   unique_id: length_of_day_factor
+#   state: >
+#     {% if is_state('sun.sun' , 'above_horizon') %}
+#       {% set daylength = ((as_timestamp(states.sun.sun.attributes.next_setting) - as_timestamp(states.sun.sun.attributes.next_rising)) / 3600) + 24 %}
+#         {{ (daylength*-0.0063616)+0.11131 }}
+#     {% endif %}
+#   attributes:
+#     descripton: "length of day factor for circadian light calculation"
+# - name: Sun Solar Phase
+#   unique_id: sun_solar_phase
+#   state: >
+#     {% if is_state('sensor.sun_solar_rising','True') %}
+#       {% if is_state('sun.sun' , 'below_horizon') %}
+#         0
+#       {%- else -%}
+#         1
+#       {% endif %}
+#     {%- else -%}
+#       {% if is_state('sun.sun' , 'above_horizon') %}
+#         2
+#       {%- else -%}
+#         3
+#       {% endif %}
+#     {% endif %}
+# - name: Sun Solar Phase Duration 0
+#   unique_id: sun_solar_phase_0
+#   unit_of_measurement: "%"
+#   state: >
+#     {% set phase_duration =  as_timestamp(states.sensor.sun_next_rising.state) | int - as_timestamp(states.sensor.sun_last_midnight.state) |int %}
+#     {{ (as_timestamp(now()) | int - as_timestamp(states.sensor.sun_next_rising.state) |int) /phase_duration }}
+# - name: Sun Solar Phase Duration 1
+#   unique_id: sun_solar_phase_1
+#   unit_of_measurement: "%"
+#   state: >
+#     {% set phase_duration =  as_timestamp(states.sensor.sun_next_noon.state) | int - as_timestamp(states.sensor.sun_last_rising.state) |int %}
+#     {{ (as_timestamp(now()) | int - as_timestamp(states.sensor.sun_last_rising.state) |int) /phase_duration }}
+# - name: Sun Solar Phase Duration 2
+#   unique_id: sun_solar_phase_2
+#   unit_of_measurement: "%"
+#   state: >
+#     {% set phase_duration =  as_timestamp(states.sensor.sun_next_setting.state) | int - as_timestamp(states.sensor.sun_last_noon.state) |int %}
+#     {{ (as_timestamp(states.sensor.sun_next_setting.state) |int - as_timestamp(now()) | int ) /phase_duration }}
+# - name: Sun Solar Phase Duration 3
+#   unique_id: sun_solar_phase_3
+#   unit_of_measurement: "%"
+#   state: >
+#     {% set phase_duration =  as_timestamp(states.sensor.sun_next_midnight.state) | int - as_timestamp(states.sensor.sun_last_setting.state) |int %}
+#     {{ (as_timestamp(states.sensor.sun_last_rising.state) |int - as_timestamp(now()) | int ) /phase_duration }}
+# - name: Sun Solar Elevation Percentage
+#   unique_id: sun_solar_elevation_percentage
+#   unit_of_measurement: "%"
+#   state: >
+#     {% if is_state("sun.sun", "above_horizon") -%}
+#       {% if state_attr('sun.sun', 'rising') -%}
+#         {% set phase_duration =  as_timestamp(states.sensor.sun_next_noon.state) | int - as_timestamp(states.sensor.sun_last_rising.state) |int %}
+#         {{ (as_timestamp(now()) | int - as_timestamp(states.sensor.sun_last_rising.state) |int) /phase_duration }}
+#       {%- else -%}
+#           {% set phase_duration =  as_timestamp(states.sensor.sun_next_setting.state) | int - as_timestamp(states.sensor.sun_last_noon.state) |int %}
+#           {{ (as_timestamp(states.sensor.sun_next_setting.state) |int - as_timestamp(now()) | int ) /phase_duration }}
+#       {%- endif %}
+#     {%- else -%}
+#       {% if state_attr('sun.sun', 'rising') -%}
+#         {% set phase_duration =  as_timestamp(states.sensor.sun_next_rising.state) | int - as_timestamp(states.sensor.sun_last_midnight.state) |int %}
+#         {{ (as_timestamp(now()) | int - as_timestamp(states.sensor.sun_next_rising.state) |int) /phase_duration }}
+#       {%- else -%}
+#         {% set phase_duration =  as_timestamp(states.sensor.sun_next_midnight.state) | int - as_timestamp(states.sensor.sun_last_setting.state) |int %}
+#         {{ (as_timestamp(states.sensor.sun_last_rising.state) |int - as_timestamp(now()) | int ) /phase_duration }}
+#       {%- endif %}
+#     {%- endif %}
+
+# - name: Sun Solar Temperature Full
+#   unique_id: sun_solar_temperature_full
+#   unit_of_measurement: "kelvin"
+#   state: >
+#     {{ 2200 - (cos(states.sensor.sun_solar_azimuth.state | float * pi/180)* 3717) | int }}
+#   attributes:
+#     description: "circadian light - color temperature Full"
+#     phase: >
+#       {% if is_state("sun.sun", "above_horizon") %}
+#         {% if state_attr('sun.sun', 'rising') %}
+#           1
+#         {%- else -%}
+#           2
+#         {%- endif %}
+#       {%- endif %}
+# - name: Sun Solar Temperature Sin
+#   unique_id: sun_solar_temperature_sin
+#   unit_of_measurement: "kelvin"
+#   state: >
+#     {{ (sin((states.sensor.sun_solar_azimuth.state | float - 90 ) * pi/180)* 3717) + 2200 | int }}
+#   attributes:
+#     description: "circadian light - color temperature sin"
+#     phase: >
+#       {% if is_state("sun.sun", "above_horizon") %}
+#         {% if state_attr('sun.sun', 'rising') %}
+#           1
+#         {%- else -%}
+#           2
+#         {%- endif %}
+#       {%- endif %}
+# - name: Sun Solar Temperature Azimuth
+#   unique_id: sun_solar_temperature_azimuth
+#   unit_of_measurement: "kelvin"
+#   state: >
+#     {% set max_temp = 6000 %}
+#     {% set min_temp = 2200 %}
+#     {% if state_attr('sun.sun', 'azimuth') > 180 %}
+#       {% set my_azimuth = (180 - (state_attr('sun.sun', 'azimuth') - 180))/180 %}
+#     {%- else -%}
+#       {% set my_azimuth = (state_attr('sun.sun', 'azimuth')/180) %}
+#     {% endif %}
+#     {% set temp_range = max_temp | int  -  min_temp | int %}
+#     {{ min_temp + (my_azimuth * temp_range) | int }}
+#   attributes:
+#     description: "circadian light - color temperature azimuth"
+#     phase: >
+#       {% if is_state("sun.sun", "above_horizon") %}
+#         {% if state_attr('sun.sun', 'rising') %}
+#           1
+#         {%- else -%}
+#           2
+#         {%- endif %}
+#       {%- endif %}
+#- trigger:
+#    - platform: time_pattern
+#      hours: "*"
+#      minutes: "*"
+#      seconds: 5
+#  sensor:
+# - sensor:
+# - name: 'Daily Energy Off Peak Total'
+# device_class: energy
+# unit_of_measurement: kWh
+# state: >
+# {% if is_number(states('sensor.daily_energy_offpeak')) and is_number(states('sensor.daily_energy_peak')) %}
+# {{ states('sensor.daily_energy_offpeak') | float + states('sensor.daily_energy_peak') | float }}
+# {% else %}
+# None
+# {% endif %}
+
+# - name: 'Daily Energy Peak Total'
+# device_class: energy
+# unit_of_measurement: kWh
+# state: >
+# {% if is_number(states('sensor.monthly_energy_offpeak')) and is_number(states('sensor.monthly_energy_peak')) %}
+# {{ states('sensor.monthly_energy_offpeak') | float + states('sensor.monthly_energy_peak') | float }}
+# {% else %}
+# None
+# {% endif %}
+
+# - sensor:
+# power_amp_energy_total:
+# value_template: '{{ states("sensor.power_amp1_energy_total") |float + states("sensor.power_amp2_energy_total") | float + states("sensor.power_amp3_energy_total") | float }}'
+# device_class: energy
+# ##state_class: total
+# unit_of_measurement: 'kWh'
+# friendly_name: Power Amps Energy total
+
+# power_amps_total:
+# energy_total:
+# friendly_name: 'Power Amps Total'
+# entity_id:
+# - sensor.power_amp1_energy_total
+# - sensor.power_amp2_energy_total
+# - sensor.power_amp3_energy_total
+# ##state_class: 'total'
+# unit_of_measurement: kWh
+# device_class: 'energy'
+# value_template: '{{ states("sensor.power_amp1_energy_total") |float + states("sensor.power_amp2_energy_total") | float + states("sensor.power_amp3_energy_total") | float }}'
+##- platform: template
+##  sensors:
+# - select:
+# tou_energy_tarrifs:
+# name: Energy Tariffs
+# options:
+# - offpeak
+# - midpeak
+# - peak
+# value_template: >-
+# {## https://www.oeb.ca/rates-and-your-bill/electricity-rates ##}
+
+# {% if is_state('binary_sensor.workday_sensor', 'off') %}
+# {{ 'offpeak' }}
+# {% else %}
+# {% if now().month <= 4 or now().month >= 11 %}
+# {% if now().hour >= 7 and now().hour < 11 %}
+# {{ 'peak' }}
+# {% elif now().hour >= 11 and now().hour < 17 %}
+# {{ 'midpeak' }}
+# {% elif now().hour >= 17 and now().hour < 19 %}
+# {{ 'peak' }}
+# {% else %}
+# {{ 'offpeak' }}
+# {% endif %}
+# {% else %}
+# {% if now().hour >= 7 and now().hour < 11 %} Mid-Peak {% elif now().hour >= 11 and now().hour < 17 %}
+# {{ 'peak' }}
+# {% elif now().hour >= 17 and now().hour < 19 %}
+# {{ 'midpeak' }}
+# {% else %}
+# {{ 'offpeak' }}
+# {% endif %}
+# {% endif %}
+# {% endif %}

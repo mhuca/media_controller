@@ -1,0 +1,11 @@
+substitutions:
+  name: driveway-bulb2
+  friendly_name: Driveway Bulb 2
+  device_type: light
+  board: esp8285
+
+packages:   # as a list
+  - !include common/wifi.yaml
+  - !include common/bulb_base.yaml
+  - !include common/athom_e27_7w_bulb.yaml
+  

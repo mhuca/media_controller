@@ -1,0 +1,102 @@
+blueprint:
+  name: "Lutron Pico - Full Loop Proactive Override"
+  description: "A hardware-aware subscriber that both defines the override AND executes the action."
+  domain: automation
+  input:
+    pico_devices:
+      name: Select Pico Remotes
+      selector:
+        device:
+          integration: lutron_caseta
+          multiple: true
+    override_id:
+      name: Unique Override ID
+      description: "Match this to the 'type' used in your mappings below."
+    overrides_press:
+      name: Single Press Overrides
+      default: []
+      selector:
+        reorderable_list:
+          item_name: Mapping
+          schema:
+            - name: button
+              label: Button Number
+              selector: { text: {} }
+            - name: type
+              label: Action Type
+              selector: { text: {} }
+            - name: value
+              label: Action Value
+              selector: { text: {} }
+    target_action:
+      name: Execution Logic
+      description: "The action to run when the redirect returns. Access variables: {{ value }}, {{ command }}, {{ area }}."
+      selector:
+        action: {}
+
+mode: queued
+max: 10
+
+variables:
+  target_devices: !input pico_devices
+  oid: !input override_id
+  library: "{{ state_attr('binary_sensor.pico_hardware_registry', 'library') }}"
+  pico_map: "{{ state_attr('binary_sensor.pico_hardware_registry', 'picos') }}"
+  
+  # Map the list inputs into the Dispatcher-ready JSON format
+  command_map_data: >
+    {% set ns = namespace(p={}) %}
+    {% for i in !input overrides_press %}
+      {% set ns.p = ns.p | combine({ i.button: {"type": i.type, "value": i.value} }) %}
+    {% endfor %}
+    {{ {"press": ns.p} }}
+
+trigger:
+  - trigger: event
+    event_type: lutron_caseta_button_event
+    event_data:
+      action: press
+    id: "physical_press"
+  - trigger: event
+    event_type: universal_controller_command
+    event_data:
+      action_type: !input override_id
+    id: "redirected_event"
+
+action:
+  - choose:
+      # --- PHASE 1: THE HANDSHAKE ---
+      - conditions:
+          - condition: trigger
+            id: "physical_press"
+          - condition: template
+            value_template: "{{ trigger.event.data.device_id in target_devices }}"
+        sequence:
+          - variables:
+              device_id: "{{ trigger.event.data.device_id }}"
+              hw_type: "{{ pico_map.get(device_id, {}).get('t') }}"
+              valid_buttons: "{{ library.get(hw_type, []) }}"
+              pressed_button: "{{ trigger.event.data.button_number | string }}"
+
+          - if:
+              - condition: template
+                value_template: "{{ pressed_button in valid_buttons }}"
+            then:
+              - delay:
+                  milliseconds: 1
+              - event: pico_subscription
+                event_data:
+                  session_id: "{{ trigger.event.context.id }}"
+                  command_map: "{{ command_map_data }}"
+
+      # --- PHASE 2: THE EXECUTION ---
+      - conditions:
+          - condition: trigger
+            id: "redirected_event"
+        sequence:
+          - variables:
+              value: "{{ trigger.event.data.action_value }}"
+              command: "{{ trigger.event.data.command }}"
+              area: "{{ trigger.event.data.area_key }}"
+          - choose: []
+            default: !input target_action

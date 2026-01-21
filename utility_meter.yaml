@@ -1,0 +1,10 @@
+#utility_meter:
+  daily_energy:
+    source: sensor.main_service_123_1d
+    name: Main Service Daily Energy
+    cycle: daily
+    unique_id: main_service_123_1d_1234
+    tariffs:
+      - offpeak
+      - midpeak
+      - peak

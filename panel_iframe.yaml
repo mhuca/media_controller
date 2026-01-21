@@ -1,0 +1,28 @@
+  homebridge:
+    title: "HomeBridge"
+    url: "http://10.0.168.33:9090"
+    icon: mdi:home-automation
+  nodered_34:
+    title: "Node Red NAS .34"
+    url: "http://10.0.168.34:1880"
+    icon: mdi:sitemap
+  nodered_54:
+    title: "Node Red NAS .54"
+    url: "http://10.0.168.54:1880"
+    icon: mdi:sitemap
+  tasmota_admin:
+    title: "Tasmota Admin"
+    url: "http://10.0.168.54:1880/ui"
+    icon: mdi:folder-home
+  portainer_prox:
+    title: "Portainer Prox"
+    icon: mdi:docker
+    url: http://10.0.168.9:9000/
+  portainer_nas:
+    title: "Portainer NAS"
+    icon: mdi:docker
+    url: http://10.0.168.24:9000/
+  emqx_dashboad:
+    title: "EMQX NAS"
+    icon: mdi:wifi-arrow-left-right
+    url: http://10.0.168.36:18083/

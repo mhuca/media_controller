@@ -1,0 +1,52 @@
+trigger:
+  - trigger: event
+    event_type: lutron_caseta_button_event
+    event_data:
+      action: press
+binary_sensor:
+    - name: "Pico Hardware Registry"
+      unique_id: "pico_hw_registry_system"
+      state: "{{ 'on' }}"
+      attributes:
+        library: >
+          {# 1. Predefined Master Layouts #}
+          {% set master = {
+            "Pico3ButtonRaiseLower": ["2", "3", "4", "5", "6"],
+            "Pico2Button": ["1", "5"],
+            "Pico3Button": ["1", "2", "5"],
+            "Pico4ButtonScene": ["8", "9", "10", "11"]
+          } %}
+          
+          {% set type = trigger.event.data.type %}
+          {% set btn = trigger.event.data.button_number | string %}
+          
+          {# 2. Get current learned library #}
+          {% set current_lib = state_attr('binary_sensor.pico_hardware_registry', 'library') %}
+          {% set lib = current_lib if current_lib is mapping else master %}
+          
+          {% if is_state('input_boolean.pico_learning_mode', 'on') %}
+            {% set known_buttons = lib.get(type, []) %}
+            {% if btn not in known_buttons %}
+              {% set new_buttons = (known_buttons + [btn]) | sort %}
+              {% set lib = dict(lib, **{type: new_buttons}) %}
+            {% endif %}
+          {% endif %}
+          
+          {{ lib | to_json }}
+
+        picos: >
+          {# Maps the Device ID to the Type so we know which library entry to use #}
+          {% set dev_id = trigger.event.data.device_id %}
+          {% set type = trigger.event.data.type %}
+          {% set name = trigger.event.data.device_name %}
+          
+          {% set current_picos = state_attr('binary_sensor.pico_hardware_registry', 'picos') %}
+          {% set picos = current_picos if current_picos is mapping else {} %}
+          
+          {% if is_state('input_boolean.pico_learning_mode', 'on') %}
+            {% if dev_id not in picos %}
+              {% set picos = dict(picos, **{dev_id: {"n": name, "t": type}}) %}
+            {% endif %}
+          {% endif %}
+          
+          {{ picos | to_json }}

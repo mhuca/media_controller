@@ -1,0 +1,25 @@
+# select:
+#   name: Living Room Lighting Selector
+#   unique_id: living_room_scene_selector
+#   icon: mdi:palette-swatch
+#   # State/Persistence Logic
+#   state: >
+#     {{ states('input_text.living_room_scene_state')
+#       | default('scene.30_normal_daily') }}
+
+#   # Options: FINAL FIX FOR MAPPING
+#   options: >
+#     {% set living_room_id = 'living_room' %}
+#     {% set filtered_scenes = area_entities(living_room_id)
+#       | select('match', 'scene.')
+#       | list
+#       | sort %}
+#     {{ filtered_scenes }}
+
+#   # Activation Action (Remains the same, uses the raw Entity ID string)
+#   select_option:
+#     - action: input_text.set_value
+#       target:
+#         entity_id: input_text.living_room_scene_state
+#       data:
+#         value: "{{ option }}"

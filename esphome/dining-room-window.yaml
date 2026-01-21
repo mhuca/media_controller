@@ -1,0 +1,86 @@
+substitutions:
+  name: dining-room-window
+  friendly_name: Dining Room Window
+  event: nodered_automation
+  button: button
+  board: esp01_1m
+
+esphome:
+  project:
+    name: Generic.KS-602s
+    version: "0.9"
+
+packages:   # as a list
+  - !include common/wifi.yaml
+  - !include common/device_base.yaml
+  
+api:
+
+text:
+  - id: timer_entity_id
+    platform: template
+    name: "Light Timer"
+#    initial_value: id(glbl_timer_entity_id)
+    optimistic: true
+    min_length: 0
+    max_length: 100
+    mode: text
+    restore_value: true
+    on_value:
+      then:
+        - globals.set:
+            id: glbl_timer_entity_id
+            value: !lambda 'return x;' # x represents the value of the text_template
+
+light:
+  # See: https://esphome.io/components/light/binary.html
+  - id: light_1
+    name: Light
+    platform: binary
+    output: relay_1
+    internal: true
+    # Resume last state on boot if possible. Else, off
+    restore_mode: RESTORE_DEFAULT_OFF
+
+    # Wire in the count down timer automation if enabled
+    on_turn_on:
+      then:
+        # - output.turn_on: relay_1
+        - globals.set:
+            id: glbl_relay_state
+            value: "true"
+        - if:
+            condition:
+              # If the countdown timer is enabled
+              lambda: 'return id(glbl_timeout_enabled);'
+            then:                          
+              # The light is already on, start counting the seconds.
+              # When timer ends, light will be turned off
+              - script.execute: start_timer
+              - logger.log:
+                  level: DEBUG
+                  format: "Timer Just Started sue to fan_1 being turned on"
+
+            else:
+              - logger.log:
+                  level: DEBUG
+                  format: "Light1 turned on, countdown timer not enabled"
+
+    # This can be called by the natural end of the timer OR manually through any other source.
+    # Regardless of the source, we just need to stop the ticking if it's running.
+    on_turn_off:
+      then:
+        - globals.set:
+            id: glbl_relay_state
+            value: "false"
+        - if:
+            condition:
+              lambda: 'return id(_timer_tick).is_running();'
+            then:
+              - script.execute: on_timer_stop
+
+            else:
+              - logger.log:
+                  level: DEBUG
+                  format: "Light1 turned off, countdown timer not enabled"
+

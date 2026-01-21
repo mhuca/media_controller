@@ -1,0 +1,560 @@
+substitutions:
+  event: nodered_automation
+  button: button
+  
+esphome:
+  name: ${name}
+  name_add_mac_suffix: false
+  friendly_name: ${friendly_name}
+  
+esp8266:
+  board: ${board}
+  restore_from_flash: true
+
+preferences:
+  flash_write_interval: 30s
+
+# Enable logging
+logger:
+
+ota:
+  - platform: esphome
+
+
+globals:
+  - id: glbl_relay_state
+    type: bool
+    restore_value: true
+    initial_value: "false"
+  
+  - id: glbl_detach_relay
+    type: bool
+    restore_value: true
+    initial_value: "false"
+
+  - id: glbl_remote_mode
+    type: bool
+    restore_value: true
+    initial_value: "false"
+
+  # For the auto-off automation
+  - id: glbl_timeout_enabled
+    type: bool
+    restore_value: true
+    initial_value: "true"
+
+    # Mirror Home Assistant Timer
+  - id: glbl_ha_timer_enabled
+    type: bool
+    restore_value: true
+    initial_value: "false"
+
+  - id: glbl_timeout_length_ticks
+    type: int
+    restore_value: true
+    # 5 min * 60 seconds = 300
+    initial_value: "300"
+
+  # We ALSO need to keep track of the number of 'ticks'
+  # add _prefix to indicate 'internal'
+  - id: _glbl_timeout_ticks
+    type: int
+    restore_value: false
+    initial_value: "0"
+
+  - id: _glbl_timeout_major_ticks
+    type: int
+    restore_value: false
+    initial_value: "0"
+
+  - id: _glbl_hold_ticks
+    type: int
+    restore_value: false
+    initial_value: "0"
+
+  # entity id for Hoem Assistant timer 
+  - id: glbl_timer_entity_id
+    type: std::string
+    restore_value: true
+
+script:
+    # Start meaning starting the timer actions
+  - id: start_timer
+    mode: single
+    then:
+      - script.execute: _timer_tick
+      - if:
+          condition:
+            lambda: 'return id(glbl_ha_timer_enabled);'
+          then:
+            - homeassistant.action: 
+                action: timer.start
+                data_template:
+                  duration: !lambda return id(glbl_timeout_length_ticks);
+                  entity_id: !lambda return id(glbl_timer_entity_id);
+
+            - lambda: |-
+                auto TAG = "script.start_timer";
+                ESP_LOGD(TAG, "start_timer now started and glbl_timer_entity_id is %s", id(glbl_timer_entity_id).c_str());  
+
+    # End meaning the natural conclusion of the timer. Do whatever we're supposed to do when the timer fires off
+  - id: on_timer_end
+    mode: single
+    then:
+      - switch.turn_off: hw_relay
+      - logger.log: "on_timer_end: output should be off!"
+
+    # Stop meaning the pre-mature ending of the timer
+  - id: on_timer_stop
+    # Do not start a new run. Issue a warning.
+    mode: single
+    then:
+      - if:
+          condition:
+            lambda: 'return id(glbl_ha_timer_enabled);'
+          then:
+            - homeassistant.action: 
+                action: timer.cancel
+                data_template:
+                  entity_id: !lambda return id(glbl_timer_entity_id);
+        # For now, just clean up the globals and stop the ticking.
+        # This hook could be used to do so much more, though.
+        ##
+      - lambda: |-
+          auto TAG = "script.on_timer_stop";
+
+          id(_timer_tick).stop();
+          id(_glbl_timeout_ticks) = 0;
+          ESP_LOGD(TAG, "_timer_tick now stopped and _glbl_timeout_ticks is %d", id(_glbl_timeout_ticks));          
+
+  - id: on_timer_restart
+    # Do not start a new run. Issue a warning.
+    mode: single
+    then:
+      - if:
+          condition:
+            lambda: 'return id(glbl_ha_timer_enabled);'
+          then:
+            - homeassistant.action: 
+                action: timer.start
+                data_template:
+                  duration: !lambda return id(glbl_timeout_length_ticks);
+                  entity_id: !lambda return id(glbl_timer_entity_id);
+
+            - lambda: |-
+                auto TAG = "script.start_timer";
+                ESP_LOGD(TAG, "start_timer now started and glbl_timer_entity_id is %s", id(glbl_timer_entity_id).c_str());
+        # For now, just clean up the globals and stop the ticking.
+        # This hook could be used to do so much more, though.
+        ##
+      - output.turn_on: relay_1
+      - lambda: |-
+          auto TAG = "script.on_timer_restart";
+
+          id(_glbl_timeout_ticks) = 0;
+          if (not id(_timer_tick).is_running()) {
+            id(start_timer).execute();
+            ESP_LOGI(TAG, "_timer_tick script was not running!");
+          }
+          ESP_LOGD(TAG, "_timer_tick restarted and _glbl_timeout_ticks is %d", id(_glbl_timeout_ticks));    
+
+  - id: _timer_tick
+    # Start a new run after previous runs completes. This will happen until timer.stop() is called on us
+    ##
+    mode: queued
+    then:
+      # A single 'tick' is 1 second long
+      - delay: 1s
+      - lambda: |-
+          
+          // First, update the number of ticks
+          id(_glbl_timeout_ticks) += 1;
+          id(_glbl_timeout_major_ticks) += 1;
+
+          // Then check if we have timed out
+          if (id(_glbl_timeout_ticks) >= id(glbl_timeout_length_ticks) ) {
+
+            // If we have timed out, run the script to handle the timer expiration
+            // It's cleaner to call out to a script rather than put all the "what no?" code in here!
+            id(on_timer_end).execute();
+            auto TAG = "lambda._timer_tick";
+            ESP_LOGD(TAG, "_glbl_timeout_ticks is >= glbl_timeout_length_ticks  %d >= %d ", id(_glbl_timeout_ticks), id(glbl_timeout_length_ticks) );
+
+            // And then re-set the internal counter
+            id(_glbl_timeout_ticks) = 0;
+
+            // And finally, stop the ticking timer
+            id(_timer_tick).stop();
+            ESP_LOGD(TAG, "_timer_tick now stopped!");
+          } else {
+
+            // if (id(_glbl_timeout_major_ticks) >= 5) {
+              auto TAG = "lambda._timer_tick";
+              id(_glbl_timeout_major_ticks) = 0;
+              ESP_LOGD(TAG, "_glbl_timeout_ticks is < glbl_timeout_length_ticks  %d < %d ", id(_glbl_timeout_ticks), id(glbl_timeout_length_ticks) );
+            // }
+            // make sure we run again.. unless we're not supposed to
+            if( id(glbl_timeout_enabled) ) {
+              id(_timer_tick).execute();
+            }
+          }          
+  - id: _hold_tick
+    # Start a new run after previous runs completes. This will happen until timer.stop() is called on us
+    ##
+    mode: queued
+    then:
+      # A single 'tick' is 1 second long 
+      - homeassistant.event:
+          event: esphome.${event}
+          data:
+            entity_id: esphome.${name}
+            event_type: ${button}
+            event_value: "hold"
+      - delay: 0.85s
+      - lambda: |-
+            id(_hold_tick).execute();
+
+  - id: on_hold_tick_stop
+    # Do not start a new run. Issue a warning.
+    mode: single
+    then:
+      - if:
+          condition:
+            lambda: 'return id(_hold_tick).is_running();'
+          then:
+            - homeassistant.event:
+                event: esphome.${event}
+                data:
+                  entity_id: esphome.${name}
+                  event_type: ${button}
+                  event_value: "release"
+        # For now, just clean up the globals and stop the ticking.
+        # This hook could be used to do so much more, though.
+        ##
+      - lambda: |-
+          auto TAG = "script.on_hold_tick_stop";
+
+          id(_hold_tick).stop();
+          ESP_LOGD(TAG, "_hold_tick now stopped ");
+
+# Create a toggle in HA that allows us to arm/disarm the button <-> relay glue
+# See: https://esphome.io/components/switch/template.html
+switch:
+  - id: hw_relay
+    # platform: output
+    platform: template
+    name: "Main Relay"
+    device_class: "switch"
+    disabled_by_default: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: "config"
+    lambda: |-
+      if (id(glbl_relay_state)) {
+        return true;
+      } else {
+        return false;
+      }  
+    # output: relay_1
+    turn_on_action:
+      - output.turn_on: relay_1
+      - globals.set:
+          id: glbl_relay_state
+          value: "true"
+    turn_off_action:
+      - output.turn_off: relay_1
+      - globals.set:
+          id: glbl_relay_state
+          value: "false"
+
+  - id: sw_relay_mode
+    name: "Detach Relay"
+    platform: template
+    device_class: "switch"
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: "config"
+    lambda: |-
+      if (id(glbl_detach_relay)) {
+        return true;
+      } else {
+        return false;
+      }      
+
+    turn_on_action:
+      - globals.set:
+          id: glbl_detach_relay
+          value: "true"
+      # - globals.set:
+      #     id: glbl_remote_mode
+      #     value: "false"
+
+    turn_off_action:
+      - globals.set:
+          id: glbl_detach_relay
+          value: "false"
+
+  - id: sw_remote_mode
+    name: "${friendly_name} Remote Binding"
+    platform: template
+    device_class: "switch"
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: "config"
+    disabled_by_default: true
+    lambda: |-
+      if (id(glbl_remote_mode)) {
+        return true;
+      } else {
+        return false;
+      }
+
+    turn_on_action:
+      - globals.set:
+          id: glbl_remote_mode
+          value: "true"
+      # - globals.set:
+      #     id: glbl_detach_relay
+      #     value: "false"
+
+    turn_off_action:
+      - globals.set:
+          id: glbl_remote_mode
+          value: "false"
+
+    # UI toggle for the arm/disarm of the auto-off/timeout functionality
+  - id: sw_timeout_enabled
+    name: "${friendly_name} Timeout Automation"
+    platform: template
+    device_class: "switch"
+    entity_category: "config"
+    restore_mode: RESTORE_DEFAULT_ON
+
+    lambda: |-
+      if (id(glbl_timeout_enabled)) {
+        return true;
+      } else {
+        return false;
+      }      
+
+    turn_on_action:
+      then:
+        # Update the global to store the new state
+        # If the light is already on, also start the timer
+        ########################
+        # NEED TO REVIST THIS
+        ########################
+        - lambda: |-
+            id(glbl_timeout_enabled) = true;
+
+            auto TAG = "template.Timeout Automation.turn_on_action";
+            // if ( id(hw_relay).current_values.is_on() ) {
+            if ( id(glbl_relay_state) ) {
+              id(start_timer).execute();
+            } else {
+              ESP_LOGD(TAG, "Timeout Automation enabled, light NOT on. Nothing to do!");
+            }            
+
+    turn_off_action:
+      then:
+        # Update the global and stop the ticking timer if needed
+        - lambda: |-
+            // Set the global to OFF, it will be checked next time the _tick fires if the on_timer_stop doesn't
+            // kill the ticking
+            id(glbl_timeout_enabled) = false;
+            id(on_timer_stop).execute();
+
+  - id: ha_timer_enabled
+    name: ${friendly_name} HA timer enabled
+    platform: template
+    device_class: "switch"
+    entity_category: "config"
+    restore_mode: RESTORE_DEFAULT_ON
+    optimistic: true
+    lambda: |-
+      if (id(glbl_ha_timer_enabled)) {
+        return true;
+      } else {
+        return false;
+      }
+    turn_on_action:
+      - globals.set:
+          id: glbl_ha_timer_enabled
+          value: "true"
+    turn_off_action:
+      - globals.set:
+          id: glbl_ha_timer_enabled
+          value: "false"
+
+# Give the user a graphical control over the timeout
+# See: https://esphome.io/components/number/template.html
+number:
+  - id: timeout_length
+    platform: template
+    name: "${friendly_name} Timeout"
+    entity_category: "config"
+    # TODO: maybe it's a better UX to do this in minutes and do the conversion in esphome
+    unit_of_measurement: seconds
+    mode: box
+    min_value: 30
+    max_value: 21600
+    step: 30
+
+    lambda: |-
+      return (int) id(glbl_timeout_length_ticks);      
+
+    set_action:
+      then:
+        - globals.set:
+            id: glbl_timeout_length_ticks
+            value: !lambda |-
+              // TODO: we're relying on HA to pass an integer; perhaps we should do atoi() and catch any exceptions
+              return (int) x;
+
+binary_sensor:
+  - id: button_1
+    name: ${friendly_name} Button
+    platform: gpio
+    internal: true
+    entity_category: "diagnostic"
+    pin:
+      number: GPIO0
+      inverted: true
+    on_multi_click:
+    - timing:
+        - ON for at most 0.4s
+        - OFF for at most 0.4s
+        - ON for at most 0.4s
+        - OFF for at least 0.2s
+      then:
+        - logger.log: "Double Clicked"
+        - homeassistant.event:
+            event: esphome.${event}
+            data:
+              entity_id: esphome.${name}
+              event_type: ${button}
+              event_value: "double"
+    - timing:
+        - OFF for at least 0.2s
+      then:
+        - logger.log: "Released"
+        - if:
+            condition:
+              lambda: 'return id(_hold_tick).is_running();'
+            then:
+              - homeassistant.event:
+                  event: esphome.${event}
+                  data:
+                    entity_id: esphome.${name}
+                    event_type: ${button}
+                    event_value: "release"
+              - script.stop: _hold_tick
+              - logger.log: "script _hold_tick stopped"
+      
+    - timing:
+        - ON for at least 0.4s
+      then:
+        - logger.log: "Hold Clicked"
+        - script.execute: _hold_tick
+
+    - timing:
+        - ON for at most 0.4s
+        - OFF for at least 0.5s
+      then:
+        - logger.log: "Single Short Clicked..."
+        - if:
+            condition:
+              lambda: |-
+                if (id(glbl_detach_relay)) {
+                  return false;
+                } else {
+                  return true;
+                }
+            then:
+              - switch.toggle: hw_relay
+        - homeassistant.event:
+            event: esphome.${event}
+            data:
+              entity_id: esphome.${name}
+              event_type: ${button}
+              event_value: "press"
+output:
+  # See" https://esphome.io/components/output/ledc.html
+  - id: relay_1
+    platform: gpio
+    pin:
+      number: 12
+
+  - id: gpio_13
+    platform: gpio
+    pin:
+      number: 13
+      inverted: true
+      
+light:
+  # # See: https://esphome.io/components/light/binary.html
+  # - id: light_1
+  #   name: Light
+  #   platform: binary
+  #   output: relay_1
+
+  #   # Resume last state on boot if possible. Else, off
+  #   restore_mode: RESTORE_DEFAULT_OFF
+
+  #   # Wire in the count down timer automation if enabled
+  #   on_turn_on:
+  #     then:
+  #       - if:
+  #           condition:
+  #             # If the countdown timer is enabled
+  #             lambda: 'return id(glbl_timeout_enabled);'
+  #           then:                          
+  #             # The light is already on, start counting the seconds.
+  #             # When timer ends, light will be turned off
+  #             - script.execute: start_timer
+
+  #           else:
+  #             - logger.log:
+  #                 level: DEBUG
+  #                 format: "Light1 turned on, countdown timer not enabled"
+
+  #   # This can be called by the natural end of the timer OR manually through any other source.
+  #   # Regardless of the source, we just need to stop the ticking if it's running.
+  #   on_turn_off:
+  #     then:
+  #       - if:
+  #           condition:
+  #             lambda: 'return id(_timer_tick).is_running();'
+  #           then:
+  #             - script.execute: on_timer_stop
+
+  #           else:
+  #             - logger.log:
+  #                 level: DEBUG
+  #                 format: "Light1 turned off, countdown timer not enabled"
+
+  - id: relay_status_leds
+    name: ${friendly_name} Indicator Lights
+    platform: status_led
+    output: gpio_13
+    # Classify this as a "config" entity rather than a primary entity
+    entity_category: config
+    restore_mode: RESTORE_DEFAULT_ON
+
+fan:
+  # # See: https://esphome.io/components/light/binary.html
+  # - id: fan_1
+  #   name: Fan
+  #   platform: binary
+  #   output: relay_1
+
+  #   # Resume last state on boot if possible. Else, off
+  #   restore_mode: RESTORE_DEFAULT_OFF
+
+  #   # Wire in the count down timer automation if enabled
+  #   on_turn_on:
+  #     then:
+  #       - if:
+  #           condition:
+  #             # If the countdown timer is enabled
+  #             lambda: 'return id(glbl_timeout_enabled);'
+  #           then:                          
+  #             # The light is already on, start counting the seconds.
+  #             # Whe

@@ -1,0 +1,122 @@
+substitutions:
+  target_id: light_1
+  device_type: Light
+
+# This file includes the generic timer base and specializes it for a Light component.
+packages:
+  - !include switch_base.yaml
+  - !include generic_602_timer_base.yaml
+
+# -----------------------------------------------------------------------------
+# 1. Component Definition (Light)
+# -----------------------------------------------------------------------------
+light:
+  - id: ${target_id}
+    name: ${device_type}
+    platform: binary
+    output: relay_1 # Defined in generic_602_timer_base.yaml
+    restore_mode: RESTORE_DEFAULT_OFF
+    
+    # Timer start logic
+    on_turn_on:
+      then:
+        - if:
+            condition:
+              # Only start the timer if the HA toggle 'glbl_timeout_enabled' is TRUE.
+              lambda: 'return id(glbl_timeout_enabled);'
+            then:
+              - script.execute: start_timer
+            else:
+              - logger.log:
+                  level: DEBUG
+                  format: "Light turned on, timer disabled."
+    
+    # Timer stop logic
+    on_turn_off:
+      then:
+        - if:
+            condition:
+              # If the light is manually turned off while the countdown is active, stop the script.
+              lambda: 'return id(_glbl_current_tick_count) > 0;'
+            then:
+              - light.turn_off: ${target_id} 
+              - script.execute: on_timer_stop
+            else:
+              - logger.log:
+                  level: DEBUG
+                  format: "Light turned off. Timer was not active."
+
+
+# -----------------------------------------------------------------------------
+# 2. Script Overrides (Injecting Light-Specific Actions/Checks)
+# -----------------------------------------------------------------------------
+script:
+  # OVERRIDE: Add the component-specific turn_off action (Called when countdown hits zero or manual turn_off)
+  # - id: on_timer_stop
+  #   then:
+  #     - logger.log: 
+  #         format: "Timer stopped. Turning Light off."
+  #     - globals.set:
+  #         id: _glbl_current_tick_count
+  #         value: '0'
+  #     - light.turn_off: ${target_id} 
+
+  # OVERRIDE: Add the component-specific 'is_on' check to the tick script
+  # Note: The base timer_tick script already checks glbl_timeout_enabled and count > 0.
+  # This override provides the component-specific ON check.
+  # - id: timer_tick
+  #   mode: parallel # Important: Allow the base script to be modified here
+  #   then:
+  #     - if:
+  #         condition:
+  #           # Check 1 (new): The light must be physically ON
+  #           - light.is_on: ${target_id} 
+  #           # Check 2 & 3 (from base): Timer must be enabled AND count > 0.
+  #           - lambda: 'return id(glbl_timeout_enabled).state;'
+  #           - lambda: 'return id(_glbl_current_tick_count).state > 0;'
+  #         then:
+  #           # Decrement the counter
+  #           - globals.set:
+  #               id: _glbl_current_tick_count
+  #               value: 'id(_glbl_current_tick_count).state - 1'
+  #           - if:
+  #               condition:
+  #                 lambda: 'return id(_glbl_current_tick_count).state % 30 == 0;'
+  #               then:
+  #                 - logger.log: 
+  #                     format: "Light Timer: %d seconds remaining."
+  #                     args: [ 'id(_glbl_current_tick_count).state' ]
+  #           - if:
+  #               condition:
+  #                 lambda: 'return id(_glbl_current_tick_count).state == 0;'
+  #               then:
+  #                 - logger.log:
+  #                     format: "Countdown complete. Triggering Light turn off."
+  #                 - script.execute: on_timer_stop
+  #         else:
+  #           - logger.log:
+  #               level: DEBUG
+  #               format: "Light Timer tick ignored (Light off, disabled, or count zero)."
+
+
+# -----------------------------------------------------------------------------
+# 3. Local Switch (For Physical Button)
+# -----------------------------------------------------------------------------
+switch:
+  - id: switch_1
+    name: Local Switch
+    platform: template
+    internal: true
+    # State reflects the light's state
+    lambda: 'return id(relay_1);'
+    
+    # Turn actions target the light component
+    turn_on_action:
+      - light.turn_on: ${target_id}
+    turn_off_action:
+      - light.turn_off: ${target_id}
+      
+    on_turn_on:
+      - switch.turn_on: switch_1
+    on_turn_off:
+      - switch.turn_off: switch_1

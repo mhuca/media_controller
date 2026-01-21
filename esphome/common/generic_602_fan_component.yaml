@@ -1,0 +1,135 @@
+substitutions:
+  target_id: fan_1
+  device_type: Fan
+  internal_switch_id: internal_relay_switch # ID for the actual GPIO controller
+
+# This file includes the generic timer base and specializes it for a Fan component.
+packages:
+  - !include generic_602_timer_base.yaml
+
+# -----------------------------------------------------------------------------
+# 0. Internal Component (Not exposed to HA, controls the GPIO pin)
+# -----------------------------------------------------------------------------
+switch:
+  - id: ${internal_switch_id}
+    name: ${device_type} Relay Switch
+    platform: template
+    internal: true # Crucial: Hides this switch from Home Assistant
+
+    # Actions when the switch is commanded ON/OFF (Actuates the GPIO)
+    turn_on_action:
+      - output.turn_on: relay_1 # relay_1 is the OUTPUT defined in the base file
+    turn_off_action:
+      - output.turn_off: relay_1
+
+# -----------------------------------------------------------------------------
+# 1. User-Facing Component (Fan entity exposed to HA)
+# -----------------------------------------------------------------------------
+fan:
+  - id: ${target_id}
+    name: ${device_type}
+    platform: template # Changed to Template Fan
+    
+    # State reflects the state of the internal switch
+    lambda: 'return id(${internal_switch_id}).state;'
+    
+    # Actions for Fan.turn_on/off commands
+    turn_on_action:
+      - switch.turn_on: ${internal_switch_id}
+      
+    turn_off_action:
+      - switch.turn_off: ${internal_switch_id}
+    
+    # Timer start logic (fires when the internal switch turns ON)
+    on_turn_on:
+      then:
+        - if:
+            condition:
+              # Only start the timer if the HA toggle 'glbl_timeout_enabled' is TRUE.
+              lambda: 'return id(glbl_timeout_enabled).state;'
+            then:
+              - script.execute: start_timer
+            else:
+              - logger.log:
+                  level: DEBUG
+                  format: "Fan turned on, timer disabled."
+    
+    # Timer stop logic (fires when the internal switch turns OFF)
+    on_turn_off:
+      then:
+        - if:
+            condition:
+              # If the fan is manually turned off while the countdown is active, stop the script.
+              lambda: 'return id(_glbl_current_tick_count).state > 0;'
+            then:
+              - script.execute: on_timer_stop
+            else:
+              - logger.log:
+                  level: DEBUG
+                  format: "Fan turned off. Timer was not active."
+
+
+# -----------------------------------------------------------------------------
+# 2. Script Overrides (Injecting Fan-Specific Actions/Checks)
+# -----------------------------------------------------------------------------
+script:
+  # OVERRIDE: Add the component-specific turn_off action (Called when countdown hits zero or manual turn_off)
+  - id: on_timer_stop
+    then:
+      - logger.log: "Timer stopped. Turning Fan off."
+      - globals.set:
+          id: _glbl_current_tick_count
+          value: '0'
+      # The timer now targets the user-facing FAN component
+      - fan.turn_off: ${target_id} 
+
+  # OVERRIDE: Add the component-specific 'is_on' check to the tick script
+  - id: timer_tick
+    mode: parallel
+    then:
+      - if:
+          condition:
+            # Check 1: The fan must be physically ON (checks the template fan state)
+            - fan.is_on: ${target_id} 
+            # Check 2 & 3: Timer must be enabled AND count > 0.
+            - lambda: 'return id(glbl_timeout_enabled).state;'
+            - lambda: 'return id(_glbl_current_tick_count).state > 0;'
+          then:
+            # Decrement the counter
+            - globals.set:
+                id: _glbl_current_tick_count
+                value: 'id(_glbl_current_tick_count).state - 1'
+            - if:
+                condition:
+                  lambda: 'return id(_glbl_current_tick_count).state % 30 == 0;'
+                then:
+                  - logger.log: "Fan Timer: %d seconds remaining."
+                    args: [ 'id(_glbl_current_tick_count).state' ]
+            - if:
+                condition:
+                  lambda: 'return id(_glbl_current_tick_count).state == 0;'
+                then:
+                  - logger.log: "Countdown complete. Triggering Fan turn off."
+                  - script.execute: on_timer_stop
+          else:
+            - logger.log:
+                level: DEBUG
+                format: "Fan Timer tick ignored (Fan off, disabled, or count zero)."
+
+
+# -----------------------------------------------------------------------------
+# 3. Local Switch (For Physical Button)
+# -----------------------------------------------------------------------------
+switch:
+  - id: local_control_switch
+    name: Local Control Switch
+    platform: template
+    internal: true
+    # State reflects the fan's state
+    lambda: 'return id(${target_id}).is_on();'
+    
+    # Turn actions target the user-facing fan component (HA will see this change)
+    turn_on_action:
+      - fan.turn_on: ${target_id}
+    turn_off_action:
+      - fan.turn_off: ${target_id}

@@ -1,0 +1,126 @@
+substitutions:
+  name: garage-back
+  friendly_name: Garage Back
+  event: nodered_automation
+  button: button
+  short_name: Speed
+  device_type: Fan
+  board: esp01_1m
+
+esphome:
+  project:
+    name: Generic.KS-602
+    version: "0.9"
+
+packages:   # as a list
+  - !include common/wifi.yaml
+  - !include common/device_base.yaml
+  
+api:
+
+web_server:
+  port: 80
+
+
+switch:
+  - id: switch_1
+    name: Local Switch
+    platform: template
+    internal: true
+    lambda: return id(hw_relay).state;
+    turn_on_action:
+      - light.turn_on: light_1
+    turn_off_action:
+      - light.turn_off: light_1
+    on_turn_on:
+      - light.turn_on: light_1
+    on_turn_off:
+      - light.turn_off: light_1
+
+
+binary_sensor:
+#  - id: ha_door
+  # - id: switch_2
+  #   platform: homeassistant
+  #   entity_id: binary_sensor.powder_room_door
+
+  # - id: ha_motion
+  #   platform: homeassistant
+  #   entity_id: binary_sensor.powder_room_motion
+
+  - id: button_1_local
+    platform: template
+    internal: true
+    lambda: return id(button_1).state;
+
+text:
+  - id: timer_entity_id
+    platform: template
+    name: ${device_type} Timer"
+#    initial_value: id(glbl_timer_entity_id)
+    optimistic: true
+    min_length: 0
+    max_length: 100
+    mode: text
+    restore_value: true
+    on_value:
+      then:
+        - globals.set:
+            id: glbl_timer_entity_id
+            value: !lambda 'return x;' # x represents the value of the text_template
+
+output:
+  - id: gpio_13
+    platform: gpio
+    pin:
+      number: 13
+      inverted: true
+
+light:
+  - id: relay_status_leds
+    name: ${friendly_name} Indicator Lights
+    platform: status_led
+    output: gpio_13
+    # Classify this as a "config" entity rather than a primary entity
+    entity_category: config
+    restore_mode: RESTORE_DEFAULT_ON
+
+  # See: https://esphome.io/components/light/binary.html
+  - id: light_1
+    name: Light
+    platform: binary
+    output: relay_1
+
+    # Resume last state on boot if possible. Else, off
+    restore_mode: RESTORE_DEFAULT_OFF
+
+    # Wire in the count down timer automation if enabled
+    on_turn_on:
+      then:
+        - if:
+            condition:
+              # If the countdown timer is enabled
+              lambda: 'return id(glbl_timeout_enabled);'
+            then:
+              # The light is already on, start counting the seconds.
+              # When timer ends, light will be turned off
+              - script.execute: start_timer
+            else:
+              - logger.log:
+                  level: DEBUG
+                  format: "Light1 turned on, countdown timer not enabled"
+
+    # This can be called by the natural end of the timer OR manually through any other source.
+    # Regardless of the source, we just need to stop the ticking if it's running.
+    on_turn_off:
+      then:
+        - if:
+            condition:
+              lambda: 'return id(_timer_tick).is_running();'
+            then:
+              - script.execute: on_timer_stop
+
+            else:
+              - logger.log:
+                  level: DEBUG
+                  format: "Light1 turned off, countdown timer not enabled"

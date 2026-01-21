@@ -1,0 +1,440 @@
+substitutions:
+  name: pool-pump
+  friendly_name: Pool Pump
+  short_name: Speed
+  board: esp01_1m
+  intent: Intent
+
+esphome:
+  name: ${name}
+  name_add_mac_suffix: false
+  friendly_name: ${friendly_name}
+  project:
+    name: Sonoff.4Ch Pro R3 
+    version: "1.0"
+
+esp8266:
+  board: ${board}
+  restore_from_flash: true
+
+preferences:
+  flash_write_interval: 30s
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Sonoff-4Ch-Pro Fallback Hotspot"
+
+#captive_portal:
+globals:
+  - id: glbl_relay_bind
+    type: bool
+    restore_value: true
+    initial_value: "false"
+
+  - id: glbl_relay_intent_1
+    type: bool
+    restore_value: true
+    initial_value: "false"
+
+  - id: glbl_relay_intent_2
+    type: bool
+    restore_value: true
+    initial_value: "false"
+
+  - id: glbl_relay_intent_3
+    type: bool
+    restore_value: true
+    initial_value: "false"
+
+  - id: glbl_relay_intent_4
+    type: bool
+    restore_value: true
+    initial_value: "false"
+
+# Example of interlocking logic with RF remote.
+switch:
+  - platform: gpio
+    pin: GPIO12
+    id: relay_1
+    name: "${short_name} 1"
+    restore_mode: RESTORE_DEFAULT_OFF
+    device_class: "switch"
+    interlock: [relay_2, relay_3, relay_4] # Example: Interlock with other relays
+    on_turn_on:
+      then:
+        - if:
+            condition:
+              lambda: 'return not id(glbl_relay_intent_1);' #switch.is_off: helper_1
+            then:
+              - logger.log:
+                  level: DEBUG
+                  format: "helper is off, call to turn off relay"
+              - switch.turn_off: relay_1
+    on_turn_off: 
+      then:
+        - if:
+            condition:
+              lambda: 'return id(glbl_relay_intent_1);' # switch.is_on: helper_1
+            then:
+              - logger.log:
+                  level: DEBUG
+                  format: "helper is on, call to turn on relay"
+              - switch.turn_on: relay_1
+
+  - platform: gpio
+    pin: GPIO5
+    id: relay_2
+    name: "${short_name} 2"
+    restore_mode: RESTORE_DEFAULT_OFF
+    device_class: "switch"
+    interlock: [relay_1, relay_3, relay_4] # Example: Interlock with other relays
+    on_turn_on:
+      then:
+        - if:
+            condition:
+              lambda: 'return not id(glbl_relay_intent_2);' 
+            then:
+              - logger.log:
+                  level: DEBUG
+                  format: "helper is off, call to turn off relay"
+              - switch.turn_off: relay_2
+    on_turn_off: 
+      then:
+        - if:
+            condition:
+              lambda: 'return id(glbl_relay_intent_2);' 
+            then:
+              - logger.log:
+                  level: DEBUG
+                  format: "helper is on, call to turn on relay"
+              - switch.turn_on: relay_2
+
+  - platform: gpio
+    pin: GPIO4
+    id: relay_3
+    name: "${short_name} 3"
+    restore_mode: RESTORE_DEFAULT_OFF
+    device_class: "switch"
+    interlock: [relay_1, relay_2, relay_4] # Example: Interlock with other relays
+    on_turn_on:
+      then:
+        - if:
+            condition:
+              lambda: 'return not id(glbl_relay_intent_3);' 
+            then:
+              - logger.log:
+                  level: DEBUG
+                  format: "helper is off, call to turn off relay"
+              - switch.turn_off: relay_3
+    on_turn_off: 
+      then:
+        - if:
+            condition:
+              lambda: 'return id(glbl_relay_intent_3);' 
+            then:
+              - logger.log:
+                  level: DEBUG
+                  format: "helper is on, call to turn on relay"
+              - switch.turn_on: relay_3
+
+  - platform: gpio
+    pin: GPIO15
+    id: relay_4
+    name: "${short_name} 4"
+    restore_mode: RESTORE_DEFAULT_OFF
+    device_class: "switch"
+    interlock: [relay_1, relay_2, relay_3] # Example: Interlock with other relays
+    on_turn_on:
+      then:
+        - if:
+            condition:
+              lambda: 'return not id(glbl_relay_intent_4);' 
+            then:
+              - logger.log:
+                  level: DEBUG
+                  format: "helper is off, call to turn off relay"
+              - switch.turn_off: relay_4
+    on_turn_off: 
+      then:
+        - if:
+            condition:
+              lambda: 'return id(glbl_relay_intent_4);' 
+            then:
+              - logger.log:
+                  level: DEBUG
+                  format: "helper is on, call to turn on relay"
+              - switch.turn_on: relay_4
+
+  - id: sw_relay_mode
+    name: "${friendly_name} Relay Binding"
+    platform: template
+    optimistic: true
+
+    lambda: |-
+      if (id(glbl_relay_bind)) {
+        return true;
+      } else {
+        return false;
+      }      
+
+    device_class: "switch"
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: "config"
+    on_turn_on:
+      - globals.set:
+          id: glbl_relay_bind
+          value: "true"
+    on_turn_off:
+      - globals.set:
+          id: glbl_relay_bind
+          value: "false"
+  
+  - id: helper_1
+    platform: template
+    name: ${intent} 1
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: "config"
+    optimistic: true
+    lambda: |-
+      if (id(glbl_relay_intent_1)) {
+        return true;
+      } else {
+        return false;
+      }
+    on_turn_on:
+      - globals.set:
+          id: glbl_relay_intent_1
+          value: "true"
+      - globals.set:
+          id: glbl_relay_intent_2
+          value: "false"
+      - globals.set:
+          id: glbl_relay_intent_3
+          value: "false"
+      - globals.set:
+          id: glbl_relay_intent_4
+          value: "false"
+      - switch.turn_on: relay_1
+      - switch.turn_off: helper_2
+      - switch.turn_off: helper_3
+      - switch.turn_off: helper_4
+    on_turn_off:
+      - globals.set:
+          id: glbl_relay_intent_1
+          value: "false"
+      - switch.turn_off: relay_1
+    
+  - id: helper_2
+    platform: template
+    name: ${intent} 2
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: "config"
+    optimistic: true
+    lambda: |-
+      if (id(glbl_relay_intent_2)) {
+        return true;
+      } else {
+        return false;
+      }
+    on_turn_on:
+      - globals.set:
+          id: glbl_relay_intent_2
+          value: "true"
+      - globals.set:
+          id: glbl_relay_intent_1
+          value: "false"
+      - globals.set:
+          id: glbl_relay_intent_3
+          value: "false"
+      - globals.set:
+          id: glbl_relay_intent_4
+          value: "false"
+      - switch.turn_on: relay_2
+      - switch.turn_off: helper_1
+      - switch.turn_off: helper_3
+      - switch.turn_off: helper_4
+    on_turn_off:
+      - globals.set:
+          id: glbl_relay_intent_2
+          value: "false"
+      - switch.turn_off: relay_2
+
+  - id: helper_3
+    platform: template
+    name: ${intent} 3
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: "config"
+    optimistic: true
+    lambda: |-
+      if (id(glbl_relay_intent_3)) {
+        return true;
+      } else {
+        return false;
+      }
+    on_turn_on:
+      - globals.set:
+          id: glbl_relay_intent_3
+          value: "true"
+      - globals.set:
+          id: glbl_relay_intent_1
+          value: "false"
+      - globals.set:
+          id: glbl_relay_intent_2
+          value: "false"
+      - globals.set:
+          id: glbl_relay_intent_4
+          value: "false"
+      - switch.turn_on: relay_3
+      - switch.turn_off: helper_1
+      - switch.turn_off: helper_2
+      - switch.turn_off: helper_4
+    on_turn_off:
+      - globals.set:
+          id: glbl_relay_intent_3
+          value: "false"
+      - switch.turn_off: relay_3
+      
+  - id: helper_4
+    platform: template
+    name: ${intent} 4
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: "config"
+    optimistic: true
+    lambda: |-
+      if (id(glbl_relay_intent_4)) {
+        return true;
+      } else {
+        return false;
+      }
+    on_turn_on:
+      - globals.set:
+          id: glbl_relay_intent_4
+          value: "true"
+      - globals.set:
+          id: glbl_relay_intent_1
+          value: "false"
+      - globals.set:
+          id: glbl_relay_intent_2
+          value: "false"
+      - globals.set:
+          id: glbl_relay_intent_3
+          value: "false"
+      - switch.turn_on: relay_4
+      - switch.turn_off: helper_1
+      - switch.turn_off: helper_2
+      - switch.turn_off: helper_3
+    on_turn_off:
+      - globals.set:
+          id: glbl_relay_intent_4
+          value: "false"
+      - switch.turn_off: relay_4
+
+binary_sensor:
+  - id: button_1
+    name: Call ${short_name} 1
+    platform: gpio
+    entity_category: "diagnostic"
+    pin:
+      number: GPIO0
+      inverted: true     
+      mode:
+        pullup: true
+        input: true   
+    on_click:
+    - min_length: 20ms
+      max_length: 350ms
+      then:
+        - if:
+            # If the input -> output functionality is enabled
+            condition:
+              lambda: 'return id(glbl_relay_bind);'
+            then:
+              - logger.log:
+                  level: DEBUG
+                  format: "Button 1 Pressed"
+              - switch.toggle: helper_1
+
+  - id: button_2
+    platform: gpio
+    name: "Call ${short_name} 2"
+    entity_category: "diagnostic"
+    pin: 
+      number: GPIO9
+      inverted: true
+      mode:
+        pullup: true
+        input: true
+    on_click:
+    - min_length: 20ms
+      max_length: 350ms
+      then:
+        - if:
+            # If the input -> output functionality is enabled
+            condition:
+              lambda: 'return id(glbl_relay_bind);'
+            then:
+              - logger.log:
+                  level: DEBUG
+                  format: "Button 2 Pressed"
+              - switch.toggle: helper_2
+
+  - id: button_3
+    platform: gpio
+    name: "Call ${short_name} 3"
+    entity_category: "diagnostic"
+    pin: 
+      number: GPIO10
+      inverted: true
+      mode:
+        pullup: true
+        input: true
+    on_click:
+    - min_length: 20ms
+      max_length: 350ms
+      then:
+        - if:
+            # If the input -> output functionality is enabled
+            condition:
+              lambda: 'return id(glbl_relay_bind);'
+            then:
+              - logger.log:
+                  level: DEBUG
+                  format: "Button 3 Pressed"
+              - switch.toggle: helper_3
+
+  - id: button_4
+    platform: gpio
+    name: "Call ${short_name} 4"
+    entity_category: "diagnostic"
+    pin: 
+      number: GPIO14
+      inverted: true
+      mode:
+        pullup: true
+        input: true
+    on_click:
+    - min_length: 20ms
+      max_length: 350ms
+      then:
+        - if:
+            # If the input -> output functionality is enabled
+            condition:
+              lambda: 'return id(glbl_relay_bind);'
+            then:
+              - logger.log:
+                  level: DEBUG
+                  format: "Button 4 Pressed"
+              - switch.toggle: helper_4

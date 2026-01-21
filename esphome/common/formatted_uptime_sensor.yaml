@@ -1,0 +1,73 @@
+globals:
+  # Global variable to store the exact timestamp of the last boot.
+  # This is stable and only updates when the device restarts.
+  - id: glbl_boot_time
+    type: std::string
+    # The initial value is empty, it will be set on boot.
+    initial_value: ""
+
+# The 'boot' action runs immediately after the device starts up and connects to Wi-Fi/Time.
+# We use this to capture the exact current time and store it in our global variable.
+# We also log it for troubleshooting.
+# NOTE: The 'time' component must be initialized before this action runs.
+esphome:
+  on_boot:
+    priority: -100 # Run after core components are initialized
+    then:
+      # Set the boot time immediately upon start, formatted nicely.
+      - globals.set:
+          id: glbl_boot_time
+          value: 'id(esptime).now().strftime("%Y-%m-%d %H:%M:%S %Z")'
+      - logger.log:
+          level: INFO
+          format: "System Boot Detected: Last Boot Time set to %s"
+          args: ['id(glbl_boot_time)']
+
+sensor:
+  # 1. The standard uptime sensor must be defined (internal and hidden).
+  - platform: uptime
+    id: raw_uptime
+    name: Uptime (Raw Seconds)
+    internal: true
+    entity_category: "diagnostic"
+
+# -----------------------------------------------------------------------------
+# Text Sensors
+# -----------------------------------------------------------------------------
+text_sensor:
+  # 2. Formatted Uptime (Still shows the running time, e.g., '1d 05h 30m')
+  # - platform: template
+  #   name: Uptime
+  #   id: formatted_uptime
+  #   icon: "mdi:clock-check-outline"
+  #   entity_category: "diagnostic"
+    
+  #   # Lambda to calculate the days, hours, minutes, and seconds.
+  #   lambda: |
+  #     int seconds = id(raw_uptime).state;
+
+  #     int days = seconds / 86400; // 24 * 60 * 60
+  #     seconds %= 86400; 
+
+  #     int hours = seconds / 3600; // 60 * 60
+  #     seconds %= 3600;
+
+  #     int minutes = seconds / 60;
+  #     int secs = seconds % 60;
+
+  #     // Build the output string
+  #     std::string output = "";
+  #     if (days > 0) {
+  #       output += std::to_string(days) + "d ";
+  #     }
+  #     output += str_sprintf("%02dh %02dm %02ds", hours, minutes, secs);
+  #     return output;
+
+  # 3. Last Boot Time (The stable value you wanted)
+  - platform: template
+    name: Last Boot Time
+    id: last_boot_time
+    icon: "mdi:calendar-clock"
+    entity_category: "diagnostic"
+    # This value is only updated on boot via the global variable.
+    lambda: 'return id(glbl_boot_time);'

@@ -1,0 +1,238 @@
+substitutions:
+  name: test-ts-602s
+  friendly_name: Test TS-602S
+  event: nodered_automation
+  button: button
+  short_name: Speed
+  board: esp01_1m
+
+esphome:
+  project:
+    name: Generic.KS-602
+    version: "0.9"
+
+packages:   # as a list
+  - !include common/wifi.yaml
+  - !include common/device_base.yaml
+  
+api:
+
+switch:
+  - id: switch_1
+    name: Local Switch
+    platform: template
+    internal: true
+    lambda: return id(hw_relay).state;
+    turn_on_action:
+      - fan.turn_on: fan_1
+    turn_off_action:
+      - fan.turn_off: fan_1
+    on_turn_on:
+      - fan.turn_on: fan_1
+    on_turn_off:
+      - fan.turn_off: fan_1
+
+binary_sensor:
+  - id: ha_door
+    platform: homeassistant
+    entity_id: binary_sensor.powder_room_door
+
+  - id: ha_motion
+    platform: homeassistant
+    entity_id: binary_sensor.powder_room_motion
+
+
+  - id: button_1_local
+    platform: template
+    internal: true
+    lambda: return id(button_1).state;
+  #   on_click:
+  #     - if:
+  #         condition:
+  #           lambda: |-
+  #             auto TAG = "binary_sensor.button";
+  #             if (id(glbl_relay_state)) {
+  #               ESP_LOGD(TAG, "Click Turned on relay_, glbl_relay_state is %s", id(glbl_relay_state));
+  #               return true;
+  #             } else {
+  #               ESP_LOGD(TAG, "Click Turned off relay_, glbl_relay_state is %s", id(glbl_relay_state));
+  #               return false;
+  #             } 
+  #         then:
+          #   - fan.turn_on: fan_1
+          #   - logger.log:
+          #       level: DEBUG
+          #       format: "Local Button turn fan on"
+          # else:
+          #   - fan.turn_off: fan_1
+          #   - logger.log:
+          #       level: DEBUG
+          #       format: "Local Button turn fan off"
+      
+
+  - id: switch_2
+    name: Door
+    platform: template
+    device_class: door
+    lambda: return id(ha_door).state;
+    # pin: 
+    #   number: GPIO01
+    #   inverted: false
+    #   mode:
+    #     input: true
+    #     pullup: true
+    # on_press:
+    #   then:    #if door opens restart the timer
+    #     - if:
+    #         condition:
+    #           #is the hardware relay on
+    #           lambda: 'return id(glbl_relay_state);'
+    #         then:
+    #           - script.execute: on_timer_restart
+    #           - logger.log:
+    #               level: DEBUG
+    #               format: "Door opened while light on... restart timer."
+
+  - id: switch_3
+    name: Motion
+    device_class: motion
+    platform: template
+    lambda: return id(ha_motion).state;
+#     platform: gpio
+# #    entity_category: "diagnostic"
+#     pin: 
+#       number: 03
+#       inverted: true
+#       mode:
+#         input: true
+#         pullup: false
+    #on_relase is when motion has ended
+    on_release:
+      then:
+        - if:
+            condition:
+              binary_sensor.is_on: switch_2
+              #is_on means door is open
+            then:
+              - script.execute: on_timer_restart
+              # - if:
+              #     # If the button is bound to relay
+              #     condition:
+              #       lambda: 'return id(glbl_relay_bind);'
+              #     then:
+    on_press:
+      then:
+        - if:
+            condition:
+              binary_sensor.is_on: switch_2
+              #is_on means door is open
+            then:
+            - fan.turn_on: fan_1
+            - script.execute: on_timer_stop
+        # - if:
+        #     #if the door open?
+        #     condition:
+        #       binary_sensor.is_on: switch_2
+        #     then:
+        #       - logger.log: "Door is Open"   
+        #       - if:
+        #           # If the input -> output functionality is enabled
+        #           condition:
+        #             lambda: 'return id(glbl_relay_bind);'
+        #           then:
+        #             - script.execute: on_timer_restart
+        #           else:
+        #             - logger.log:
+        #                 level: DEBUG
+        #                 format: "Button1 pressed but relays unbound"
+        #     else:
+        #       - script.execute: on_timer_stop
+        #       - logger.log:
+        #           level: DEBUG
+        #           format: "Motion detected, door is closed... stop timer."
+
+text:
+  - id: timer_entity_id
+    platform: template
+    name: "Light Timer"
+#    initial_value: id(glbl_timer_entity_id)
+    optimistic: true
+    min_length: 0
+    max_length: 100
+    mode: text
+    restore_value: true
+    on_value:
+      then:
+        - globals.set:
+            id: glbl_timer_entity_id
+            value: !lambda 'return x;' # x represents the value of the text_template
+
+output:
+  - id: gpio_13
+    platform: gpio
+    pin:
+      number: 13
+      inverted: true
+
+light:
+  - id: relay_status_leds
+    name: ${friendly_name} Indicator Lights
+    platform: status_led
+    output: gpio_13
+    # Classify this as a "config" entity rather than a primary entity
+    entity_category: config
+    restore_mode: RESTORE_DEFAULT_ON
+
+
+  # See: https://esphome.io/components/light/binary.html
+fan:
+  - id: fan_1
+    name: Fan
+    platform: binary
+    output: relay_1
+    #lambda: return id(glbl_relay_state);
+    # Resume last state on boot if possible. Else, off
+    restore_mode: RESTORE_DEFAULT_OFF
+
+    # Wire in the count down timer automation if enabled
+    on_turn_on:
+      then:
+        # - output.turn_on: relay_1
+        - globals.set:
+            id: glbl_relay_state
+            value: "true"
+        - if:
+            condition:
+              # If the countdown timer is enabled
+              lambda: 'return id(glbl_timeout_enabled);'
+            then:                          
+              # The light is already on, start counting the seconds.
+              # When timer ends, light will be turned off
+              - script.execute: start_timer
+              - logger.log:
+                  level: DEBUG
+                  format: "Timer Just Started sue to fan_1 being turned on"
+
+            else:
+              - logger.log:
+                  level: DEBUG
+                  format: "Fan1 turned on, countdown timer not enabled"
+
+    # This can be called by the natural end of the timer OR manually through any other source.
+    # Regardless of the source, we just need to stop the ticking if it's running.
+    on_turn_off:
+      then:
+        # - output.turn_off: relay_1
+        - globals.set:
+            id: glbl_relay_state
+            value: "false"
+        - if:
+            condition:
+              lambda: 'return id(_timer_tick).is_running();'
+            then:
+              - script.execute: on_timer_stop
+
+            else:
+              - logger.log:
+                  level: DEBUG
+                  format: "Fan1 turned off, countdown timer not enabled"

@@ -1,0 +1,48 @@
+substitutions:
+  event: nodered_automation
+
+packages:   # as a list
+  - !include formatted_uptime_sensor.yaml
+  - !include sensor_base.yaml
+
+esphome:
+  name: ${name}
+  name_add_mac_suffix: false
+  friendly_name: ${friendly_name}
+  
+esp8266:
+  board: ${board}
+  restore_from_flash: true
+
+preferences:
+  flash_write_interval: 30s
+
+# Enable logging
+logger:
+
+ota:
+  - platform: esphome
+
+# -----------------------------------------------------------------------------
+# Core Components for Communication (Essential for Safety & HA)
+# -----------------------------------------------------------------------------
+# API for Home Assistant communication (mandatory for lights/sensors)
+api:
+
+# Use the time component to track the current time, often useful for automations
+# The server is defaulted to pool.ntp.org
+time:
+  - platform: sntp
+    id: esptime
+    timezone: "America/Toronto" # Your preferred timezone
+    
+# Enable web server for easy configuration access over the network
+web_server:
+  port: 80
+
+# The ultimate safety net for Wi-Fi issues
+captive_portal:
+  # This creates a fallback access point if Wi-Fi connection fails
+
+# Create a toggle in HA that allows us to arm/disarm the button <-> relay glue
+# See: https://esphome.io/components/switch/template.html

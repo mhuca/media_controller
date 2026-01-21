@@ -1,0 +1,113 @@
+substitutions:
+  friendly_name: wESP32 Device
+  name: wesp32-device
+  board: wesp32
+
+# for board rev.7 and up
+ethernet:
+  type: RTL8201
+  mdc_pin: GPIO16
+  mdio_pin: GPIO17
+  clk:
+    pin: GPIO0
+    mode: CLK_EXT_IN
+  phy_addr: 0
+  phy_registers:
+    - address: 0x10
+      value: 0x1FFA
+      page_id: 0x07
+  
+
+
+# Enable Home Assistant API
+api:
+
+esphome:
+  name: ${name}
+  name_add_mac_suffix: false
+  friendly_name: ${friendly_name}
+
+esp32:
+  board: ${board}
+  framework:
+    type: esp-idf
+
+
+# Enable logging
+logger:
+
+ota:
+  platform: esphome
+
+esp32_ble_tracker:
+  scan_parameters:
+    # We currently use the defaults to ensure Bluetooth
+    # can co-exist with WiFi In the future we may be able to
+    # enable the built-in coexistence logic in ESP-IDF
+    interval: 1100ms
+    window: 1100ms
+    active: true
+
+bluetooth_proxy:
+  active: true
+
+web_server:
+  port: 80
+
+  
+# uart:
+#   tx_pin: GPIO01
+#   rx_pin: GPIO03
+#   baud_rate: 256000
+#   parity: NONE
+#   stop_bits: 1
+
+# Optional: Add any sensors, switches, or other components here
+# For example, to set up a binary sensor:
+binary_sensor:
+  - id: pin_23
+    platform: gpio
+    name: "Garage Door Sensor"
+    pin: 
+      number: 23
+      inverted: false
+      mode:
+        input: true
+        pullup: true
+    device_class: door
+
+  - id: pin_23_39_18_04
+    platform: gpio
+    name: "Server Room Door Sensor"
+    pin: 
+      number: 4
+      inverted: false
+      mode:
+        input: true
+        pullup: true
+    device_class: door
+
+
+  - id: pin_32
+    platform: gpio
+    name: "Back Yard Door Sensor"
+    pin: 
+      number: 32
+      inverted: false
+      mode:
+        input: true
+        pullup: true
+    device_class: door
+
+
+  - id: pin_32_18
+    platform: gpio
+    name: "Panel Room Door Sensor"
+    pin: 
+      number: 18
+      inverted: false
+      mode:
+        input: true
+        pullup: true
+    device_class: door
+

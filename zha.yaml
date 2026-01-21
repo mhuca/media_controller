@@ -1,0 +1,55 @@
+device_config:
+  e0:79:8d:ff:fe:c9:63:63-1:
+    type: "switch"
+  e0:79:8d:ff:fe:bb:d2:b6-1:
+    type: "switch"
+  e0:79:8d:ff:fe:b2:fc:6b-1:
+    type: "switch"
+  # e0:79:8d:ff:fe:c9:81:ae-1:
+  #   type: "switch"
+  fc:4d:6a:ff:fe:cc:ca:af-1:
+    type: "light"
+  c0:2c:ed:ff:fe:ec:68:be-1:
+    type: "light"
+  # 8c:8b:48:ff:fe:43:c4:51-1:
+  # type: "light"
+  a4:c1:38:fd:a6:ff:07:ee-1:
+    type: "switch"
+  a4:c1:38:fd:a6:ff:07:ee-2:
+    type: "switch"
+  a4:c1:38:fd:a6:ff:07:ee-3:
+    type: "switch"
+  a4:c1:38:fd:a6:ff:07:ee-4:
+    type: "switch"
+  04:cf:8c:df:3c:76:2f:d7-1:
+    type: "light"
+  04:cf:8c:df:3c:76:2f:d7-2:
+    type: "light"
+  e0:79:8d:ff:fe:c9:81:ae-1:
+    type: "light"
+
+enable_quirks: true
+custom_quirks_path: /config/zha_quirks/
+
+zigpy_config:
+  ota:
+    extra_providers:
+      - type: ikea
+      - type: thirdreality
+      - type: sonoff
+      - type: z2m
+      # - type: ledvance
+      # - type: salus
+      # - type: inovelli
+
+    # ikea_provider: true # Auto update Trådfri devices
+    # ledvance_provider: true # Auto update LEDVANCE/OSRAM devices
+    # salus_provider: true # Auto update SALUS/Computime devices
+    # inovelli_provider: true # Auto update INOVELLI devices
+    # thirdreality_provider: true # Auto update 3REALITY devices
+    # sonoff_provider: true # Auto update sonoff devices
+    # z2m_provider: true
+  # ota:
+  #extra_providers: true
+
+  #otau_directory: /path/to/your/ota/folder  # Utilize .ota files to update everything

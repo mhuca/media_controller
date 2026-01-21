@@ -1,0 +1,29 @@
+# sofabaton_remote_eth.yaml
+esphome:
+  name: sofabaton-remote
+  
+# --- CRITICAL: Use the 'host' platform ---
+host:
+  # Optional: Define a unique, dummy MAC address for reliable device linking
+  
+
+# REQUIRED: API configuration for Home Assistant to connect to this running process
+api:
+  # You should define a port or use the default (6053). 
+  # If running in HA Add-on environment, you may need a specific port.
+  port: 6053 
+  encryption:
+    key: rqjcBnzlHNqdp/r/3sIqpnukRr4gzSRMTXOMXnb+tog= # REQUIRED: Generate a strong, unique key here
+
+# Define a minimal, stable sensor to keep the device marked 'online' in HA
+sensor:
+  - platform: template
+    name: "Remote Status"
+    id: remote_status
+    lambda: 'return 1;'
+    update_interval: 6000s 
+    device_class: '' # Use 'connectivity' for status tracking
+
+# Home Assistant device settings
+# homeassistant:
+  # friendly_name: "Sofabaton Remote"

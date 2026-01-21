@@ -1,0 +1,16 @@
+# - platform: template
+#   lights:
+#     homekit_adaptive_lighting:
+#       friendly_name: HomeKit Adaptive Lighting
+#       unique_id: homekit_adaptive_lighting
+#       value_template: on
+#       temperature_template: "{{ color_temp }}"
+#       turn_on: 
+#         action: "{{ }}"
+#       turn_off: 
+#         action: "{{ }}"
+#       set_temperature:
+#         action: input_number.set_value
+#         data:
+#           value: "{{ color_temp }}"
+#           entity_id: input_number.temperature_input

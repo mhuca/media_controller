@@ -1,0 +1,10 @@
+template:
+  living_room_occupancy: 
+    friendly_name: "Living Room Occupancy"
+    mac: "C4:E7:AE:07:26:D8" 
+    value_template: >
+      {% if is_state('binary_sensor.living_room_occupancy', 'unavailable') %}
+        not_home
+      {% else %}
+        home
+      {% endif %}

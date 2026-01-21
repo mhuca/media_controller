@@ -1,0 +1,149 @@
+substitutions:
+  event: nodered_automation
+  button: button
+  
+esphome:
+  name: ${name}
+  name_add_mac_suffix: false
+  friendly_name: ${friendly_name}
+  
+esp8266:
+  board: ${board}
+  restore_from_flash: true
+
+preferences:
+  flash_write_interval: 30s
+
+# Enable logging
+logger:
+ota:
+api:
+web_server:
+  port: 80
+  
+globals:
+  - id: _glbl_hold_ticks
+    type: int
+    restore_value: false
+    initial_value: "0"
+
+
+script:
+
+  - id: _hold_tick
+    # Start a new run after previous runs completes. This will happen until timer.stop() is called on us
+    ##
+    mode: queued
+    then:
+      # A single 'tick' is 1 second long 
+      - homeassistant.event:
+          event: esphome.${event}
+          data:
+            entity_id: esphome.${name}
+            event_type: ${button}
+            event_value: "hold"
+      - delay: 0.85s
+      - lambda: |-
+            id(_hold_tick).execute();
+
+  - id: on_hold_tick_stop
+    # Do not start a new run. Issue a warning.
+    mode: single
+    then:
+      - if:
+          condition:
+            lambda: 'return id(_hold_tick).is_running();'
+          then:
+            - homeassistant.event:
+                event: esphome.${event}
+                data:
+                  entity_id: esphome.${name}
+                  event_type: ${button}
+                  event_value: "release"
+        # For now, just clean up the globals and stop the ticking.
+        # This hook could be used to do so much more, though.
+        ##
+      - lambda: |-
+          auto TAG = "script.on_hold_tick_stop";
+
+          id(_hold_tick).stop();
+          ESP_LOGD(TAG, "_hold_tick now stopped ");
+
+
+# Give the user a graphical control over the timeout
+# See: https://esphome.io/components/number/template.html
+
+
+binary_sensor:
+  - id: button_1
+    name: ${friendly_name} Button
+    platform: gpio
+    internal: true
+    entity_category: "diagnostic"
+    pin:
+      number: GPIO0
+      inverted: true
+    on_multi_click:
+    - timing:
+        - ON for at most 0.4s
+        - OFF for at most 0.4s
+        - ON for at most 0.4s
+        - OFF for at least 0.2s
+      then:
+        - logger.log: "Double Clicked"
+        - homeassistant.event:
+            event: esphome.${event}
+            data:
+              entity_id: esphome.${name}
+              event_type: ${button}
+              event_value: "double"
+    - timing:
+        - OFF for at least 0.2s
+      then:
+        - logger.log: "Released"
+        - if:
+            condition:
+              lambda: 'return id(_hold_tick).is_running();'
+            then:
+              - homeassistant.event:
+                  event: esphome.${event}
+                  data:
+                    entity_id: esphome.${name}
+                    event_type: ${button}
+                    event_value: "release"
+              - script.stop: _hold_tick
+              - logger.log: "script _hold_tick stopped"
+      
+    - timing:
+        - ON for at least 0.4s
+      then:
+        - logger.log: "Hold Clicked"
+        - script.execute: _hold_tick
+
+    - timing:
+        - ON for at most 0.4s
+        - OFF for at least 0.5s
+      then:
+        - logger.log: "Single Short Clicked..."
+        - homeassistant.event:
+            event: esphome.${event}
+            data:
+              entity_id: esphome.${name}
+              event_type: ${button}
+              event_value: "press"
+output:
+  - id: gpio_13
+    platform: gpio
+    pin:
+      number: 13
+      inverted: true
+      
+light:
+  - id: relay_status_leds
+    name: ${friendly_name} Indicator Lights
+    platform: status_led
+    output: gpio_13
+    # Classify this as a "config" entity rather than a primary entity
+    entity_category: config
+    restore_mode: RESTORE_DEFAULT_ON
+

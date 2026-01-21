@@ -1,0 +1,178 @@
+substitutions:
+  name: rf-hub
+  friendly_name: RF Hub
+  event: nodered_automation
+  button: button
+  short_name: Speed
+  board: esp01_1m
+
+esphome:
+  project:
+    name: Sonoff.rF Bridge
+    version: "0.9"
+
+packages:   # as a list
+  - !include common/wifi.yaml
+  - !include common/device_core.yaml
+  
+logger:
+  baud_rate: 0
+  level: DEBUG
+
+api:
+
+ota:
+  - platform: esphome
+  - platform: web_server
+
+web_server:
+
+captive_portal:
+
+
+# Example configuration entry for ESP32
+i2c:
+  sda: GPIO04
+  scl: GPIO05
+  scan: true
+  id: bus_a
+
+# Example configuration entry
+mcp23016:
+  - id: 'mcp23016_hub'
+    address: 0x20
+
+# Example configuration entry
+uart:
+  tx_pin: GPIO01
+  rx_pin: GPIO03
+  baud_rate: 19200
+
+# Device Specific Config
+
+binary_sensor:
+  - platform: status
+    name: "RF Bridge Status"
+
+  - id: mcp23016_d1
+    platform: gpio
+    name: "Garage Door Sensor"
+    device_class: door
+    pin:
+      mcp23016: mcp23016_hub
+      # Use pin number 1
+      number: 1
+      mode:
+        input: true
+      inverted: false
+
+  - id: mcp23016_d3
+    platform: gpio
+    name: "Server Room Door Sensor"
+    device_class: door
+    pin:
+      mcp23016: mcp23016_hub
+      # Use pin number 3
+      number: 3
+      mode:
+        input: true
+      inverted: false
+
+  - id: mcp23016_d5
+    platform: gpio
+    name: "Back Yard Door Sensor"
+    device_class: door
+    pin:
+      mcp23016: mcp23016_hub
+      # Use pin number 5
+      number: 5
+      mode:
+        input: true
+      inverted: false
+
+  - id: mcp23016_d7
+    platform: gpio
+    name: "Panel Room Door Sensor"
+    device_class: door
+    pin:
+      mcp23016: mcp23016_hub
+      # Use pin number 7
+      number: 7
+      mode:
+        input: true
+      inverted: false
+
+
+# use esphome log viewer to get binary transmission for sensor state.  Below are examples when using either single state or dual state sensors.
+
+# use this for single state sensors (single trigger)
+  # - platform: remote_receiver
+  #   name: "Sensor1"
+  #   rc_switch_raw:
+  #     code: '100110011100011010101001'
+  #     protocol: 1
+
+# use this for dual state sensors (open/closed trigger)
+  # - platform: remote_receiver
+  #   name: "Sensor 2 Open"
+  #   internal: yes
+  #   rc_switch_raw:
+  #     code: '001111111110111100101110'
+  #     protocol: 1
+  #   on_press:
+  #     - binary_sensor.template.publish:
+  #         id: Sensor2
+  #         state: ON
+  # - platform: remote_receiver
+  #   name: "Sensor 2 Closed"
+  #   internal: yes
+  #   rc_switch_raw:
+  #     code: '001111111110111100100111'
+  #     protocol: 1
+  #   on_press:
+  #     - binary_sensor.template.publish:
+  #         id: Sensor2
+  #         state: OFF
+  # - platform: template
+  #   name: "Sensor2 State"
+  #   device_class: window
+  #   id: Sensor2
+
+
+# remote_receiver:
+#   pin: 12
+# #  dump: all
+#   dump: rc_switch
+#   filter: 100us
+#   tolerance: 50%
+#   idle: 2ms
+
+# remote_transmitter:
+#   pin: 14
+#   carrier_duty_percent: 100%
+
+# Example configuration entry
+rf_bridge:
+  on_code_received:
+    - homeassistant.event:
+        event: esphome.rf_code_received
+        data:
+          sync: !lambda 'return format_hex(data.sync);'
+          low: !lambda 'return format_hex(data.low);'
+          high: !lambda 'return format_hex(data.high);'
+          code: !lambda 'return format_hex(data.code);'
+
+
+
+
+# # Individual outputs
+# switch:
+#   - platform: gpio
+#     name: "MCP23016 Pin #0"
+#     pin:
+#       mcp23016: mcp23016_hub
+#       # Use pin number 0
+#       number: 0
+#       mode:
+#         output: true
+#       inverted: false

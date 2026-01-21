@@ -1,0 +1,151 @@
+substitutions:
+  name: hallway-front
+  friendly_name: Hallway Front
+  icon: "mdi:light-switch"
+  event: universal_controller_command
+  button: button
+  board: esp01_1m
+  my_area: "hallway"
+  target_label: "front"
+
+esphome:
+  project:
+    name: TopGreener.TGWF500D 
+    version: "1.1"
+
+packages:
+  - !include common/wifi.yaml
+  - !include common/device_base.yaml
+
+# Local Globals for the Remote logic
+globals:
+  - id: click_count
+    type: int
+    initial_value: '0'
+  - id: last_dim_time
+    type: uint32_t
+    initial_value: '0'
+  - id: last_brightness_val
+    type: int
+    initial_value: '0'
+  - id: last_dim_val
+    type: int
+    initial_value: '0'
+
+uart:
+  rx_pin: GPIO13
+  tx_pin: GPIO15
+  baud_rate: 9600
+
+tuya:
+  id: tuya_main
+
+# Logic to decide if it was a single or double tap
+script:
+  - id: tap_decider
+    mode: restart
+    then:
+      - delay: 400ms
+      - if:
+          condition:
+            lambda: 'return id(click_count) == 1;'
+          then:
+            - homeassistant.event:
+                event: esphome.${event}
+                data:
+                  entity_id: esphome.${name}
+                  event_type: ${button}
+                  event_value: "single"
+      - if:
+          condition:
+            lambda: 'return id(click_count) >= 2;'
+          then:
+            - homeassistant.event:
+                event: esphome.${event}
+                data:
+                  entity_id: esphome.${name}
+                  event_type: ${button}
+                  event_value: "double"
+      - lambda: 'id(click_count) = 0;'
+
+sensor:
+  - platform: tuya
+    sensor_datapoint: 3
+    id: tuya_dimmer_sensor
+    internal: true
+    on_value:
+      then:
+        - if:
+            condition: 
+              #lambda: 'return id(glbl_remote_mode) && (x != id(last_dim_val));'
+              lambda: 'return (x != id(last_dim_val) && (millis() - id(last_dim_time) > 400));'
+            then:
+              - homeassistant.event:
+                  event: esphome.${event}
+                  data:
+                    action_type: light_call
+                    area_key: ${my_area}
+                    command_input: "turn_on"
+                    #action_value: !lambda 'return (x > id(last_dim_val)) ? "raise" : "lower";'
+                    action_value: !lambda 'return x;'
+                    # No math, just the raw 0-255 byte
+                    #brightness: !lambda 'return x;' 
+                    target_label: ${target_label}
+              - lambda: |-
+                  id(last_dim_val) = x;
+                  id(last_dim_time) = millis();
+ 
+
+binary_sensor:
+  - platform: tuya
+    id: tuya_power_sensor
+    sensor_datapoint: 1
+    internal: true
+    on_state:
+      then:
+        - homeassistant.event:
+            event: esphome.${event}
+            data:
+              action_type: light_call
+              command_input: !lambda 'return x ? "turn_on" : "turn_off";'
+              area_key: ${my_area}
+              target_label: ${target_label}
+
+
+
+light:   
+  - platform: tuya
+    id: internal_tuya_light
+    name: "${friendly_name} Internal"
+    dimmer_datapoint: 3
+    switch_datapoint: 1
+    # color_temperature_datapoint: 4
+    # cold_white_color_temperature: 6536 K
+    # warm_white_color_temperature: 2000 K
+    min_value: 10
+    max_value: 255
+    internal: false
+    
+# Important: The Tuya component MUST have an ID to be reachable by the Lambda
+
+# We keep the light component internal so the MCU stays in sync, 
+# but it won't show up as a light entity in HA to avoid confusion.
+
+
+text:
+  - id: timer_entity_id
+    platform: template
+    name: "Light Timer"
+    optimistic: true
+    min_length: 0
+    max_length: 100
+    mode: text
+    restore_value: true
+    on_value:
+      then:
+        - globals.set:
+            id: glbl_timer_entity_id
+            value: !lambda 'return x;'
+
+web_server:
+  port: 80
