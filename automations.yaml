@@ -2354,173 +2354,33 @@
         entity_id: input_boolean.back_yard_person_status
   mode: queued
   max: 4
-- &id001
-  id: circadian_cct_controller
-  alias: Circadian - CCT Control - old
-  description: Sets CCT based on Sun Azimuth, Elevation, and Cloud Cover
-  triggers:
-  - entity_id: sun.sun
-    attribute: azimuth
-    for:
-      minutes: 1
-    trigger: state
-    id: azimuth_change
-  - trigger: state
-    entity_id:
-    - sensor.cct_calculation
-    id: target_change
-  - entity_id: weather.home
-    attribute: cloud_coverage
-    for:
-      minutes: 2
-    trigger: state
-    id: cloud_change
-  - trigger: state
-    entity_id:
-    - sensor.count_lights_on
-    id: light_on
-  conditions:
-  - condition: or
-    conditions:
-    - condition: template
-      value_template: '{{ trigger.id != "light_on" and states.sensor.count_lights_on.state
-        | int > 0 }}'
-      enabled: true
-    - condition: template
-      value_template: "{{\n  trigger.id == \"light_on\"\nand \n  trigger.from_state.state
-        < trigger.to_state.state\n}}"
-      enabled: true
-  actions:
-  - variables:
-      temp_min: '{{ states(''input_number.circadian_k_min'') | int(2000) }}'
-      temp_max: '{{ states(''input_number.circadian_k_max'') | int(5500) }}'
-      target_kelvin: '{{ states(''sensor.cct_calculation'') | int }}'
-      CCT_Percentage: '{{ states(''sensor.cct_percentage'') | int }}'
-      cct_lights_to_update: "{% set lights = states.light \n  | selectattr('state',
-        'eq', 'on') \n  | selectattr('attributes.supported_color_modes', 'defined')
-        \n  | selectattr('attributes.supported_color_modes', 'search', 'color_temp')
-        \n  | map(attribute='entity_id')\n  | list %}\n{{ lights }}\n"
-      cct_lights_dimmer: "{% set LABEL_NAME = 'CurrentCTDimmer' %}\n{% set entities
-        = label_entities(LABEL_NAME)\n  | select('is_state', 'on')\n  | list %}\n{{
-        entities }}\n"
-      cct_lights_dimmer2: "{% set LABEL_NAME = 'CurrentCTDimmer2' %}\n{% set entities
-        = label_entities(LABEL_NAME)\n  | select('is_state', 'on')\n  | list %}\n{{
-        entities }}\n"
-  - repeat:
-      for_each: '{{ cct_lights_to_update }}'
-      sequence:
-      - variables:
-          min_k: '{{ state_attr(repeat.item, ''min_color_temp_kelvin'') }}'
-          max_k: '{{ state_attr(repeat.item, ''max_color_temp_kelvin'') }}'
-          current_k: '{{ state_attr(repeat.item, ''color_temp_kelvin'') }}'
-      - condition: template
-        value_template: '{{ (current_k != target_kelvin ) and (current_k > min_k )
-          and (current_k < max_k) and is_state(repeat.item, "on") }}'
-      - target:
-          entity_id: '{{ repeat.item }}'
-        data:
-          transition: 5
-          color_temp_kelvin: '{# 1. Clamp the universal target_kelvin to be no lower
-            than the bulb''s minimum (min_k) #}
-
-            {% set clamped_min = [target_kelvin | int, min_k] | max %}
-
-            {# 2. Then clamp that result to be no higher than the bulb''s maximum
-            (max_k) #}
-
-            {{ [clamped_min, max_k] | min }}'
-        action: light.turn_on
-  - variables:
-      target_brightness: '{{ states(''sensor.cct_to_brightness'') | int }}'
-      target_brightness2: '{{ states(''sensor.cct_to_brightness_2'') | int }}'
-  - repeat:
-      for_each: '{{ cct_lights_dimmer }}'
-      sequence:
-      - variables:
-          current_brightness: '{{ state_attr(repeat.item, ''brightness'') | int }}'
-      - condition: template
-        value_template: '{{ state_attr(repeat.item, ''brightness'') | int != states(''sensor.cct_to_brightness'')
-          | int }}'
-      - target:
-          entity_id: '{{ repeat.item }}'
-        data:
-          transition: 5
-          brightness: '{{ states(''sensor.cct_to_brightness'') | int }}'
-        action: light.turn_on
-  - repeat:
-      for_each: '{{ cct_lights_dimmer2 }}'
-      sequence:
-      - variables:
-          current_brightness: '{{ state_attr(repeat.item, ''brightness'') | int }}'
-      - condition: template
-        value_template: '{{ state_attr(repeat.item, ''brightness'') | int != states(''sensor.cct_to_brightness_2'')
-          | int }}'
-      - target:
-          entity_id: '{{ repeat.item }}'
-        data:
-          transition: 5
-          brightness: '{{ states(''sensor.cct_to_brightness_2'') | int }}'
-        action: light.turn_on
-  mode: restart
-- *id001
 - id: '1760888078136'
   alias: Command - CCT Parallel Running
   description: Sets CCT based on Sun Azimuth, Elevation, and Cloud Cover
   triggers:
-  - entity_id: sun.sun
-    attribute: azimuth
-    for:
-      minutes: 1
-    trigger: state
-    id: azimuth_change
-    enabled: false
   - trigger: state
     entity_id:
     - sensor.cct_calculation
     id: target_change
     for:
       hours: 0
-      minutes: 0
-      seconds: 5
-  - entity_id: weather.home
-    attribute: cloud_coverage
-    for:
       minutes: 2
-    trigger: state
-    id: cloud_change
-    enabled: false
-  - trigger: state
-    entity_id:
-    - sensor.count_lights_on
-    id: light_on
-    enabled: false
+      seconds: 0
   conditions:
   - condition: numeric_state
     entity_id: sensor.count_lights_on
     above: 0
-  - condition: or
-    conditions:
-    - condition: template
-      value_template: '{{ trigger.id != "light_on" and states.sensor.count_lights_on.state
-        | int > 0 }}'
-      enabled: true
-    - condition: template
-      value_template: "{{\n  trigger.id == \"light_on\"\nand \n  trigger.from_state.state
-        < trigger.to_state.state\n}}"
-      enabled: true
-    enabled: false
   actions:
   - variables:
-      target_kelvin: '{{ states(''sensor.cct_calculation'') | int(2700) }}'
+      target_kelvin: '{{ states(''sensor.cct_calculation'') | int(3200) }}'
       active_lights: "{{ states.light \n  | selectattr('state', 'eq', 'on') \n  |
         map(attribute='entity_id') \n  | list \n}}\n"
   - variables:
-      native_cct_targets: "{{ states.light \n  | selectattr('state', 'eq', 'on')\n
-        \ | selectattr('attributes.supported_color_modes', 'contains', 'color_temp')\n
+      native_cct_targets: "{{ states.light           \n  | selectattr('state', 'eq',
+        'on')\n  | selectattr('attributes.supported_color_modes', 'defined')\n  |
+        selectattr('attributes.supported_color_modes', 'contains', 'color_temp')\n
         \ | map(attribute='entity_id')\n  | list \n}}\n"
-      dimmer1_targets: "{{ active_lights \n  | select('in', label_entities('CurrentCTDimmer'))
-        \n  | list\n}}\n"
-      dimmer2_targets: "{{ active_lights \n  | select('in', label_entities('CurrentCTDimmer2'))
+      dimmer_targets: "{{ active_lights \n  | select('in', label_entities('CurrentCTDimmer'))
         \n  | list\n}}\n"
   - parallel:
     - alias: Update Native CCT
@@ -2537,25 +2397,14 @@
     - alias: Update Dimmer Group 1
       if:
       - condition: template
-        value_template: '{{ dimmer1_targets | length > 0 }}'
+        value_template: '{{ dimmer_targets | length > 0 }}'
       then:
       - action: light.turn_on
         target:
-          entity_id: '{{ dimmer1_targets }}'
+          entity_id: '{{ dimmer_targets }}'
         data:
           transition: 0
           brightness: '{{ states(''sensor.cct_to_brightness'') | int }}'
-    - alias: Update Dimmer Group 2
-      if:
-      - condition: template
-        value_template: '{{ dimmer2_targets | length > 0 }}'
-      then:
-      - action: light.turn_on
-        target:
-          entity_id: '{{ dimmer2_targets }}'
-        data:
-          brightness: '{{ states(''sensor.cct_to_brightness_2'') | int }}'
-          transition: 0
   mode: restart
 - id: '1761947020136'
   alias: Switch Guest Bedroom Main Switch Events
@@ -3743,7 +3592,7 @@
       action_val: '{{ trigger.event.data.action_value | default('''') }}'
       area_key: '{{ trigger.event.data.area_key }}'
       target_override: '{{ overrides.target | default('''', true) }}'
-      target_kelvin: '{{ states(''sensor.cct_calculation'') | int }}'
+      target_kelvin: '{{ states(''sensor.cct_calculation'') | int(3200) }}'
       target_label: '{{ trigger.event.data.target_label | default('''', true) }}'
       raw_target: "{% if target_override == '' %} \n  {{ {'area_id': area_key} }}
         \n{% else %}\n  {{ target_override }} \n{% endif %}\n"
@@ -3770,12 +3619,9 @@
       native_cct_lights: "{{ states.light \n  | selectattr('entity_id', 'in', target_entities)
         \n  | selectattr('attributes.supported_color_modes', 'defined')\n  | selectattr('attributes.supported_color_modes',
         'search', 'color_temp') \n  | map(attribute='entity_id') \n  | list \n}}\n"
-      dimmer1_lights: '{{ target_entities | select(''in'', label_entities(''CurrentCTDimmer''))
+      dimmer_lights: '{{ target_entities | select(''in'', label_entities(''CurrentCTDimmer''))
         | list }}'
-      dimmer2_lights: '{{ target_entities | select(''in'', label_entities(''CurrentCTDimmer2''))
-        | list }}'
-      standard_lights: '{% set specialized = native_cct_lights + dimmer1_lights +
-        dimmer2_lights %}
+      standard_lights: '{% set specialized = native_cct_lights + dimmer_lights %}
 
         {{ target_entities | reject(''in'', specialized) | list }}
 
@@ -3811,10 +3657,10 @@
         target:
           entity_id: '{{ native_cct_lights }}'
         data: '{{ serv_data }} '
-    - alias: Dimmer 1 Lights Turn On
+    - alias: Dimmer Lights Turn On
       if:
       - condition: template
-        value_template: '{{ dimmer1_lights | length > 0 }}'
+        value_template: '{{ dimmer_lights | length > 0 }}'
       then:
       - variables:
           payload:
@@ -3823,21 +3669,7 @@
             \n    | int(150)})\n}}\n"
       - action: light.turn_on
         target:
-          entity_id: '{{ dimmer1_lights }}'
-        data: '{{ serv_data }}'
-    - alias: Dimmer 2 Lights Turn On
-      if:
-      - condition: template
-        value_template: '{{ dimmer2_lights | length > 0 }}'
-      then:
-      - variables:
-          payload:
-            transition: 0
-          serv_data: "{{ payload \n    | combine({'brightness': states('sensor.cct_to_brightness_2')
-            \n    | int(150)}) }}\n"
-      - action: light.turn_on
-        target:
-          entity_id: '{{ dimmer2_lights }}'
+          entity_id: '{{ dimmer_lights }}'
         data: '{{ serv_data }}'
     - alias: Standard Lights Turn On
       if:
