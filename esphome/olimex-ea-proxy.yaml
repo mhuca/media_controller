@@ -8,8 +8,8 @@ substitutions:
   friendly_name: Olimex EA LD2410
   board: esp32-poe-iso
 
-packages:
-  esphome.bluetooth-proxy: github://esphome/bluetooth-proxies/olimex-esp32-poe-iso.yaml@main
+#packages:
+#  esphome.bluetooth-proxy: github://esphome/bluetooth-proxies/olimex-esp32-poe-iso.yaml@main
 
 esphome:
   name: ${name}
@@ -45,6 +45,7 @@ esp32_ble_tracker:
 
 bluetooth_proxy:
   active: true
+  connection_slots: 4
 
 uart:
   tx_pin: GPIO01

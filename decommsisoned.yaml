@@ -22,3 +22,31 @@
       target:
         entity_id:
         - input_boolean.powder_room_light_override
+
+# 
+# {% set players = label_entities('home_music')
+#                   | select('match', 'media_player.')
+#                   | list %}
+                  
+# {%- set playing_local = states.media_player 
+#   | selectattr('state', 'eq', 'playing')
+#   | selectattr('attributes.source', 'defined')
+#   | selectattr('attributes.source', 'ne', 'Optical')
+#   | map(attribute='entity_id')
+#   | select('in', players )
+#   | list 
+# %}
+
+# {%- set playing_opt = players | difference(states.media_player 
+#   | selectattr('state', 'eq', 'playing')
+#   | selectattr('attributes.source', 'defined')
+#   | selectattr('attributes.source', 'eq', 'Optical')
+#   | map(attribute='entity_id')
+#   | select('in', players )
+#   | list ) | list
+# %}
+# {{ playing_local[0] if playing_local  | length > 0 else playing_opt[0] }}
+
+
+
+# 

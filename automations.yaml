@@ -331,6 +331,7 @@
         data:
           transition: 120
           brightness_pct: 75
+          color_temp_kelvin: 3200
         target:
           area_id:
           - family_room
@@ -363,6 +364,7 @@
           data:
             transition: 60
             brightness_pct: 75
+            color_temp_kelvin: 3200
           target:
             entity_id:
             - light.family_room_decks_dimmer
@@ -534,7 +536,7 @@
           - light.front_porch_front_porch
   mode: single
 - id: AutoGen2-a86e-4a1d-b708-f6b9a50f4d2b
-  alias: Binary sensor Hallway Presence changes State
+  alias: Hallway Presence changes State
   description: Native Binary sensor Hallway Presence changes State
   triggers:
   - entity_id:
@@ -549,11 +551,35 @@
     to:
     - 'on'
     id: Occupied
-  conditions:
-  - condition: state
-    entity_id: binary_sensor.night_lights_sensor
-    state: 'on'
+  - trigger: event
+    event_type: timer.finished
+    event_data:
+      entity_id: timer.kitchen_light_timer
+    id: Timer
+  conditions: []
   actions:
+  - variables:
+      raw_lux: '{{ states(''sensor.kitchen_light_level'') | float(0) }}'
+      master_cct: '{{ states(''sensor.cct_calculation'') | float(3400) }}'
+      is_dark_enough: '{{ states(''binary_sensor.kitchen_light_required'') == ''on''
+        }}'
+      current_brightness: '{{ (state_attr(''light.kitchen_main'', ''brightness'')
+        | float(0) ) }}
+
+        '
+      lux_offset: '{{ (current_brightness * 0.4) | round(0) }}'
+      effective_lux: "{% set result = raw_lux - lux_offset %} \n{{ result if result
+        > 0 else 0 }}\n"
+      base_brightness: "{% if is_dark_enough %}\n  {% set lux_ratio = (effective_lux
+        / 100) %}\n  {% set lux_ratio = 1 if lux_ratio > 1 else lux_ratio %}\n  {%
+        set brightness = (255 * 75 / 100) * (1 - lux_ratio ** 0.8) %}\n  {% set final
+        = brightness | round(0) | int %}\n  {{ final if final > 25 else 25 }}\n{%
+        else %}\n  0\n{% endif %}\n"
+      pots: "{% if not is_dark_enough %}\n  0\n{% elif master_cct > 2700 %}\n  {{
+        base_brightness | int }}\n{% elif master_cct <= 2202 %}\n  0\n{% else %}\n
+        \ {% set range_total = 2700 - 2202 %}\n  {% set current_pos = master_cct -
+        2202 %}\n  {% set fade_factor = (current_pos / range_total) ** 2 %}\n  {{
+        (base_brightness * fade_factor) | round(0) | int }}\n{% endif %}\n"
   - choose:
     - conditions:
       - condition: trigger
@@ -576,20 +602,57 @@
         id:
         - Occupied
       sequence:
-      - action: light.turn_on
-        metadata: {}
-        data:
-          brightness_pct: 35
-        target:
-          entity_id:
-          - light.kitchen_counter
-          - light.kitchen_island
       - action: timer.cancel
         metadata: {}
         data: {}
         target:
           entity_id:
           - timer.kitchen_light_timer
+      - if:
+        - condition: state
+          entity_id: binary_sensor.night_lights_sensor
+          state: 'on'
+        then:
+        - alias: Emit Generic Universal Controller Command Event
+          event: universal_controller_command
+          event_data:
+            source_device: presence
+            action_type: light_call
+            action_value: 90
+            command_input: turn_on
+            target_label: night_light
+            area_key: kitchen
+            data_payload: '{{ trigger }}'
+            overrides: {}
+        else:
+        - alias: Emit Generic Universal Controller Command Event
+          event: universal_controller_command
+          event_data:
+            source_device: presence
+            action_type: light_call
+            action_value: '{{ pots }}'
+            command_input: turn_on
+            target_label: main
+            area_key: kitchen
+            data_payload: '{{ trigger }}'
+            overrides: {}
+          enabled: true
+    - conditions:
+      - condition: trigger
+        id:
+        - Timer
+      sequence:
+      - alias: Emit Generic Universal Controller Command Event
+        event: universal_controller_command
+        event_data:
+          source_device: presence
+          action_type: light_call
+          action_value: ''
+          command_input: turn_off
+          target_label: ''
+          area_key: kitchen
+          data_payload: '{{ trigger }}'
+          overrides: {}
   mode: queued
   max: 10
 - id: AutoGen2-7657-4f92-a2c8-f1f8aadbb46c
@@ -683,7 +746,7 @@
           - timer.door_open_timer
   mode: single
 - id: AutoGen2-7c44-44d6-b0f6-227d1f4b857b
-  alias: Binary sensor Outside Person changes State
+  alias: Outside Person Changes - State - Timer
   description: Controls all lights on the Driveway area based on person detection
     and night sensors.
   triggers:
@@ -715,12 +778,17 @@
         id:
         - person_event_on
       sequence:
-      - action: light.turn_on
-        data:
-          brightness_pct: 50
-          kelvin: '{{ states(''sensor.cct_calculation'') | int(2700) }}'
-        target:
-          area_id: front_porch
+      - alias: Emit Generic Universal Controller Command Event
+        event: universal_controller_command
+        event_data:
+          source_device: presence
+          action_type: light_call
+          action_value: 150
+          command_input: turn_on
+          target_label: ''
+          area_key: front_porch
+          data_payload: '{{ trigger }}'
+          overrides: {}
       - action: timer.cancel
         target:
           entity_id: timer.front_porch_light_timer
@@ -736,10 +804,17 @@
       - condition: trigger
         id: timer_event
       sequence:
-      - action: light.turn_off
-        data: {}
-        target:
-          area_id: front_porch
+      - alias: Emit Generic Universal Controller Command Event
+        event: universal_controller_command
+        event_data:
+          source_device: presence
+          action_type: light_call
+          action_value: ''
+          command_input: turn_off
+          target_label: ''
+          area_key: front_porch
+          data_payload: '{{ trigger }}'
+          overrides: {}
   mode: queued
   max: 10
 - id: AutoGen2-ea80-4f35-ab79-aab9878f32db
@@ -765,7 +840,7 @@
       - action: script.back_yard_person_night_light_on
   mode: single
 - id: KeepGen2-67fc-4cd5-a9f8-2cf4ae669a5a
-  alias: Binary sensor Mark Office Presence Sensor changes State
+  alias: Mark Office Presence Sensor Changes State
   description: Native Binary sensor Mark Office Presence Sensor changes State
   triggers:
   - trigger: state
@@ -794,24 +869,29 @@
         - Empty
         alias: Empty
       sequence:
-      - action: light.turn_off
-        metadata: {}
-        data:
-          transition: 10
-        target:
-          area_id: mark_office
+      - variables:
+          action_value: ''
+          command_input: turn_off
     - conditions:
       - alias: Occupied
         condition: trigger
         id:
         - Occupied
       sequence:
-      - action: light.turn_on
-        metadata: {}
-        data:
-          brightness_pct: 75
-        target:
-          area_id: mark_office
+      - variables:
+          action_value: 191
+          command_input: turn_on
+  - alias: Emit Generic Universal Controller Command Event
+    event: universal_controller_command
+    event_data:
+      source_device: light
+      action_type: light_call
+      action_value: '{{ action_value }}'
+      command_input: '{{ command_input }}'
+      target_label: ''
+      area_key: mark_office
+      data_payload: '{{ trigger }}'
+      overrides: {}
   mode: single
 - id: AutoGen2-b888-49cb-b4e5-f7379ba5b9d5
   alias: Binary sensor Wesp32 Device Garage Door Sensor changes State
@@ -1606,41 +1686,6 @@
         target:
           entity_id:
           - light.mud_room_light
-- id: AutoGen2-cf24-437d-b113-e62e0282e2d4
-  alias: Timer Powder Room Fan Timer changes Event
-  description: Native Timer Powder Room Fan Timer changes Event
-  triggers:
-  - trigger: event
-    event_type: timer.finished
-    event_data:
-      entity_id: timer.powder_room_fan_timer
-  conditions: []
-  actions:
-    sequence:
-    - action: switch.turn_off
-      metadata: {}
-      data: {}
-      target:
-        entity_id:
-        - switch.powder_room_fan
-- id: AutoGen2-77e3-4c4f-92ba-136419d192d8
-  alias: Timer Kitchen Light Timer changes Event
-  description: Native Timer Kitchen Light Timer changes Event
-  triggers:
-  - trigger: event
-    event_type: timer.finished
-    event_data:
-      entity_id: timer.kitchen_light_timer
-  conditions: []
-  actions:
-    sequence:
-    - action: light.turn_off
-      metadata: {}
-      data:
-        transition: 60
-      target:
-        area_id:
-        - kitchen
 - id: '1759246358151'
   alias: espHome Event Processing
   description: ''
@@ -1651,187 +1696,6 @@
       event_type: button
   conditions: []
   actions: []
-  mode: single
-- id: '1759279515477'
-  alias: Lutron Pico Event Handler
-  description: Single, double, and long press detection
-  triggers:
-  - trigger: event
-    event_type: lutron_caseta_button_event
-    event_data:
-      action: press
-    enabled: false
-  actions:
-  - wait_for_trigger:
-    - event_type: lutron_caseta_button_event
-      event_data:
-        serial: '{{ serial }}'
-        button_number: '{{ button_number }}'
-        action: release
-      id: release_event
-      trigger: event
-    timeout:
-      milliseconds: 450
-    continue_on_timeout: true
-  - if:
-    - condition: template
-      value_template: '{{ wait.completed }}'
-    then:
-    - wait_for_trigger:
-      - event_type: lutron_caseta_button_event
-        event_data:
-          serial: '{{ serial }}'
-          button_number: '{{ button_number }}'
-          action: press
-        id: press_event
-        trigger: event
-      timeout:
-        milliseconds: 250
-      continue_on_timeout: true
-    - if:
-      - condition: template
-        value_template: '{{ wait.completed }}'
-      then:
-      - data:
-          title: Double-Tap Detected
-          message: A double-tap was detected on button {{ button_number }}!
-        action: persistent_notification.create
-        enabled: false
-      - event: pico_button_pressed
-        event_data:
-          serial: '{{ serial }}'
-          command: double
-          button_number: '{{ button_number }}'
-          area_id: '{{ area_id(trigger.event.data.device_id) }}'
-          parent_data: '{{ trigger.event.data }}'
-          command_type: '{{ trigger.event.data.button_type  | lower | replace('' '',
-            '''') | replace(''_'', '''') }}_double
-
-            '
-      - event: nodered_automation
-        event_data:
-          automation:
-          - lutron_devices
-          - '{{ (trigger.event.data.area_name + '' '' + trigger.event.data.device_name)
-            | lower | replace('' '', ''_'') }}'
-          - '{{ trigger.event.data.button_type  | lower | replace('' '', '''') | replace(''_'',
-            '''') }}'
-          - double
-        enabled: false
-      else:
-      - data:
-          title: Single-Tap Detected
-          message: A single-tap was detected on button {{ button_number }}.
-        action: persistent_notification.create
-        enabled: false
-      - event: pico_button_pressed
-        event_data:
-          serial: '{{ serial }}'
-          command: press
-          button_number: '{{ button_number }}'
-          area_id: '{{ area_id(trigger.event.data.device_id) }}'
-          parent_data: '{{ trigger.event.data }}'
-          command_type: '{{ trigger.event.data.button_type  | lower | replace('' '',
-            '''') | replace(''_'', '''') }}_press'
-      - event: nodered_automation
-        event_data:
-          automation:
-          - lutron_devices
-          - '{{ (trigger.event.data.area_name + '' '' + trigger.event.data.device_name)
-            | lower | replace('' '', ''_'') }}'
-          - '{{ trigger.event.data.button_type  | lower | replace('' '', '''') | replace(''_'',
-            '''') }}'
-          - press
-        enabled: false
-    else:
-    - data:
-        title: Long Hold Detected
-        message: A long hold was detected on button {{ button_number }}.
-      action: persistent_notification.create
-      enabled: false
-    - event: pico_button_pressed
-      event_data:
-        serial: '{{ serial }}'
-        command: hold
-        button_number: '{{ button_number }}'
-        area_id: '{{ area_id(trigger.event.data.device_id) }}'
-        parent_data: '{{ trigger.event.data }}'
-        command_type: '{{ trigger.event.data.button_type  | lower | replace('' '',
-          '''') | replace(''_'', '''') }}_hold'
-    - event: nodered_automation
-      event_data:
-        automation:
-        - lutron_devices
-        - '{{ (trigger.event.data.area_name + '' '' + trigger.event.data.device_name)
-          | lower | replace('' '', ''_'') }}'
-        - '{{ trigger.event.data.button_type  | lower | replace('' '', '''') | replace(''_'',
-          '''') }}'
-        - hold
-      enabled: false
-    - repeat:
-        while:
-        - condition: template
-          value_template: '{{ not wait.completed }}'
-        sequence:
-        - event: pico_button_pressed
-          event_data:
-            serial: '{{ serial }}'
-            command: hold
-            button_number: '{{ button_number }}'
-            area_id: '{{ area_id(trigger.event.data.device_id) }}'
-            parent_data: '{{ trigger.event.data }}'
-            command_type: '{{ trigger.event.data.button_type  | lower | replace(''
-              '', '''') | replace(''_'', '''') }}_hold'
-        - event: nodered_automation
-          event_data:
-            automation:
-            - lutron_devices
-            - '{{ (trigger.event.data.area_name + '' '' + trigger.event.data.device_name)
-              | lower | replace('' '', ''_'') }}'
-            - '{{ trigger.event.data.button_type  | lower | replace('' '', '''') |
-              replace(''_'', '''') }}'
-            - hold
-          enabled: false
-        - wait_for_trigger:
-          - event_type: lutron_caseta_button_event
-            event_data:
-              serial: '{{ serial }}'
-              button_number: '{{ button_number }}'
-              action: release
-            trigger: event
-          timeout:
-            hours: 0
-            minutes: 0
-            seconds: 0
-            milliseconds: 450
-          continue_on_timeout: true
-    - data:
-        title: Long Hold Released
-        message: Long hold released on button {{ button_number }}.
-      action: persistent_notification.create
-      enabled: false
-    - event: pico_button_pressed
-      event_data:
-        serial: '{{ serial }}'
-        command: release
-        button_number: '{{ button_number }}'
-        area_id: '{{ area_id(trigger.event.data.device_id) }}'
-        parent_data: '{{ trigger.event.data }}'
-        command_type: '{{ trigger.event.data.button_type  | lower | replace('' '',
-          '''') | replace(''_'', '''') }}_release'
-    - event: nodered_automation
-      event_data:
-        automation:
-        - lutron_devices
-        - '{{ (trigger.event.data.area_name + '' '' + trigger.event.data.device_name)
-          | lower | replace('' '', ''_'') }}'
-        - '{{ trigger.event.data.button_type  | lower | replace('' '', '''') | replace(''_'',
-          '''') }}'
-        - release
-      enabled: false
-  variables:
-    serial: '{{ trigger.event.data.serial }}'
-    button_number: '{{ trigger.event.data.button_number }}'
   mode: single
 - id: AutoGen2-fdb8-496f-bee5-b85c8f49bd9c
   alias: Override - Living Room Wall Scene Controller
@@ -2189,7 +2053,7 @@
   mode: queued
   max: 10
 - id: '1759555862881'
-  alias: Binary sensor Powder Room Fan Motion changes State
+  alias: Powder Room Motion Changes - State - Timer
   description: Native Binary sensor Powder Room Fan Motion changes State
   triggers:
   - entity_id:
@@ -2217,6 +2081,11 @@
         id:
         - Motion_Cleared
       sequence:
+      - delay:
+          hours: 0
+          minutes: 0
+          seconds: 0
+          milliseconds: 100
       - if:
         - condition: state
           entity_id: binary_sensor.powder_room_door
@@ -2266,37 +2135,38 @@
               entity_id: binary_sensor.night_lights_sensor
               state: 'on'
             then:
-            - action: light.turn_on
-              metadata: {}
-              target:
-                area_id: powder_room
-              data:
-                color_temp_kelvin: '{{ states(''sensor.cct_calculation'') }}'
-                brightness_pct: 35
+            - event: universal_controller_command
+              event_data:
+                action_type: light_call
+                command_input: turn_on
+                area_key: powder_room
+                action_value: '{{ 75 if is_state(''binary_sensor.night_lights_sensor'',
+                  ''on'') else 190 }}
+
+                  '
             else:
-            - action: light.turn_on
-              metadata: {}
-              data:
-                brightness_pct: 75
-                color_temp_kelvin: '{{ states(''sensor.cct_calculation'') }}'
-              target:
-                area_id:
-                - powder_room
-      - action: script.powder_room_presence
-        data: {}
-        enabled: false
+            - event: universal_controller_command
+              event_data:
+                action_type: light_call
+                command_input: turn_off
+                area_key: powder_room
+                action_value: ''
     - conditions:
       - condition: trigger
         id:
         - Timer_Finished
       sequence:
-      - action: light.turn_off
-        metadata: {}
-        data:
-          transition: 60
-        target:
-          area_id:
-          - powder_room
+      - alias: Emit Generic Universal Controller Command Event
+        event: universal_controller_command
+        event_data:
+          source_device: light
+          action_type: light_call
+          action_value: ''
+          command_input: turn_off
+          target_label: ''
+          area_key: powder_room
+          data_payload: '{{ trigger }}'
+          overrides: {}
       - action: input_boolean.turn_off
         metadata: {}
         data: {}
@@ -2364,8 +2234,8 @@
     id: target_change
     for:
       hours: 0
-      minutes: 2
-      seconds: 0
+      minutes: 0
+      seconds: 10
   conditions:
   - condition: numeric_state
     entity_id: sensor.count_lights_on
@@ -2587,24 +2457,6 @@
         data: {}
         target:
           entity_id: switch.center_channel_amp
-  mode: single
-- id: '1762491256380'
-  alias: ZHA Event Handler (Button Press) (WIP)
-  description: ''
-  triggers:
-  - device_id: bdf72b349090511004ff398e64377ded
-    domain: zha
-    type: remote_button_short_press
-    subtype: turn_on
-    trigger: device
-  - trigger: event
-    event_type: zha_event
-  conditions: []
-  actions:
-  - variables:
-      serial: '{{ trigger.event.data.serial }}'
-      button_number: '{{ trigger.event.data.button_number }}'
-      device_id: '{{ trigger.event.data.device_id }}'
   mode: single
 - id: '1763155836336'
   alias: DJ zone Power Change
@@ -2927,26 +2779,17 @@
   conditions: []
   actions:
   - variables:
-      action_type: '{{ trigger.query.action | lower | default(none) }}'
+      action_type: '{{ trigger.query.action | lower | default(''media_call'') }}'
       action_value: '{{ trigger.query.value | default(none) }}'
       sofabaton_area: '{{ trigger.query.area_key | default(''living_room'') }}'
-      trigger_receiver: '{{ trigger.query.receiver | default(none, true) }}'
-      target_home_music_player: "{{ \n  states.sensor.home_music_player.state\n}}\n"
-      target_receiver: "{{ label_entities('receiver') \n  | select('match', 'media_player.')\n
-        \ | list\n}}\n"
-      default_receiver: "{{\n  area_entities(sofabaton_area) \n  | select('match','media_player.')\n
-        \ | select('in', target_receiver )\n  | first\n}}\n"
-      target_media_player: '{{ default_receiver if trigger_receiver == 1 else 0 }}
-
-        '
-      target_remote: "{% set remotes = target_list | select('match', 'remote.') |
-        list %} \n{{ remotes[0] if remotes | length > 0 else none }}\n"
-      incoming_payload: '{{ trigger.json | default({"hold_secs":0}) }}
-
-        '
-      current_source: '{{ state_attr(default_receiver, ''source'') }}
-
-        '
+      trigger_receiver: '{{ trigger.query.receiver | default(0) }}'
+      all_receivers: "{{ label_entities('receiver') \n  | select('match', 'media_player.')
+        \n  | list }}\n"
+      default_receiver: "{{ area_entities(sofabaton_area) \n   | select('match','media_player.')
+        \n   | select('in', all_receivers ) \n   | first | default(none) }}\n"
+      router_command: press
+      overrides: {}
+      incoming_payload: '{{ trigger.json | default({''hold_secs'': 0}) }}'
   - alias: Emit Generic Universal Controller Command Event
     event: universal_controller_command
     event_data:
@@ -2956,17 +2799,7 @@
       command_input: '{{ router_command }}'
       area_key: '{{ sofabaton_area }}'
       data_payload: '{{ incoming_payload }}'
-      overrides: {}
-  - choose:
-    - conditions:
-      - condition: template
-        value_template: '{{ action_type == ''activity_call'' }}'
-      sequence:
-      - alias: Execute Universal Activity Orchestrator
-        data:
-          activity_key: '{{ action_value }}'
-        action: script.universal_media_activity_orchestrator
-    enabled: false
+      overrides: '{{ overrides }}'
   mode: single
 - id: '1765533661574'
   alias: Command - Lighting Cycle
@@ -3203,7 +3036,7 @@
   mode: single
 - id: '1765534037383'
   alias: Command - Send Raw Remote Command
-  description: ''
+  description: Handles IR/RF remote commands with target discovery
   triggers:
   - trigger: event
     event_type: universal_controller_command
@@ -3213,191 +3046,135 @@
   actions:
   - condition: template
     value_template: '{% set current_mask = states(''sensor.living_room_media_current_state_mask'')
-      | int(0) %}
-
-      {# Isolate the Source Field (28672) and compare it to Index 3 (12288) #}
-
-      {{ (current_mask | bitwise_and(28672)) == 12288 }}'
-    enabled: true
-  - alias: Define Actions
+      | int(0) %} {{ (current_mask | bitwise_and(28672)) == 12288 }}'
+  - alias: Define Actions and Detective Logic
     variables:
       area_key: '{{ trigger.event.data.area_key }}'
-      command: '{{ trigger.event.data.command_input }}'
-      action_value: '{{ trigger.event.data.action_value | default('''', true ) }}'
-      media_player_id: '{{ trigger.event.data.overrides.media_player_id | default('''',
-        true ) }}'
-      remote_id: '{{ trigger.event.data.overrides.remote_id | default('''', true )
-        }}'
-      data_payload:
-        hold_secs: '{{ trigger.event.data.data_payload[''hold_secs''] | default(0,
-          true ) }}'
-        delay_secs: '{{ trigger.event.data.data_payload[''delay_secs''] | default(0.1,
-          true ) }}'
-        num_repeats: '{{ trigger.event.data.data_payload[''num_repeats''] | default(1,
-          true ) }}'
+      action_value: '{{ trigger.event.data.action_value | default('''', true) }}'
+      passed_remote: "{% set data = trigger.event.data %} {% set ov = data.get('overrides',
+        {}) %} {{ data.get('remote_id') \n   | default(ov.get('remote_id'), true)\n
+        \  | default(ov.get('entity_id') if 'remote.' in ov.get('entity_id', '') else
+        none, true)\n   | default('', true) }}\n"
+      payload: '{{ trigger.event.data.get(''data_payload'', {}) }}'
+      hold_secs: '{{ payload.get(''hold_secs'') | default(0, true) }}'
+      delay_secs: '{{ payload.get(''delay_secs'') | default(0.1, true) }}'
+      num_repeats: '{{ payload.get(''num_repeats'') | default(1, true) }}'
   - alias: Determine Targets
     variables:
-      dynamic_remote: "{% set remotes = area_entities(area_key) \n  | select('match',
-        'remote.') \n  | list\n%}  \n{{ remotes[0] if remotes | length > 0 else none
-        }}\n"
-      target_remote: '{{ remote_id | default(dynamic_remote, true ) }}'
-      dynamic_media_player: "{% set receivers = label_entities('receiver') \n  | select('match',
-        'media_player.')\n  | list\n%}\n{% set media_players = area_entities(area_key)
-        \n  | select('match', 'media_player.') \n  | difference( receivers )\n  |
-        list \n%}  \n{{ media_players[0] if media_players | length > 0 else none }}\n"
-      target_media_player: '{{ media_player_id | default(dynamic_media_player, true
-        ) }}'
-  - alias: Wake Up Media Player if off
-    choose:
-    - conditions:
-      - condition: template
-        value_template: '{{ states(target_media_player) in [''off'', ''standby'',
-          ''unavailable''] }}
-
-          '
-        alias: ATV is Off
-      sequence:
-      - alias: Send Wake-Up Command
-        action: media_player.turn_on
-        data: {}
-        target:
-          entity_id: '{{ target_media_player }}'
-      - delay:
-          hours: 0
-          minutes: 0
-          seconds: 0
-          milliseconds: 500
-    enabled: false
-  - action: remote.send_command
-    metadata: {}
-    target:
-      entity_id: '{{ target_remote }}'
-    data:
-      command: '{{ action_value }}'
-      hold_secs: '{{ data_payload["hold_secs"] | int(0) }}'
-      delay_secs: '{{ data_payload["delay_secs"] | int(0.1) }}'
-      num_repeats: '{{ data_payload["num_repeats"] | int(1) }}'
-  - condition: template
-    value_template: '{{ area_key == "living_room" }}'
-  - condition: state
-    state:
-    - 'on'
-    entity_id: binary_sensor.art_mode_frame_tv
-  - action: script.art_mode_toggle_controller
-    metadata: {}
-    data:
-      action: disable
+      dynamic_remote: "{{ area_entities(area_key) \n   | select('match', 'remote.')
+        \n   | first | default(none) }}\n"
+      target_remote: '{{ passed_remote if passed_remote | length > 0 else dynamic_remote
+        }}'
+  - if:
+    - condition: template
+      value_template: '{{ target_remote is not none }}'
+    then:
+    - action: remote.send_command
+      target:
+        entity_id: '{{ target_remote }}'
+      data:
+        command: '{{ action_value }}'
+        hold_secs: '{{ hold_secs | float(0) }}'
+        delay_secs: '{{ delay_secs | float(0.1) }}'
+        num_repeats: '{{ num_repeats | int(1) }}'
+  - if:
+    - condition: template
+      value_template: '{{ area_key == ''living_room'' }}'
+    - condition: state
+      entity_id: binary_sensor.art_mode_frame_tv
+      state: 'on'
+    then:
+    - action: script.art_mode_toggle_controller
+      data:
+        action: disable
   variables:
     area_key: '{{ trigger.event.data.area_key }}'
   mode: single
 - id: '1765534079246'
   alias: Command - Send Media Call
-  description: ''
+  description: 'Handles media intent calls. Heavy lifting in Listener.  Prioritizes:
+    Local Volume Handshake > Receiver Audio > CD Source Context.
+
+    '
   triggers:
   - trigger: event
     event_type: universal_controller_command
     event_data:
       action_type: media_call
-  conditions: []
   actions:
-  - alias: Intent and Context
+  - alias: Context and Intent
     variables:
-      area_key: '{{ trigger.event.data.area_key }}'
-      action_value: '{{ trigger.event.data.action_value }}'
-      action_type: '{{ trigger.event.data.action_type }}'
-      command_type: '{{ trigger.event.data.command_type }}'
-      media_player_id: '{{ trigger.event.data.overrides.media_player_id | default('''',
-        true ) }}'
+      area_key: '{{ trigger.event.data.get(''area_key'', '''') }}'
+      action_value: '{{ trigger.event.data.get(''action_value'', '''') }}'
+      command_type: '{{ trigger.event.data.get(''command_type'', ''press'') }}'
   - alias: Define Command Mapping
     variables:
       command_map:
         volume.up:
-          action_type: media_call
           service: media_player.volume_up
-          audio: 1
+          is_audio: true
         volume.down:
-          action_type: media_call
           service: media_player.volume_down
-          audio: 1
+          is_audio: true
         volume.mute:
-          action_type: media_call
           service: media_player.volume_mute
-          audio: 1
-          data:
-            is_volume_muted: {}
+          is_audio: true
         media.next:
-          action_type: media_call
           service: media_player.media_next_track
-          audio: 0
+          is_audio: false
         media.previous:
-          action_type: media_call
           service: media_player.media_previous_track
-          audio: 0
+          is_audio: false
         play.toggle:
-          action_type: media_call
           service: media_player.media_play_pause
-          audio: 0
-        play:
-          action_type: media_call
-          service: media_player.media_play
-          audio: 0
-        pause:
-          action_type: media_call
-          service: media_player.media_pause
-          audio: 0
-        media.toggle:
-          action_type: media_call
-          service: media_player.media_play_pause
-          audio: 0
-  - alias: Define Actions
+          is_audio: false
+  - alias: Resolve Action Details
     variables:
-      action_details: '{{ command_map[action_value] if action_value in command_map
-        else none }}'
-      target_service: '{{ command_map[action_value].service | default(none) }}'
-      num_repeats: "{% if action_details.audio == 1 and command_type in\n['lower_hold','raise_hold']
-        %}\n  {{ 2 }}\n{% else %}\n  {{ 1 }}\n{% endif %}\n"
-      delay_milliseconds: 125
-  - alias: Define Targets Player
+      details: '{{ command_map.get(action_value, {}) }}'
+      target_service: '{{ details.get(''service'') }}'
+      num_repeats: '{{ 2 if details.get(''is_audio'') and ''hold'' in command_type
+        else 1 }}'
+  - alias: Local Area Heavy Lifting
     variables:
-      target_home_music_player: "{{ \n  states.sensor.home_music_player.state\n}}\n"
-      target_receiver: "{{ label_entities('receiver') \n  | select('match', 'media_player.')\n
-        \ | list\n}}\n"
-      default_receiver: "{{\n  area_entities(area_key) \n  | select('match','media_player.')\n
-        \ | select('in', target_receiver )\n  | first\n}}\n"
-      default_media_player: "{{\n   area_entities(area_key) \n    | select('match',
-        'media_player.') \n    | difference( target_receiver )\n    | first\n}}\n"
-      current_source: '{{ state_attr(default_receiver, ''source'') }}
+      all_receivers: '{{ label_entities(''receiver'') | select(''match'', ''media_player.'')
+        | list }}'
+      local_receiver: '{{ area_entities(area_key) | select(''match'',''media_player.'')
+        | select(''in'', all_receivers ) | first | default(none) }}
 
         '
-      dynamic_media_player: "{% set ns = namespace(overrides={}) %}\n{% if state_attr(default_media_player,
-        'volume_level') is not none %}\n  {% set ns.overrides = ns.overrides \n      |
-        combine({'entity_id': default_media_player }) %}\n{% elif action_details.audio
-        == 1 %}\n  {% set ns.overrides = ns.overrides \n      | combine({'entity_id':
-        default_receiver }) %}\n{% elif current_source == 'CD' %}\n  {% set ns.overrides
-        = ns.overrides \n      | combine({'entity_id': target_home_music_player })
-        %}\n{% else %}\n  {% set ns.overrides = ns.overrides \n      | combine({'entity_id':
-        default_media_player }) %}\n{% endif %}\n{{ ns.overrides }}\n"
-      target: '{{ media_player_id | default(dynamic_media_player, true ) }}'
-  - alias: Define Data Variables
-    variables:
-      base: '{{ action_details.data | default({}) }}'
-      target_data: "{% if base != {} %}\n  {{ { \"is_volume_muted\": not state_attr(default_receiver,
-        'is_volume_muted')}  }}\n{% else %}\n  {{ base }}\n{% endif %}\n"
-  - data: '{{ target_data }}'
-    target: '{{ target }}'
-    action: '{{ target_service }}'
-  - alias: Repeat Vol Down With Delay (Index Loop)
-    repeat:
-      count: '{{ num_repeats }}'
-      sequence:
-      - if:
-        - condition: template
-          value_template: '{{ repeat.index < num_repeats }}'
-        then:
-        - delay:
-            milliseconds: '{{ delay_milliseconds }}'
-    enabled: false
-  mode: single
+      local_media_player: '{{ area_entities(area_key) | select(''match'', ''media_player.'')
+        | difference(all_receivers) | first | default(none) }}
+
+        '
+      current_source: '{{ state_attr(local_receiver, ''source'') if local_receiver
+        is not none else none }}'
+      final_target: "{% if local_media_player is not none and state_attr(local_media_player,
+        'volume_level') is not none %}\n  {{ local_media_player }}\n{% elif details.get('is_audio')
+        and local_receiver is not none %}\n  {{ local_receiver }}\n{% elif current_source
+        == 'CD' %}\n  {{ states('sensor.home_music_player') }}\n{% else %}\n  {{ local_media_player
+        | default(local_receiver) | default('none') }}\n{% endif %}\n"
+  - alias: Execute Command
+    if:
+    - condition: template
+      value_template: '{{ target_service is not none and final_target not in [''none'',
+        ''unknown'', ''unavailable'', ''''] }}'
+    then:
+    - repeat:
+        count: '{{ num_repeats }}'
+        sequence:
+        - action: '{{ target_service }}'
+          target:
+            entity_id: '{{ final_target }}'
+          data: "{% if action_value == 'volume.mute' %}\n  {{ { \"is_volume_muted\":
+            not (state_attr(final_target, 'is_volume_muted') | default(false)) } }}\n{%
+            else %}\n  {}\n{% endif %}\n"
+        - if:
+          - condition: template
+            value_template: '{{ repeat.index < num_repeats }}'
+          then:
+          - delay:
+              milliseconds: 125
+  mode: restart
 - id: '1765729159002'
   alias: Override - Powder Room Lights
   description: Native Lutron devices Powder Room Remote changes Event
@@ -3687,23 +3464,15 @@
   mode: queued
   max: 5
 - id: '1765726951437'
-  alias: Override - Pet Feeder
-  description: Native Lutron devices Hallway Front Remote changes Event
+  alias: Override - Pet Feeder (Subscriber)
+  description: Subscriber and Responder for Pet Feeder Pico logic
   triggers:
   - trigger: event
     event_type: lutron_caseta_button_event
     event_data:
-      serial: 69245860
       button_type: stop
       action: press
-    id: Button_Press
-  - trigger: event
-    event_type: lutron_caseta_button_event
-    event_data:
-      serial: 69226042
-      button_type: stop
-      action: press
-    id: Button_Press
+    id: button_press
   - trigger: event
     event_type: universal_controller_command
     event_data:
@@ -3714,13 +3483,15 @@
   - choose:
     - conditions:
       - condition: trigger
-        id:
-        - Button_Press
+        id: button_press
       sequence:
+      - variables:
+          feeder_serials:
+          - 69245860
+          - 69226042
+      - condition: template
+        value_template: '{{ trigger.event.data.serial in feeder_serials }}'
       - delay:
-          hours: 0
-          minutes: 0
-          seconds: 0
           milliseconds: 1
       - event: pico_subscription
         event_data:
@@ -3732,19 +3503,16 @@
                 value: portion
     - conditions:
       - condition: trigger
-        id:
-        - redirected_event
+        id: redirected_event
       sequence:
       - action: button.press
-        metadata: {}
-        data: {}
         target:
-          entity_id:
-          - button.aqara_aqara_feeder_acn001_feed
-  mode: queued
+          entity_id: button.aqara_aqara_feeder_acn001_feed
+  mode: parallel
   max: 10
-- id: '1765852842316'
-  alias: Command - Pico Dispatcher
+- &id001
+  id: '1765852842316'
+  alias: Command - Pico Dispatcher - New DELETE
   description: Single, double, and long press detection
   triggers:
   - trigger: event
@@ -3927,620 +3695,7 @@
   variables:
     serial: '{{ trigger.event.data.serial }}'
     button_number: '{{ trigger.event.data.button_number }}'
-- id: '1765852842316'
-  alias: Command - Pico Dispatcher - New
-  description: Single, double, and long press detection
-  triggers:
-  - trigger: event
-    event_type: lutron_caseta_button_event
-    event_data:
-      action: press
-  conditions: []
-  actions:
-  - wait_for_trigger:
-    - event_type: lutron_caseta_button_event
-      event_data:
-        serial: '{{ serial }}'
-        button_number: '{{ button_number }}'
-        action: release
-      id: release_event
-      trigger: event
-    timeout:
-      milliseconds: 450
-    continue_on_timeout: true
-  - variables:
-      area_key: '{{ area_id(trigger.event.data.device_id) }}'
-      data_override: "{% set all_overrides = label_entities('override') \n  | select('match',
-        'sensor.')\n  | list\n%}\n{% set overrides = \n  device_entities(trigger.event.data.device_id)
-        \n  | select('match','sensor.')\n  | select('in', all_overrides )\n  | list\n%}\n{%
-        if overrides | length > 0 %}\n  {{ states(overrides[0]) | default('') }}\n{%
-        endif%}\n"
-      command_input: '{{ ''turn_off'' if trigger.event.data.button_type == ''off''
-        else ''turn_on'' }}'
-      target_device_name: "{{ trigger.event.data.device_name \n  | lower \n  | replace('
-        ','_') \n  | regex_replace(find='\\\\d+', replace='')\n}}\n"
-      target_lights: "{% set all_lights = label_entities(target_device_name) \n  |
-        select('match', 'light.')\n  | list\n%}    \n{{\n  area_entities(area_key)
-        \n  | select('match','light.')\n  | select('in', all_lights )\n  | list\n}}\n"
-      target: "{% set target = {} %}\n{% if trigger.event.data.device_name != 'Remote'
-        %} \n  {% set target = target \n    | combine({'target':{'entity_id': target_lights
-        }}) \n  %}\n{% endif %}\n{% if data_override | length > 0 %}\n  {% set target
-        = target \n    | combine(data_override) \n  %}\n{% endif %}\n{{ target }}\n"
-      action_type: "{{ 'media_call' if trigger.event.data.device_name == 'Media' else
-        'light_call' }} \n"
-      device_prefix: "{{ 'media_' if trigger.event.data.device_name == 'Media' else
-        '' }} \n"
-  - if:
-    - condition: template
-      value_template: '{{ wait.completed }}'
-    then:
-    - wait_for_trigger:
-      - event_type: lutron_caseta_button_event
-        event_data:
-          serial: '{{ serial }}'
-          button_number: '{{ button_number }}'
-          action: press
-        id: press_event
-        trigger: event
-      timeout:
-        milliseconds: 250
-      continue_on_timeout: true
-    - if:
-      - condition: template
-        value_template: '{{ wait.completed }}'
-      then:
-      - variables:
-          command: double
-          action_value: "{% set command_map = {\n    'on': 'max',\n    'raise': '',\n
-            \   'stop': '',\n    'lower': '',\n    'off': 'min',\n    'media_on':
-            '',\n    'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n
-            \   'media_stop': 'play.toggle',\n    'media_off': ''\n} %}\n{{ command_map[device_prefix
-            ~ trigger.event.data.button_type] }}\n"
-          command_input: turn_on
-      - alias: Double Event
-        event: universal_controller_command
-        event_data:
-          source_device: pico
-          action_type: '{{ action_type }}'
-          action_value: '{{ action_value }}'
-          command_input: '{{ command_input }}'
-          area_key: '{{ area_id(trigger.event.data.device_id) }}'
-          data_payload: '{{ trigger.event.data }}'
-          overrides: '{{ target }}'
-          command: '{{ command }}'
-          command_type: "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
-            ', '') \n  | replace('_', '') }}_{{ command }}\n"
-      else:
-      - variables:
-          command: press
-          action_value: "{% set command_map = {\n    'on': '',\n    'raise': 'raise',\n
-            \   'stop': '',\n    'lower': 'lower',\n    'off': '',\n    'media_on':
-            '',\n    'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n
-            \   'media_stop': 'play.toggle',\n    'media_off': ''\n} %}\n{{ command_map[device_prefix
-            ~ trigger.event.data.button_type] }}\n"
-      - alias: Press Event
-        event: universal_controller_command
-        event_data:
-          source_device: pico
-          action_type: '{{ action_type }}'
-          action_value: '{{ action_value }}'
-          command_input: '{{ command_input }}'
-          area_key: '{{ area_id(trigger.event.data.device_id) }}'
-          data_payload: '{{ trigger.event.data }}'
-          overrides: '{{ target }}'
-          command: '{{ command }}'
-          command_type: "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
-            ', '') \n  | replace('_', '') }}_{{ command }}\n"
-    else:
-    - variables:
-        command: hold
-        action_value: "{% set command_map = {\n    'on': 'raise',\n    'raise': 'raise',\n
-          \   'stop': '',\n    'lower': 'lower',\n    'off': 'lower',\n    'media_on':
-          '',\n    'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n
-          \   'media_stop': 'play.toggle',\n    'media_off': ''\n} %}\n{{ command_map[device_prefix
-          ~ trigger.event.data.button_type] }}\n"
-        command_input: turn_on
-    - alias: Hold Event
-      event: universal_controller_command
-      event_data:
-        source_device: pico
-        action_type: '{{ action_type }}'
-        action_value: '{{ action_value }}'
-        command_input: '{{ command_input }}'
-        area_key: '{{ area_id(trigger.event.data.device_id) }}'
-        data_payload: '{{ trigger.event.data }}'
-        overrides: '{{ target }}'
-        command: '{{ command }}'
-        command_type: "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
-          ', '') \n  | replace('_', '') }}_{{ command }}\n"
-    - repeat:
-        while:
-        - condition: template
-          value_template: '{{ not wait.completed }}'
-        sequence:
-        - alias: Hold Event Repeat
-          event: universal_controller_command
-          event_data:
-            source_device: pico
-            action_type: '{{ action_type }}'
-            action_value: '{{ action_value }}'
-            command_input: '{{ command_input }}'
-            area_key: '{{ area_id(trigger.event.data.device_id) }}'
-            data_payload: '{{ trigger.event.data }}'
-            overrides: '{{ target }}'
-            command: '{{ command }}'
-            command_type: "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
-              ', '') \n  | replace('_', '') }}_{{ command }}\n"
-        - wait_for_trigger:
-          - event_type: lutron_caseta_button_event
-            event_data:
-              serial: '{{ serial }}'
-              button_number: '{{ button_number }}'
-              action: release
-            trigger: event
-          timeout:
-            hours: 0
-            minutes: 0
-            seconds: 0
-            milliseconds: 450
-          continue_on_timeout: true
-    - variables:
-        command: release
-        action_value: "{% set command_map = {\n    'on': 'max',\n    'raise': '',\n
-          \   'stop': '',\n    'lower': '',\n    'off': 'min',\n    'media_on': '',\n
-          \   'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n    'media_stop':
-          'play.toggle',\n    'media_off': ''\n} %}\n{{ command_map[device_prefix
-          ~ trigger.event.data.button_type] }}\n"
-        command_input: ''
-    - alias: Release Event
-      event: universal_controller_command
-      event_data:
-        source_device: pico
-        action_type: '{{ action_type }}'
-        action_value: '{{ action_value }}'
-        command_input: '{{ command_input }}'
-        area_key: '{{ area_id(trigger.event.data.device_id) }}'
-        data_payload: '{{ trigger.event.data }}'
-        overrides: '{{ target }}'
-        command: '{{ command }}'
-        command_type: "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
-          ', '') \n  | replace('_', '') }}_{{ command }}\n"
-      enabled: false
-  mode: queued
-  max: 5
-  variables:
-    serial: '{{ trigger.event.data.serial }}'
-    button_number: '{{ trigger.event.data.button_number }}'
-- id: '1765852842316'
-  alias: Command - Pico Dispatcher - New
-  description: Single, double, and long press detection
-  triggers:
-  - trigger: event
-    event_type: lutron_caseta_button_event
-    event_data:
-      action: press
-  conditions: []
-  actions:
-  - wait_for_trigger:
-    - event_type: lutron_caseta_button_event
-      event_data:
-        serial: '{{ serial }}'
-        button_number: '{{ button_number }}'
-        action: release
-      id: release_event
-      trigger: event
-    timeout:
-      milliseconds: 450
-    continue_on_timeout: true
-  - variables:
-      area_key: '{{ area_id(trigger.event.data.device_id) }}'
-      data_override: "{% set all_overrides = label_entities('override') \n  | select('match',
-        'sensor.')\n  | list\n%}\n{% set overrides = \n  device_entities(trigger.event.data.device_id)
-        \n  | select('match','sensor.')\n  | select('in', all_overrides )\n  | list\n%}\n{%
-        if overrides | length > 0 %}\n  {{ states(overrides[0]) | default('') }}\n{%
-        endif%}\n"
-      command_input: '{{ ''turn_off'' if trigger.event.data.button_type == ''off''
-        else ''turn_on'' }}'
-      target_device_name: "{{ trigger.event.data.device_name \n  | lower \n  | replace('
-        ','_') \n  | regex_replace(find='\\\\d+', replace='')\n}}\n"
-      target_lights: "{% set all_lights = label_entities(target_device_name) \n  |
-        select('match', 'light.')\n  | list\n%}    \n{{\n  area_entities(area_key)
-        \n  | select('match','light.')\n  | select('in', all_lights )\n  | list\n}}\n"
-      target: "{% set target = {} %}\n{% if trigger.event.data.device_name != 'Remote'
-        %} \n  {% set target = target \n    | combine({'target':{'entity_id': target_lights
-        }}) \n  %}\n{% endif %}\n{% if data_override | length > 0 %}\n  {% set target
-        = target \n    | combine(data_override) \n  %}\n{% endif %}\n{{ target }}\n"
-      action_type: "{{ 'media_call' if trigger.event.data.device_name == 'Media' else
-        'light_call' }} \n"
-      device_prefix: "{{ 'media_' if trigger.event.data.device_name == 'Media' else
-        '' }} \n"
-  - if:
-    - condition: template
-      value_template: '{{ wait.completed }}'
-    then:
-    - wait_for_trigger:
-      - event_type: lutron_caseta_button_event
-        event_data:
-          serial: '{{ serial }}'
-          button_number: '{{ button_number }}'
-          action: press
-        id: press_event
-        trigger: event
-      timeout:
-        milliseconds: 250
-      continue_on_timeout: true
-    - if:
-      - condition: template
-        value_template: '{{ wait.completed }}'
-      then:
-      - variables:
-          command: double
-          action_value: "{% set command_map = {\n    'on': 'max',\n    'raise': '',\n
-            \   'stop': '',\n    'lower': '',\n    'off': 'min',\n    'media_on':
-            '',\n    'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n
-            \   'media_stop': 'play.toggle',\n    'media_off': ''\n} %}\n{{ command_map[device_prefix
-            ~ trigger.event.data.button_type] }}\n"
-          command_input: turn_on
-      - alias: Double Event
-        event: universal_controller_command
-        event_data:
-          source_device: pico
-          action_type: '{{ action_type }}'
-          action_value: '{{ action_value }}'
-          command_input: '{{ command_input }}'
-          area_key: '{{ area_id(trigger.event.data.device_id) }}'
-          data_payload: '{{ trigger.event.data }}'
-          overrides: '{{ target }}'
-          command: '{{ command }}'
-          command_type: "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
-            ', '') \n  | replace('_', '') }}_{{ command }}\n"
-      else:
-      - variables:
-          command: press
-          action_value: "{% set command_map = {\n    'on': '',\n    'raise': 'raise',\n
-            \   'stop': '',\n    'lower': 'lower',\n    'off': '',\n    'media_on':
-            '',\n    'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n
-            \   'media_stop': 'play.toggle',\n    'media_off': ''\n} %}\n{{ command_map[device_prefix
-            ~ trigger.event.data.button_type] }}\n"
-      - alias: Press Event
-        event: universal_controller_command
-        event_data:
-          source_device: pico
-          action_type: '{{ action_type }}'
-          action_value: '{{ action_value }}'
-          command_input: '{{ command_input }}'
-          area_key: '{{ area_id(trigger.event.data.device_id) }}'
-          data_payload: '{{ trigger.event.data }}'
-          overrides: '{{ target }}'
-          command: '{{ command }}'
-          command_type: "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
-            ', '') \n  | replace('_', '') }}_{{ command }}\n"
-    else:
-    - variables:
-        command: hold
-        action_value: "{% set command_map = {\n    'on': 'raise',\n    'raise': 'raise',\n
-          \   'stop': '',\n    'lower': 'lower',\n    'off': 'lower',\n    'media_on':
-          '',\n    'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n
-          \   'media_stop': 'play.toggle',\n    'media_off': ''\n} %}\n{{ command_map[device_prefix
-          ~ trigger.event.data.button_type] }}\n"
-        command_input: turn_on
-    - alias: Hold Event
-      event: universal_controller_command
-      event_data:
-        source_device: pico
-        action_type: '{{ action_type }}'
-        action_value: '{{ action_value }}'
-        command_input: '{{ command_input }}'
-        area_key: '{{ area_id(trigger.event.data.device_id) }}'
-        data_payload: '{{ trigger.event.data }}'
-        overrides: '{{ target }}'
-        command: '{{ command }}'
-        command_type: "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
-          ', '') \n  | replace('_', '') }}_{{ command }}\n"
-    - repeat:
-        while:
-        - condition: template
-          value_template: '{{ not wait.completed }}'
-        sequence:
-        - alias: Hold Event Repeat
-          event: universal_controller_command
-          event_data:
-            source_device: pico
-            action_type: '{{ action_type }}'
-            action_value: '{{ action_value }}'
-            command_input: '{{ command_input }}'
-            area_key: '{{ area_id(trigger.event.data.device_id) }}'
-            data_payload: '{{ trigger.event.data }}'
-            overrides: '{{ target }}'
-            command: '{{ command }}'
-            command_type: "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
-              ', '') \n  | replace('_', '') }}_{{ command }}\n"
-        - wait_for_trigger:
-          - event_type: lutron_caseta_button_event
-            event_data:
-              serial: '{{ serial }}'
-              button_number: '{{ button_number }}'
-              action: release
-            trigger: event
-          timeout:
-            hours: 0
-            minutes: 0
-            seconds: 0
-            milliseconds: 450
-          continue_on_timeout: true
-    - variables:
-        command: release
-        action_value: "{% set command_map = {\n    'on': 'max',\n    'raise': '',\n
-          \   'stop': '',\n    'lower': '',\n    'off': 'min',\n    'media_on': '',\n
-          \   'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n    'media_stop':
-          'play.toggle',\n    'media_off': ''\n} %}\n{{ command_map[device_prefix
-          ~ trigger.event.data.button_type] }}\n"
-        command_input: ''
-    - alias: Release Event
-      event: universal_controller_command
-      event_data:
-        source_device: pico
-        action_type: '{{ action_type }}'
-        action_value: '{{ action_value }}'
-        command_input: '{{ command_input }}'
-        area_key: '{{ area_id(trigger.event.data.device_id) }}'
-        data_payload: '{{ trigger.event.data }}'
-        overrides: '{{ target }}'
-        command: '{{ command }}'
-        command_type: "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
-          ', '') \n  | replace('_', '') }}_{{ command }}\n"
-      enabled: false
-  mode: queued
-  max: 5
-  variables:
-    serial: '{{ trigger.event.data.serial }}'
-    button_number: '{{ trigger.event.data.button_number }}'
-- id: '1765853359114'
-  alias: Command - Pico Dispatcher - Wip
-  description: Single, double, and long press detection
-  triggers:
-  - trigger: event
-    event_type: lutron_caseta_button_event
-    event_data:
-      action: press
-  conditions: []
-  actions:
-  - alias: Look for Proactive Subscription
-    wait_for_trigger:
-    - event_type: pico_subscription
-      trigger: event
-      event_data:
-        session_id: '{{ session_id }}'
-    continue_on_timeout: true
-    enabled: true
-    timeout:
-      hours: 0
-      minutes: 0
-      seconds: 0
-      milliseconds: 10
-  - variables:
-      sub_captured: '{{ wait.trigger is not none }}'
-      subscription: '{{ wait.trigger.event.data if wait.trigger is not none else none
-        }}'
-  - variables:
-      serial: '{{ trigger.event.data.serial }}'
-      button_number: '{{ trigger.event.data.button_number }}'
-      area_key: '{{ area_id(trigger.event.data.device_id) }}'
-      old_action_type: '{{ ''media_call'' if trigger.event.data.device_name == ''Media''
-        else ''light_call'' }}
-
-        '
-      target_device_name: "{{ trigger.event.data.device_name \n  | lower \n  | replace('
-        ','_') \n  | regex_replace(find='\\\\d+', replace='')\n}}\n"
-      device_prefix: "{{ 'media_' if trigger.event.data.device_name == 'Media' else
-        '' }} \n"
-      repeat_delay: '{{ 150 if action_type == ''media_call'' else 450 }}'
-      max_hold_time: 9
-      max_iterations: '{{ (max_hold_time / (repeat_delay / 1000)) | round(0) }}'
-      action_type: "{% set intent_map = {\n    'zone': 'scene_cycle',\n    'scene':
-        'scene_cycle',\n    'media': 'media_call'\n} %}\n{{ intent_map[target_device_name]
-        | default('light_call') }}\n"
-  - wait_for_trigger:
-    - event_type: lutron_caseta_button_event
-      event_data:
-        serial: '{{ serial }}'
-        button_number: '{{ button_number }}'
-        action: release
-      id: release_event
-      trigger: event
-    timeout:
-      milliseconds: 450
-    continue_on_timeout: true
-    alias: Wait for first Release Event... If None After 450ms then it's Hold
-  - variables:
-      is_hold: '{{ wait.trigger is none }}'
-      release_wait: '{{ wait }}'
-      data_override: "{% set all_overrides = label_entities('override') \n  | select('match',
-        'sensor.')\n  | list\n%}\n{% set overrides = \n  device_entities(trigger.event.data.device_id)
-        \n  | select('match','sensor.')\n  | select('in', all_overrides )\n  | list\n%}\n{%
-        if overrides | length > 0 %}\n  {{ states(overrides[0]) | default('') }}\n{%
-        endif%}\n"
-      command_input: '{{ ''turn_off'' if trigger.event.data.button_type == ''off''
-        else ''turn_on'' }}'
-      temp_all: "{{\n  label_entities(target_device_name) \n    | select('match',
-        'light.')\n    | list \n}}\n"
-      temp_area_lights: "{{\n  area_entities(area_key) \n  | select('match','light.')\n
-        \ | list\n}}\n"
-      target_lights: "{% set all_lights = label_entities(target_device_name) \n  |
-        select('match', 'light.')\n  | list\n%}    \n{{\n  area_entities(area_key)
-        \n  | select('match','light.')\n  | select('in', all_lights )\n  | list\n}}\n"
-      target: "{% set target = {} %}\n{% if trigger.event.data.device_name != 'Remote'
-        %} \n  {% set target = target \n    | combine({'target':{'entity_id': target_lights
-        }}) \n  %}\n{% endif %}\n{% if data_override | length > 0 %}\n  {% set target
-        = target \n    | combine(data_override) \n  %}\n{% endif %}\n{{ target }}
-        \n"
-      hold_duration: '{{ 450 - (wait.remaining | default(0) * 1000) }}'
-  - if:
-    - condition: template
-      value_template: '{{ not is_hold }}'
-    then:
-    - wait_for_trigger:
-      - event_type: lutron_caseta_button_event
-        event_data:
-          serial: '{{ serial }}'
-          button_number: '{{ button_number }}'
-          action: press
-        id: press_event
-        trigger: event
-      timeout:
-        milliseconds: 250
-      continue_on_timeout: true
-      alias: Wait For Second Press
-    - variables:
-        is_double: '{{ wait.trigger is not none }}'
-    - if:
-      - condition: template
-        value_template: '{{ is_double }}'
-      then:
-      - variables:
-          command: double
-          action_value: "{% set command_map = {\n    'on': 'max',\n    'raise': '',\n
-            \   'stop': '',\n    'lower': '',\n    'off': 'min',\n    'media_on':
-            '',\n    'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n
-            \   'media_stop': 'play.toggle',\n    'media_off': ''\n} %}\n{{ command_map[device_prefix
-            ~ trigger.event.data.button_type] }}\n"
-          command_input: turn_on
-      else:
-      - variables:
-          command: press
-          action_value: "{% set command_map = {\n    'on': '',\n    'raise': 'raise',\n
-            \   'stop': '',\n    'lower': 'lower',\n    'off': '',\n    'media_on':
-            'play.toggle',\n    'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n
-            \   'media_stop': 'volume.mute',\n    'media_off': 'media.next'\n} %}\n{{
-            command_map[device_prefix ~ trigger.event.data.button_type] }}\n"
-    - variables:
-        is_over: "{% if subscription is not none %}\n  {# The override must match
-          the button AND the specific command (double, hold, etc) #}\n  {{ button_type
-          in subscription.buttons and command in subscription.types }}\n{% else %}\n
-          \ false\n{% endif %}\n"
-        buttons: '{{ button_type in subscription.buttons }}'
-        bypass_command: '{{ command in subscription.types }}'
-        is_overridden: '{{ buttons and bypass_command }}'
-        new_final: '{{ subscription.topic if is_overs else action_type }}'
-        final_action_type: '{{ subscription.topic if is_overridden else action_type
-          }}'
-        command_type: "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
-          ', '') \n  | replace('_', '') }}_{{ command }}\n"
-    - alias: Press Event
-      event: universal_controller_command
-      event_data:
-        source_device: pico
-        action_type: '{{ final_action_type }}'
-        action_value: '{{ action_value }}'
-        command_input: '{{ command_input }}'
-        area_key: '{{ area_id(trigger.event.data.device_id) }}'
-        session_id: '{{ session_id }}'
-        data_payload: '{{ trigger.event.data }}'
-        overrides: '{{ target }}'
-        command: '{{ command }}'
-        command_type: '{{ command_type }}'
-    else:
-    - variables:
-        command: hold
-        action_value: "{% set command_map = {\n    'on': 'raise',\n    'raise': 'raise',\n
-          \   'stop': '',\n    'lower': 'lower',\n    'off': 'lower',\n    'media_on':
-          '',\n    'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n
-          \   'media_stop': '',\n    'media_off': ''\n} %}\n{{ command_map[device_prefix
-          ~ trigger.event.data.button_type] }}\n"
-        command_input: turn_on
-    - variables:
-        buttons: '{{ button_type in subscription.buttons }}'
-        bypass_command: '{{ command in subscription.types }}'
-        is_overridden: '{{ buttons and bypass_command }}'
-        final_action_type: '{{ subscription.topic if is_overridden else action_type
-          }}'
-        command_type: "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
-          ', '') \n  | replace('_', '') }}_{{ command }}\n"
-    - alias: Hold Event
-      event: universal_controller_command
-      event_data:
-        source_device: pico
-        action_type: '{{ final_action_type }}'
-        action_value: '{{ action_value }}'
-        command_input: '{{ command_input }}'
-        area_key: '{{ area_id(trigger.event.data.device_id) }}'
-        session_id: '{{ session_id }}'
-        data_payload: '{{ trigger.event.data }}'
-        overrides: '{{ target }}'
-        command: '{{ command }}'
-        command_type: '{{ command_type }}'
-    - repeat:
-        while:
-        - condition: template
-          value_template: '{{ is_hold and repeat.index < 20 }}'
-        sequence:
-        - wait_for_trigger:
-          - event_type: lutron_caseta_button_event
-            event_data:
-              serial: '{{ serial }}'
-              button_number: '{{ button_number }}'
-              action: release
-            trigger: event
-          timeout:
-            hours: 0
-            minutes: 0
-            seconds: 0
-            milliseconds: 450
-          continue_on_timeout: true
-        - variables:
-            is_hold: '{{ wait.trigger is none }}'
-        - if:
-          - condition: template
-            value_template: '{{ is_hold }}'
-          then:
-          - alias: Hold Event Repeat
-            event: universal_controller_command
-            event_data:
-              source_device: pico
-              action_type: '{{ final_action_type }}'
-              action_value: '{{ action_value }}'
-              command_input: '{{ command_input }}'
-              area_key: '{{ area_id(trigger.event.data.device_id) }}'
-              session_id: '{{ session_id }}'
-              data_payload: '{{ trigger.event.data }}'
-              overrides: '{{ target }}'
-              command: '{{ command }}'
-              command_type: "{{ trigger.event.data.button_type  \n  | lower \n  |
-                replace(' ', '') \n  | replace('_', '') }}_{{ command }}\n"
-    - variables:
-        command: release
-        action_value: "{% set command_map = {\n    'on': 'max',\n    'raise': '',\n
-          \   'stop': '',\n    'lower': '',\n    'off': 'min',\n    'media_on': '',\n
-          \   'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n    'media_stop':
-          'play.toggle',\n    'media_off': ''\n} %}\n{{ command_map[device_prefix
-          ~ trigger.event.data.button_type] }}\n"
-        command_input: ''
-    - variables:
-        is_overridden: "{% if subscription is not none %}\n  {# The override must
-          match the button AND the specific command (double, hold, etc) #}\n  {{ button_type
-          in subscription.buttons and command in subscription.types }}\n{% else %}\n
-          \ {{ subscription is none }}\n{% endif %}\n"
-        final_action_type: '{{ subscription.topic if is_overridden else action_type
-          }}'
-        command_type: "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
-          ', '') \n  | replace('_', '') }}_{{ command }}\n"
-    - alias: Release Event
-      event: universal_controller_command
-      event_data:
-        source_device: pico
-        action_type: '{{ final_action_type }}'
-        action_value: '{{ action_value }}'
-        command_input: '{{ command_input }}'
-        area_key: '{{ area_id(trigger.event.data.device_id) }}'
-        session_id: '{{ session_id }}'
-        data_payload: '{{ trigger.event.data }}'
-        overrides: '{{ target }}'
-        command: '{{ command }}'
-        command_type: '{{ command_type }}'
-      enabled: true
-  mode: single
-  variables:
-    session_id: '{{ trigger.event.context.id }}'
+- *id001
 - id: '1765856774573'
   alias: Override - Reset Light Override on Door Open
   description: ''
@@ -4868,111 +4023,6 @@
       seconds: 0
       milliseconds: 500
   mode: restart
-- id: '1766603786358'
-  alias: Listen - Held Pico (Rename)
-  description: Uses Session ID as a watchdog heartbeat to maintain a local dimming
-    ramp
-  triggers:
-  - trigger: event
-    event_type: universal_controller_command
-    event_data:
-      action_type: light_call
-      action_value: ''
-      data_payload:
-        serial: 69245901
-        button_type: stop
-      command_type: stop_hold
-  conditions: []
-  actions:
-  - variables:
-      area_key: '{{ trigger.event.data.area_key }}'
-      target_override: '{{ trigger.event.data.overrides.target | default('''', true)
-        }}'
-      data_override: '{{ trigger.event.data.overrides | default('''', true) }}'
-      serial: '{{ trigger.event.data.data_payload.serial }}'
-      session_id: '{{ trigger.event.data.session_id }}'
-      is_continuation: '{{ state_attr(''this.entity_id'', ''last_session_id'') ==
-        session_id }}
-
-        '
-      raw_target: "{% if target_override == '' %} \n  {{ {'area_id': area_key} }}
-        \n{% else %}\n  {{ target_override }} \n{% endif %}\n"
-      area_lights: "{{ area_entities(area_key) \n  | select('search', '^light.') \n
-        \ | select('is_state', 'on') \n  | list \n}}\n"
-      bright: "{{ (expand(area_lights) \n  | map(attribute='attributes.brightness')
-        \n  | map('int', 0) \n  | average / 2.55) if area_lights \n  | length > 0
-        else 0 \n}}\n"
-      target_direction: '{{ ''lower'' if bright > 70 else ''raise'' }}
-
-        '
-      this_store: '{{ this }}'
-  - alias: Target Expansion (The "Engine")
-    variables:
-      target_entities: "{% set ns = namespace(found=[]) %} \n{% if raw_target.area_id
-        is defined %}\n  {% set ns.found = area_entities(raw_target.area_id) %}\n{%
-        elif raw_target.entity_id is defined %}\n  {% set ent = raw_target.entity_id
-        %}\n  {% set ns.found = [ent] if ent is string else ent %}\n{% endif %} \n{{
-        \n  ns.found \n    | map('expand') \n    | sum(start=[]) \n    | selectattr('domain',
-        'eq', 'light') \n    | map(attribute='entity_id') \n    | list \n    | unique
-        \n    | list \n}}\n"
-  - alias: Hardware Bucketing
-    variables:
-      native_cct_lights: "{{ states.light \n  | selectattr('entity_id', 'in', target_entities)
-        \n  | selectattr('attributes.supported_color_modes', 'defined')\n  | selectattr('attributes.supported_color_modes',
-        'search', 'color_temp') \n  | map(attribute='entity_id') \n  | list \n}}\n"
-      dimmer1_lights: '{{ target_entities | select(''in'', label_entities(''CurrentCTDimmer''))
-        | list }}'
-      dimmer2_lights: '{{ target_entities | select(''in'', label_entities(''CurrentCTDimmer2''))
-        | list }}'
-      standard_lights: '{% set specialized = dimmer1_lights + dimmer2_lights %}
-
-        {{ target_entities | reject(''in'', specialized) | list }}
-
-        '
-      target: "{{ data_override \n  | combine({'target':{'entity_id': standard_lights
-        }}) \n}}\n"
-  - repeat:
-      until:
-      - condition: template
-        value_template: '{{ not wait.completed or repeat.index > 7 }}'
-      sequence:
-      - event: universal_controller_command
-        event_data:
-          action_type: light_call
-          action_value: '{{ target_direction }}'
-          area_key: '{{ area_key }}'
-          metadata:
-            last_session_id: '{{ session_id }}'
-            last_direction: '{{ target_direction }}'
-          source_device: pico
-          command_input: '{{ trigger.event.data.command_input }}'
-          data_payload: '{{ trigger.event.data.data_payload }}'
-          overrides: '{{ target }}'
-          command: '{{ trigger.event.data.command }}'
-          command_type: '{{ trigger.event.data.command_type }}'
-        enabled: true
-      - wait_for_trigger:
-        - trigger: event
-          event_type: universal_controller_command
-          event_data:
-            action_type: light_call
-            action_value: ''
-            data_payload:
-              serial: 69245901
-              button_type: stop
-            command_type: stop_hold
-          enabled: true
-        timeout:
-          hours: 0
-          minutes: 0
-          seconds: 0
-          milliseconds: 600
-        continue_on_timeout: true
-      - condition: template
-        value_template: '{{ session_id == wait.trigger.event.data.session_id }}'
-  variables:
-    command_type: '{{ trigger.event.data.command_type }}'
-  mode: single
 - id: AutoGen1-df6b-4acd-85dd-3af0a0eb5e9d
   alias: zigbee_devices 51269f6e8134705c087b93ce29d78d69 on press
   description: Automations Zigbee devices 51269f6e8134705c087b93ce29d78d69 changes
@@ -5034,54 +4084,6 @@
       command_type: 'press_{{ command }}
 
         '
-  - choose:
-    - conditions:
-      - condition: template
-        value_template: '{{ command == ''on'' }}'
-      sequence:
-      - action: scene.turn_on
-        metadata: {}
-        target:
-          entity_id: scene.entertain
-        data: {}
-      alias: Full Entertain Mode
-    - conditions:
-      - condition: template
-        value_template: '{{ command == ''off'' }}'
-      sequence:
-      - action: light.turn_off
-        metadata: {}
-        target:
-          area_id:
-          - basement_stairs
-          - basement_kitchen
-          - family_room
-          - furnace_room
-          - gym
-          - panel_room
-        data: {}
-      alias: All Off
-    - conditions:
-      - condition: template
-        value_template: '{{ command == ''step'' and action == ''StepMode.Up'' }}'
-      sequence:
-      - action: scene.turn_on
-        metadata: {}
-        target:
-          entity_id: scene.media
-        data: {}
-      alias: Media Mode
-    - conditions:
-      - condition: template
-        value_template: '{{ command == ''step'' and action == ''StepMode.Down'' }}'
-      sequence:
-      - action: scene.turn_on
-        metadata: {}
-        target:
-          entity_id: scene.movie
-        data: {}
-      alias: Movie Mode
-    enabled: false
   mode: single
 - id: '1767986584386'
   alias: Command - Light Scene Cycle
@@ -5187,366 +4189,37 @@
       action: press
       serial: 138781653
     id: button_press
-  - trigger: event
-    event_type: universal_controller_command
-    event_data:
-      action_type: living_room_scene
-    id: redirected_event
   actions:
-  - variables:
-      buttons: '{{ [''button_1'',''button_2'',''button_3''] }}'
-  - choose:
-    - conditions:
-      - condition: trigger
-        id:
-        - button_press
-      - condition: template
-        value_template: '{{ trigger.event.data.button_type in buttons }}'
-        enabled: false
-      sequence:
-      - delay:
-          hours: 0
-          minutes: 0
-          seconds: 0
-          milliseconds: 1
-      - event: pico_subscription
-        event_data:
-          session_id: '{{ trigger.event.context.id }}'
-          command_map:
-            press:
-              '8':
-                type: scene_cycle
-                value: max
-              '9':
-                type: scene_cycle
-                value: raise
-              '10':
-                type: scene_cycle
-                value: lower
-              '11':
-                type: scene_cycle
-                value: 'off'
-            hold:
-              '9':
-                type: media_call
-                value: volume.up
-              '10':
-                type: media_call
-                value: volume.down
-    - conditions:
-      - condition: trigger
-        id:
-        - redirected_event
-      sequence:
-      - event: pico_intercepted
-        event_data:
-          session_id: '{{ trigger.event.data.session_id }}'
-      - variables:
-          double_send_delay: 225
-          num_repeats: 2
-          delay_milliseconds: 225
-          area_key: '{{ trigger.event.data.area_key }}'
-      - choose:
-        - conditions:
-          - condition: template
-            value_template: '{{ trigger.event.data.command_type == ''button2_hold''
-              }}'
-          sequence:
-          - alias: Emit Generic Universal Controller Command Event
-            event: universal_controller_command
-            event_data:
-              source_device: pico
-              action_type: media_call
-              action_value: volume.up
-              command_input: ''
-              area_key: living_room
-              data_payload:
-                hold_secs: 0
-              overrides: '{''media_player_id'': ''media_player.vsx_933''}'
-            enabled: true
-          - alias: Repeat Vol Up With Delay (Index Loop)
-            repeat:
-              count: '{{ num_repeats }}'
-              sequence:
-              - alias: Send Volume Up Command
-                data:
-                  command_input: volume.up
-                  area_key: '{{ area_key }}'
-                action: script.command_router
-                enabled: false
-              - if:
-                - condition: template
-                  value_template: '{{ repeat.index < num_repeats }}'
-                then:
-                - delay:
-                    milliseconds: '{{ delay_milliseconds }}'
-            enabled: false
-          alias: Button 2 Hold (Volume Up - High Frequency Index Loop)
-        - conditions:
-          - condition: template
-            value_template: '{{ trigger.event.data.command_type == ''button3_hold''
-              }}'
-          sequence:
-          - alias: Emit Generic Universal Controller Command Event
-            event: universal_controller_command
-            event_data:
-              source_device: pico
-              action_type: media_call
-              action_value: volume.down
-              command_input: ''
-              area_key: living_room
-              data_payload:
-                hold_secs: 0
-              overrides: '{''media_player_id'': ''media_player.vsx_933''}'
-            enabled: true
-          - alias: Repeat Vol Down With Delay (Index Loop)
-            repeat:
-              count: '{{ num_repeats }}'
-              sequence:
-              - alias: Send Volume Down Command
-                data:
-                  command_input: volume.down
-                  area_key: '{{ area_key }}'
-                action: script.command_router
-                enabled: false
-              - if:
-                - condition: template
-                  value_template: '{{ repeat.index < num_repeats }}'
-                then:
-                - delay:
-                    milliseconds: '{{ delay_milliseconds }}'
-            enabled: false
-          alias: Button 3 Hold (Volume Down - High Frequency Index Loop)
-  mode: single
-- id: '1768189177427'
-  alias: Lutron Pico - Backup (1/11/26)
-  description: Single, double, and long press detection
-  triggers:
-  - trigger: event
-    event_type: lutron_caseta_button_event
-    event_data:
-      action: press
-  conditions: []
-  actions:
-  - alias: Look for Proactive Subscription
-    wait_for_trigger:
-    - event_type: pico_subscription
-      trigger: event
-      event_data:
-        session_id: '{{ session_id }}'
-    continue_on_timeout: true
-    enabled: true
-    timeout:
+  - delay:
       hours: 0
       minutes: 0
       seconds: 0
-      milliseconds: 10
-  - variables:
-      sub_captured: '{{ wait.trigger is not none }}'
-      subscription: '{{ wait.trigger.event.data if wait.trigger is not none else none
-        }}'
-  - variables:
-      serial: '{{ trigger.event.data.serial }}'
-      button_number: '{{ trigger.event.data.button_number }}'
-      area_key: '{{ area_id(trigger.event.data.device_id) }}'
-      old_action_type: '{{ ''media_call'' if trigger.event.data.device_name == ''Media''
-        else ''light_call'' }}
-
-        '
-      target_device_name: "{{ trigger.event.data.device_name \n  | lower \n  | replace('
-        ','_') \n  | regex_replace(find='\\\\d+', replace='')\n}}\n"
-      device_prefix: "{{ 'media_' if trigger.event.data.device_name == 'Media' else
-        '' }} \n"
-      default_action_type: "{% set intent_map = {\n    'zone': 'scene_cycle',\n    'scene':
-        'scene_cycle',\n    'media': 'media_call'\n} %}\n{{ intent_map[target_device_name]
-        | default('light_call') }}\n"
-  - wait_for_trigger:
-    - event_type: lutron_caseta_button_event
-      event_data:
-        serial: '{{ serial }}'
-        button_number: '{{ button_number }}'
-        action: release
-      id: release_event
-      trigger: event
-    timeout:
-      milliseconds: 350
-    continue_on_timeout: true
-    alias: Wait for first Release Event... If None After 450ms then it's Hold
-  - variables:
-      is_hold: '{{ wait.trigger is none }}'
-      release_wait: '{{ wait }}'
-      data_override: "{% set all_overrides = label_entities('override') \n  | select('match',
-        'sensor.')\n  | list\n%}\n{% set overrides = \n  device_entities(trigger.event.data.device_id)
-        \n  | select('match','sensor.')\n  | select('in', all_overrides )\n  | list\n%}\n{%
-        if overrides | length > 0 %}\n  {{ states(overrides[0]) | default('') }}\n{%
-        endif%}\n"
-      command_input: '{{ ''turn_off'' if trigger.event.data.button_type == ''off''
-        else ''turn_on'' }}'
-      temp_all: "{{\n  label_entities(target_device_name) \n    | select('match',
-        'light.')\n    | list \n}}\n"
-      temp_area_lights: "{{\n  area_entities(area_key) \n  | select('match','light.')\n
-        \ | list\n}}\n"
-      target_lights: "{% set all_lights = label_entities(target_device_name) \n  |
-        select('match', 'light.')\n  | list\n%}    \n{{\n  area_entities(area_key)
-        \n  | select('match','light.')\n  | select('in', all_lights )\n  | list\n}}\n"
-      target: "{% set target = {} %}\n{% if trigger.event.data.device_name != 'Remote'
-        %} \n  {% set target = target \n    | combine({'target':{'entity_id': target_lights
-        }}) \n  %}\n{% endif %}\n{% if data_override | length > 0 %}\n  {% set target
-        = target \n    | combine(data_override) \n  %}\n{% endif %}\n{{ target }}
-        \n"
-      hold_duration: '{{ 500 - (wait.remaining | default(0) * 1000) }}'
-  - if:
-    - condition: template
-      value_template: '{{ not is_hold }}'
-    then:
-    - wait_for_trigger:
-      - event_type: lutron_caseta_button_event
-        event_data:
-          serial: '{{ serial }}'
-          button_number: '{{ button_number }}'
-          action: press
-        id: press_event
-        trigger: event
-      timeout:
-        milliseconds: 250
-      continue_on_timeout: true
-      alias: Wait For Second Press
-    - variables:
-        is_double: '{{ wait.trigger is not none }}'
-    - if:
-      - condition: template
-        value_template: '{{ is_double }}'
-      then:
-      - variables:
-          command: double
-          action_value: "{% set command_map = {\n    'on': 'max',\n    'raise': '',\n
-            \   'stop': '',\n    'lower': '',\n    'off': 'min',\n    'media_on':
-            '',\n    'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n
-            \   'media_stop': 'play.toggle',\n    'media_off': ''\n} %}\n{{ command_map[device_prefix
-            ~ trigger.event.data.button_type] }}\n"
-          command_input: turn_on
-      else:
-      - variables:
-          command: press
-          action_value: "{% set command_map = {\n    'on': '',\n    'raise': 'raise',\n
-            \   'stop': '',\n    'lower': 'lower',\n    'off': '',\n    'media_on':
-            'play.toggle',\n    'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n
-            \   'media_stop': 'volume.mute',\n    'media_off': 'media.next'\n} %}\n{{
-            command_map[device_prefix ~ trigger.event.data.button_type] }}\n"
-    - variables:
-        command_type: "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
-          ', '') \n  | replace('_', '') }}_{{ command }}\n"
-    - variables:
-        override_command: "{% if subscription is not none %}\n  {{ subscription.command_map[command]
-          is not none }}\n{% else %}\n  {{ false }}\n{% endif %}\n"
-        valid_commands: '{{ subscription.command_map[command] if override_command
-          else none }}'
-        override_button: "{% if valid_commands is not none %}\n  {{ valid_commands[
-          button_number | string ] is not none }}\n{% else %}\n  {{ false }}\n{% endif
-          %}\n"
-        the_action_type: "{{ \n  subscription.command_map[command][ button_number
-          | string ]['type']\n  if override_button else default_action_type\n}}\n"
-        the_action_value: "{{ \n  subscription.command_map[command][ button_number
-          | string ]['value']\n  if override_button else action_value\n}}\n"
-    - alias: Press Event
-      event: universal_controller_command
-      event_data:
-        source_device: pico
-        action_type: '{{ the_action_type }}'
-        action_value: '{{ the_action_value }}'
-        command_input: '{{ command_input }}'
-        area_key: '{{ area_id(trigger.event.data.device_id) }}'
-        session_id: '{{ session_id }}'
-        data_payload: '{{ trigger.event.data }}'
-        overrides: '{{ target }}'
-        command: '{{ command }}'
-        command_type: '{{ command_type }}'
-      enabled: true
-    else:
-    - variables:
-        command: hold
-        action_value: "{% set command_map = {\n    'on': 'raise',\n    'raise': 'raise',\n
-          \   'stop': '',\n    'lower': 'lower',\n    'off': 'lower',\n    'media_on':
-          '',\n    'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n
-          \   'media_stop': '',\n    'media_off': ''\n} %}\n{{ command_map[device_prefix
-          ~ trigger.event.data.button_type] }}\n"
-        command_input: turn_on
-    - variables:
-        buttons: '{{ button_type in subscription.buttons }}'
-        bypass_command: '{{ command in subscription.types }}'
-        is_overridden: '{{ buttons and bypass_command }}'
-        action_type: '{{ subscription.topic if is_overridden else default_action_type
-          }}'
-        command_type: "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
-          ', '') \n  | replace('_', '') }}_{{ command }}\n"
-        repeat_delay: '{{ 125 if action_type == ''media_call'' else 500 }}'
-        max_hold_time: 9
-        max_iterations: '{{ (max_hold_time / (repeat_delay / 1000)) | round(0) }}'
-        override_command: "{% if subscription is not none %}\n  {{ subscription.command_map[command]
-          is not none }}\n{% else %}\n  {{ false }}\n{% endif %}\n"
-        valid_commands: '{{ subscription.command_map[command] if override_command
-          else none }}'
-        override_button: "{% if valid_commands is not none %}\n  {{ valid_commands[
-          button_number | string ] is not none }}\n{% else %}\n  {{ false }}\n{% endif
-          %}\n"
-        the_action_type: "{{ \n  subscription.command_map[command][ button_number
-          | string ]['type']\n  if override_button else default_action_type\n}}\n"
-        the_action_value: "{{ \n  subscription.command_map[command][ button_number
-          | string ]['value']\n  if override_button else action_value\n}}\n"
-    - repeat:
-        until:
-        - condition: template
-          value_template: '{{ not is_hold or repeat.index > max_iterations }}'
-        sequence:
-        - alias: Hold Event
-          event: universal_controller_command
-          event_data:
-            source_device: pico
-            action_type: '{{ the_action_type }}'
-            action_value: '{{ the_action_value }}'
-            command_input: '{{ command_input }}'
-            area_key: '{{ area_id(trigger.event.data.device_id) }}'
-            session_id: '{{ session_id }}'
-            data_payload: '{{ trigger.event.data }}'
-            overrides: '{{ target }}'
-            command: '{{ command }}'
-            command_type: '{{ command_type }}'
-          enabled: true
-        - wait_for_trigger:
-          - event_type: lutron_caseta_button_event
-            event_data:
-              serial: '{{ serial }}'
-              button_number: '{{ button_number }}'
-              action: release
-            trigger: event
-          timeout:
-            hours: 0
-            minutes: 0
-            seconds: 0
-            milliseconds: '{{ repeat_delay | int }}'
-          continue_on_timeout: true
-        - variables:
-            is_hold: '{{ wait.trigger is none }}'
-      enabled: true
-    - variables:
-        command: release
-    - alias: Release Event
-      event: universal_controller_command
-      event_data:
-        source_device: pico
-        action_type: '{{ the_action_type }}'
-        action_value: release
-        command_input: '{{ command_input }}'
-        area_key: '{{ area_id(trigger.event.data.device_id) }}'
-        session_id: '{{ session_id }}'
-        data_payload: '{{ trigger.event.data }}'
-        overrides: '{{ target }}'
-        command: '{{ command }}'
-        command_type: '{{ command_type }}'
-      enabled: true
+      milliseconds: 1
+  - event: pico_subscription
+    event_data:
+      session_id: '{{ trigger.event.context.id }}'
+      command_map:
+        press:
+          '8':
+            type: scene_cycle
+            value: max
+          '9':
+            type: scene_cycle
+            value: raise
+          '10':
+            type: scene_cycle
+            value: lower
+          '11':
+            type: scene_cycle
+            value: 'off'
+        hold:
+          '9':
+            type: media_call
+            value: volume.up
+          '10':
+            type: media_call
+            value: volume.down
   mode: single
-  variables:
-    session_id: '{{ trigger.event.context.id }}'
 - id: '1768418509037'
   alias: 'Logic: Universal Momentary Producer'
   description: Handles timing and intent for all devices labeled 'momentary'
@@ -5696,7 +4369,7 @@
   - alias: 1.1 Define VSX Audio Profile
     variables:
       VSX_A_Profile:
-        required_state_mask: 50432
+        required_state_mask: 50560
         action_mapping:
           '1':
             mask: 28672
@@ -5718,10 +4391,18 @@
             service: switch.turn_on
             target:
               entity_id: switch.the_frame_art_mode
+          '1.5':
+            mask: 128
+            action_type: mode_select
+            service: media_player.select_sound_mode
+            target:
+              entity_id: media_player.vsx_933
+            data:
+              sound_mode: ALL CH STEREO
   - alias: 1.1 Define VSX Video Profile
     variables:
       VIDEO2_Profile:
-        required_state_mask: 37376
+        required_state_mask: 37504
         action_mapping:
           '1':
             mask: 4096
@@ -5744,10 +4425,18 @@
             target: {}
             data:
               action: disable
+          '1.5':
+            mask: 128
+            action_type: mode_select
+            service: media_player.select_sound_mode
+            target:
+              entity_id: media_player.vsx_933
+            data:
+              sound_mode: DIRECT
   - alias: 1.2 Define ATV Profile
     variables:
       ATV_Profile:
-        required_state_mask: 48640
+        required_state_mask: 48768
         action_mapping:
           '1':
             mask: 28672
@@ -5775,6 +4464,14 @@
             service: switch.turn_off
             target:
               entity_id: switch.the_frame_art_mode
+          '1.5':
+            mask: 128
+            action_type: mode_select
+            service: media_player.select_sound_mode
+            target:
+              entity_id: media_player.vsx_933
+            data:
+              sound_mode: ENTERTAINMENT SHOW
   - alias: 1.2 Define ATV Profile
     variables:
       ATV_Profile:
@@ -5804,10 +4501,10 @@
   - alias: 1.3 Define VIDEO2 Profile
     variables:
       VIDEO2_Profile:
-        required_state_mask: 38392
+        required_state_mask: 38520
         action_mapping:
           '1':
-            mask: 4096
+            mask: 28672
             action_type: source_select
             service: media_player.select_source
             target:
@@ -5822,11 +4519,32 @@
               entity_id: media_player.samsung_the_frame_65_2
           '3':
             mask: 512
-            action_type: script_call
-            service: script.art_mode_toggle_controller
-            target: {}
+            action_type: power_on
+            service: switch.turn_off
+            target:
+              entity_id: switch.the_frame_art_mode
+          '4':
+            mask: 64
+            action_type: power_on
+            service: media_player.turn_on
+            target:
+              entity_id: media_player.dhc_60_7_zone_2
+          '5':
+            mask: 24
+            action_type: source_select
+            service: media_player.select_source
+            target:
+              entity_id: media_player.dhc_60_7_zone_2
             data:
-              action: disable
+              source: NVR
+          '1.5':
+            mask: 128
+            action_type: mode_select
+            service: media_player.select_sound_mode
+            target:
+              entity_id: media_player.vsx_933
+            data:
+              sound_mode: DIRECT
   - alias: 2.0 Define Core Variables
     variables:
       activity_map:
@@ -5918,6 +4636,13 @@
         minutes: 0
         seconds: 0
         milliseconds: 50
+  - alias: 3. Cleanup/Finalization
+    data:
+      name: Activity Engine
+      message: 'Activity ''{{ activity_key }}'' executed. Action Code (Binary Difference):
+        {{ action_code }}. Required State: {{ required_state_mask }}. Current State:
+        {{ current_state_mask }}'
+    action: logbook.log
   - alias: 4.0 Post-Action Art Mode Correction (Simplified Frame TV Fix)
     if:
     - condition: template
@@ -5938,26 +4663,7 @@
       action: script.art_mode_toggle_controller
       enabled: false
     enabled: false
-  - alias: 3. Cleanup/Finalization
-    data:
-      name: Activity Engine
-      message: 'Activity ''{{ activity_key }}'' executed. Action Code (Binary Difference):
-        {{ action_code }}. Required State: {{ required_state_mask }}. Current State:
-        {{ current_state_mask }}'
-    action: logbook.log
   mode: single
-- id: '1768780901786'
-  alias: System - Pico Learning Feedback
-  description: Provides visual feedback when the Hardware Registry learns a new button.
-  triggers:
-  - trigger: event
-    event_type: lutron_caseta_button_event
-    event_data:
-      action: press
-  conditions: []
-  actions:
-  - delay:
-      milliseconds: 500
 - id: '1768953043510'
   alias: Override - Mirror Hallway Front Wall Switch
   description: Triggers actions based on control of Wall switch.
@@ -5996,3 +4702,1056 @@
       data_payload: '{{ trigger }}'
       overrides: {}
   mode: single
+- id: '1769115962371'
+  alias: Lutron Pico - Backup (1/22/26)
+  description: Single, double, and long press detection
+  triggers:
+  - trigger: event
+    event_type: lutron_caseta_button_event
+    event_data:
+      action: press
+  conditions: []
+  actions:
+  - variables:
+      session_id: '{{ trigger.event.context.id | default(''none'') }}'
+      serial: '{{ trigger.event.data.serial | default(0) }}'
+      button_number: '{{ trigger.event.data.button_number | default(0) }}'
+      button_type: '{{ trigger.event.data.button_type | default(''unknown'') }}'
+      device_name: '{{ trigger.event.data.device_name | default(''unknown'') }}'
+      device_id: '{{ trigger.event.data.device_id | default(''none'') }}'
+  - alias: Look for Proactive Subscription
+    wait_for_trigger:
+    - event_type: pico_subscription
+      trigger: event
+      event_data:
+        session_id: '{{ session_id | default(''none'') }}'
+    continue_on_timeout: true
+    enabled: true
+    timeout:
+      hours: 0
+      minutes: 0
+      seconds: 0
+      milliseconds: 30
+  - variables:
+      sub_captured: '{{ wait.trigger is not none }}'
+      subscription: '{{ wait.trigger.event.data if wait.trigger is not none else {}
+        }}'
+      cmd_map: '{{ subscription.get(''command_map'', subscription) }}'
+  - variables:
+      area_key: '{{ area_id(device_id) | default(''none'') }}'
+      target_device_name: "{{ device_name \n  | lower \n  | replace(' ','_') \n  |
+        regex_replace(find='\\\\d+', replace='') \n  | default('unknown') }}\n"
+      device_prefix: '{{ ''media_'' if ''media'' in target_device_name else '''' }}'
+      default_action_type: "{% set intent_map = {\n    'zone': 'scene_cycle', \n    'scene':
+        'scene_cycle', \n    'media': 'media_call'\n    } %} \n    {{ intent_map.get(target_device_name,
+        'light_call') }}\n"
+  - alias: Wait for first Release Event... If None After 450ms then it's Hold
+    wait_for_trigger:
+    - event_type: lutron_caseta_button_event
+      event_data:
+        serial: '{{ serial | default(0) }}'
+        button_number: '{{ button_number | default(0) }}'
+        action: release
+      id: release_event
+      trigger: event
+    timeout:
+      milliseconds: 350
+    continue_on_timeout: true
+  - variables:
+      is_hold: '{{ wait.trigger is none }}'
+      release_wait: '{{ wait }}'
+      data_override: "{% set all_overrides = label_entities('override') \n  | select('match',
+        'sensor.')\n  | list\n%}\n{% set overrides = \n  device_entities(device_id)
+        \n  | select('match','sensor.')\n  | select('in', all_overrides )\n  | list\n%}\n{%
+        if overrides | length > 0 %}\n  {{ states(overrides[0]) | default('') }}\n{%
+        endif%}\n"
+      command_input: '{{ ''turn_off'' if button_type == ''off'' else ''turn_on'' }}'
+      temp_all: "{{\n  label_entities(target_device_name) \n    | select('match',
+        'light.')\n    | list \n}}\n"
+      temp_area_lights: "{{\n  area_entities(area_key) \n  | select('match','light.')\n
+        \ | list\n}}\n"
+      target_lights: "{% set all_lights = label_entities(target_device_name) \n  |
+        select('match', 'light.')\n  | list\n%}    \n{{\n  area_entities(area_key)
+        \n  | select('match','light.')\n  | select('in', all_lights )\n  | list\n}}\n"
+      target: "{% set target = {} %}\n{% if device_name != 'Remote' %} \n  {% set
+        target = target \n    | combine({'target':{'entity_id': target_lights }})
+        \n  %}\n{% endif %}\n{% if data_override | length > 0 %}\n  {% set target
+        = target \n    | combine(data_override) \n  %}\n{% endif %}\n{{ target }}
+        \n"
+      hold_duration: '{{ 500 - (wait.remaining | default(0) * 1000) }}'
+  - if:
+    - condition: template
+      value_template: '{{ not is_hold }}'
+    then:
+    - wait_for_trigger:
+      - event_type: lutron_caseta_button_event
+        event_data:
+          serial: '{{ serial | default(0) }}'
+          button_number: '{{ button_number | default(0) }}'
+          action: press
+        id: press_event
+        trigger: event
+      timeout:
+        milliseconds: 250
+      continue_on_timeout: true
+      alias: Wait For Second Press
+    - variables:
+        is_double: '{{ wait.trigger is not none }}'
+    - if:
+      - condition: template
+        value_template: '{{ is_double }}'
+      then:
+      - variables:
+          command: double
+          action_value: "{% set command_map = {\n    'on': 'max',\n    'raise': '',\n
+            \   'stop': '',\n    'lower': '',\n    'off': 'min',\n    'media_on':
+            '',\n    'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n
+            \   'media_stop': 'play.toggle',\n    'media_off': ''\n} %}\n{{ command_map.get(device_prefix
+            ~ button_type, '') }}\n"
+          command_input: turn_on
+      else:
+      - variables:
+          command: press
+          action_value: "{% set command_map = {\n    'on': '',\n    'raise': 'raise',\n
+            \   'stop': '',\n    'lower': 'lower',\n    'off': '',\n    'media_on':
+            'play.toggle',\n    'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n
+            \   'media_stop': 'volume.mute',\n    'media_off': 'media.next'\n} %}\n{{
+            command_map.get(device_prefix ~ button_type, '') }}\n"
+    - variables:
+        command_type: "{{ button_type  \n  | lower \n  | replace(' ', '') \n  | replace('_',
+          '') }}_{{ command }}\n"
+    - variables:
+        the_action_type: '{{ cmd_map.get(command, {}).get(button_number | string,
+          {}).get(''type'', default_action_type) }}'
+        the_action_value: '{{ cmd_map.get(command, {}).get(button_number | string,
+          {}).get(''value'', action_value ) }}'
+    - variables:
+        override_command: "{% if subscription is not none %}\n  {{ subscription.command_map[command]
+          is not none }}\n{% else %}\n  {{ false }}\n{% endif %}\n"
+        valid_commands: '{{ subscription.command_map[command] if override_command
+          else none }}'
+        override_button: "{% if valid_commands is not none %}\n  {{ valid_commands[
+          button_number | string ] is not none }}\n{% else %}\n  {{ false }}\n{% endif
+          %}\n"
+        he_action_type: "{{ \n  subscription.command_map[command][ button_number |
+          string ]['type']\n  if override_button else default_action_type\n}}\n"
+        he_action_value: "{{ \n  subscription.command_map[command][ button_number
+          | string ]['value']\n  if override_button else action_value\n}}\n"
+        the_action_type: '{{ cmd_map.get(command, {}).get(button_number | string,
+          {}).get(''type'', default_action_type) }}
+
+          '
+        the_action_value: '{{ (subscription or {}).get(''command_map'', {}).get(command,
+          {}).get(button_number | string, {}).get(''value'', '''') }}'
+      enabled: false
+    - alias: Press Event
+      event: universal_controller_command
+      event_data:
+        source_device: pico
+        action_type: '{{ the_action_type }}'
+        action_value: '{{ the_action_value }}'
+        command_input: '{{ command_input }}'
+        area_key: '{{ area_id(device_id) | default(none) }}'
+        session_id: '{{ session_id }}'
+        data_payload: '{{ trigger.event.data }}'
+        overrides: '{}'
+        command: '{{ command }}'
+        command_type: '{{ command_type }}'
+      enabled: true
+    else:
+    - variables:
+        command: hold
+        action_value: "{% set command_map = {\n    'on': 'raise',\n    'raise': 'raise',\n
+          \   'stop': '',\n    'lower': 'lower',\n    'off': 'lower',\n    'media_on':
+          '',\n    'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n
+          \   'media_stop': '',\n    'media_off': ''\n} %}\n{{ command_map.get(device_prefix
+          ~ button_type, '') }}\n"
+        command_input: turn_on
+    - variables:
+        command_type: "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
+          ', '') \n  | replace('_', '') }}_{{ command }}\n"
+        repeat_delay: '{{ 125 if action_type == ''media_call'' else 500 }}'
+        max_hold_time: 9
+        max_iterations: '{{ (max_hold_time / (repeat_delay / 1000)) | round(0) }}'
+        the_action_type: '{{ cmd_map.get(command, {}).get(button_number | string,
+          {}).get(''type'', default_action_type) }}
+
+          '
+        the_action_value: '{{ cmd_map.get(command, {}).get(button_number | string,
+          {}).get(''value'', action_value ) }}
+
+          '
+    - repeat:
+        until:
+        - condition: template
+          value_template: '{{ wait.trigger is not none or repeat.index > max_iterations
+            }}'
+        sequence:
+        - alias: Hold Event
+          event: universal_controller_command
+          event_data:
+            source_device: pico
+            action_type: '{{ the_action_type }}'
+            action_value: '{{ the_action_value }}'
+            command_input: '{{ command_input }}'
+            area_key: '{{ area_id(device_id) | default(none) }}'
+            session_id: '{{ session_id }}'
+            data_payload: '{{ trigger.event.data }}'
+            overrides: '{}'
+            command: '{{ command }}'
+            command_type: '{{ command_type }}'
+          enabled: true
+        - wait_for_trigger:
+          - event_type: lutron_caseta_button_event
+            event_data:
+              serial: '{{ serial | default(0) }}'
+              button_number: '{{ button_number | default(0) }}'
+              action: release
+            trigger: event
+          timeout:
+            hours: 0
+            minutes: 0
+            seconds: 0
+            milliseconds: '{{ repeat_delay | int }}'
+          continue_on_timeout: true
+        - variables:
+            is_hold: '{{ wait.trigger is none }}'
+      enabled: true
+    - variables:
+        command: release
+    - alias: Release Event
+      event: universal_controller_command
+      event_data:
+        source_device: pico
+        action_type: '{{ the_action_type }}'
+        action_value: release
+        command_input: '{{ command_input }}'
+        area_key: '{{ area_id(device_id) | default(none) }}'
+        session_id: '{{ session_id }}'
+        data_payload: '{{ trigger.event.data }}'
+        overrides: '{}'
+        command: '{{ command }}'
+        command_type: '{{ command_type }}'
+      enabled: true
+  mode: single
+  variables:
+    session_id: '{{ trigger.event.context.id }}'
+- id: '1769201639338'
+  alias: Command - Master Occupancy & Night-Light Engine
+  description: High-performance, zero-maintenance global lighting logic.
+  triggers:
+  - value_template: '{{ label_entities(''occupancy'') | contains(trigger.event.data.entity_id
+      | default(''none'')) }}
+
+      '
+    id: presence_event
+    trigger: template
+  - event_type: timer.finished
+    id: timer_event
+    trigger: event
+    enabled: true
+  actions:
+  - variables:
+      session_id: '{{ context.id | default(range(1000, 9999) | random) }}'
+      raw_area: "{% if trigger.id == \"presence_event\" %} \n  {{ area_id(trigger.entity_id)
+        | default('unknown') }}\n{% else %} \n  {{ (trigger.event.data.entity_id |
+        default('timer.unknown')).split('.')[1].replace('_light_timer', '') }}\n{%
+        endif %}\n"
+  - alias: Wait for Area Subscription
+    wait_for_trigger:
+    - event_type: presence_subscription
+      event_data:
+        session_id: '{{ session_id }}'
+      trigger: event
+    timeout: '00:00:00.030'
+    continue_on_timeout: true
+  - variables:
+      sub_data: '{{ wait.trigger.event.data if wait.trigger is not none else {} }}'
+      target_area: '{{ sub_data.target_area | default(raw_area) }}'
+      area_timer: timer.{{ target_area | default('none') }}_light_timer
+      area_door: binary_sensor.{{ target_area | default('none') }}_door
+      area_override: input_boolean.{{ target_area | default('none') }}_light_override
+      is_night: '{{ is_state(''binary_sensor.night_lights_sensor'', ''on'') }}'
+      visitor_mode: '{{ is_state(''input_boolean.visitor_mode'', ''on'') }}'
+      is_locked: '{{ is_state(area_door, ''off'') or is_state(area_override, ''on'')
+        }}
+
+        '
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: presence_event
+      - condition: template
+        value_template: '{{ is_state(trigger.entity_id | default(''none''), ''on'')
+          }}'
+      sequence:
+      - action: timer.cancel
+        target:
+          entity_id: '{{ area_timer | default(''timer.none'') }}'
+      - variables:
+          target_val: '{{ sub_data.action_value | default(35 if is_night else 75)
+            | int(default=75) }}
+
+            '
+      - if:
+        - condition: template
+          value_template: '{{ is_locked | default(false) }}'
+        then:
+        - stop: Privacy Lock Active
+        else:
+        - event: universal_controller_command
+          event_data:
+            source_device: presence
+            action_type: light_call
+            command_input: turn_on
+            area_key: '{{ target_area | default(''unknown'') }}'
+            target_label: '{{ ''night_light'' if is_night else '''' }}'
+            action_value: '{{ target_val }}'
+    - conditions:
+      - condition: trigger
+        id: presence_event
+      - condition: template
+        value_template: '{{ is_state(trigger.entity_id | default(''none''), ''off'')
+          }}'
+      sequence:
+      - if:
+        - condition: template
+          value_template: '{{ is_locked or visitor_mode or (raw_area == ''unknown'')
+            }}'
+        then:
+        - stop: Inhibit Vacancy logic
+        else:
+        - action: timer.start
+          data: {}
+          target:
+            entity_id: '{{ area_timer | default(''timer.none'') }}'
+    - conditions:
+      - condition: trigger
+        id: timer_event
+      sequence:
+      - event: universal_controller_command
+        event_data:
+          source_device: presence
+          action_type: light_call
+          command_input: turn_off
+          area_key: '{{ target_area | default(''unknown'') }}'
+      - action: input_boolean.turn_off
+        target:
+          entity_id: '{{ area_override | default(''input_boolean.none'') }}'
+  mode: parallel
+  max: 50
+- id: '1769202595288'
+  alias: 'Route: Hallway Motion to Kitchen (Night Only)'
+  description: Subscribes to Hallway motion to redirect intent to Kitchen with 90
+    brightness
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.hallway_presence
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.night_lights_sensor
+    state: 'on'
+  actions:
+  - delay: '00:00:00.001'
+  - event: presence_subscription
+    event_data:
+      session_id: '{{ trigger.event.context.id | default(''none'') }}'
+      target_area: kitchen
+      action_value: 90
+- id: '1769219218226'
+  alias: Dummy
+  description: ''
+  triggers:
+  - trigger: event
+    event_type: state_changed
+    enabled: false
+  conditions:
+  - condition: template
+    value_template: "{% set sensors_list = label_entities('occupancy') | list %}\n{{
+      trigger.event.data.entity_id \n  | select('in', label_entities('occupancy'))
+      }}"
+  actions: []
+  mode: parallel
+  max: 10
+- id: '1769271410367'
+  alias: 'Powder Room: Stateless Verified Wasp'
+  description: Self-contained occupancy logic with verified wasp and soft-landing
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.powder_room_fan_motion
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.powder_room_door
+    to: 'on'
+  - trigger: event
+    event_type: watchman_audit_ping
+    event_data:
+      area_key: powder_room
+  actions:
+  - if:
+    - condition: state
+      entity_id: input_boolean.powder_room_light_override
+      state: 'off'
+    then:
+    - event: universal_controller_command
+      event_data:
+        action_type: light_call
+        command_input: turn_on
+        area_key: powder_room
+        action_value: '{{ 75 if is_state(''binary_sensor.night_lights_sensor'', ''on'')
+          else 190 }}
+
+          '
+  - wait_for_trigger:
+    - trigger: state
+      entity_id: binary_sensor.powder_room_fan_motion
+      to: 'off'
+    continue_on_timeout: false
+  - delay: 00:00:01
+  - if:
+    - condition: state
+      entity_id: binary_sensor.powder_room_door
+      state: 'off'
+    then:
+    - wait_for_trigger:
+      - trigger: state
+        entity_id: binary_sensor.powder_room_fan_motion
+        to: 'on'
+      timeout: 00:02:00
+      continue_on_timeout: true
+    - if:
+      - condition: template
+        value_template: '{{ wait.trigger is not none }}'
+      then:
+      - stop: 'Wasp Verified: Staying on indefinitely.'
+  - delay:
+      hours: 0
+      minutes: 2
+      seconds: 0
+      milliseconds: 0
+  - if:
+    - condition: state
+      entity_id: input_boolean.powder_room_light_override
+      state: 'off'
+    then:
+    - event: universal_controller_command
+      event_data:
+        action_type: light_call
+        command_input: turn_on
+        area_key: powder_room
+        action_value: 25
+  - delay: 00:00:30
+  - event: universal_controller_command
+    event_data:
+      action_type: light_call
+      command_input: turn_off
+      area_key: powder_room
+  - if:
+    - condition: state
+      entity_id: input_boolean.powder_room_light_override
+      state:
+      - 'on'
+    then:
+    - action: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.powder_room_light_override
+      data: {}
+  mode: restart
+- id: '1769280553666'
+  alias: 'Powder Room: Motion - State'
+  description: 'Simplified logic: Automation only runs if door is open and override
+    is off'
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.powder_room_fan_motion
+    id: Motion_Detected
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.powder_room_fan_motion
+    id: Motion_Cleared
+    to: 'off'
+  - trigger: event
+    event_type: watchman_audit_ping
+    event_data:
+      area_key: powder_room
+    id: Motion_Detected
+    enabled: false
+  - type: opened
+    device_id: b42e782b6114979091b48458a4fca80e
+    entity_id: 80775b675c2fe7ca52d530db7e1cbb50
+    domain: binary_sensor
+    trigger: device
+    id: Motion_Detected
+  conditions:
+  - condition: state
+    entity_id: input_boolean.powder_room_light_override
+    state: 'off'
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: binary_sensor.powder_room_door
+      state: 'on'
+    - condition: template
+      value_template: "{% if trigger.id == 'Motion_Cleared' %}\n  {% set motion_off
+        = trigger.to_state.last_changed %}\n  {% set door_change = states.binary_sensor.powder_room_door.last_changed
+        %}\n  {{ (motion_off - door_change).total_seconds() < 3 }}\n{% else %}\n  {#
+        If it's an Audit or Door Open, we want the condition to pass #}\n  {{ true
+        }}\n{% endif %}\n"
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: Motion_Detected
+      sequence:
+      - event: universal_controller_command
+        event_data:
+          action_type: light_call
+          command_input: turn_on
+          area_key: powder_room
+          action_value: '{{ 75 if is_state(''binary_sensor.night_lights_sensor'',
+            ''on'') else 190 }}
+
+            '
+    - conditions:
+      - condition: trigger
+        id: Motion_Cleared
+      sequence:
+      - delay: 00:02:00
+      - event: universal_controller_command
+        event_data:
+          action_type: light_call
+          command_input: turn_on
+          area_key: powder_room
+          action_value: 25
+      - delay: 00:00:30
+      - event: universal_controller_command
+        event_data:
+          action_type: light_call
+          command_input: turn_off
+          area_key: powder_room
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.powder_room_light_override
+  mode: restart
+- id: '1769283408209'
+  alias: 'System: Lighting Watchman Heartbeat'
+  description: Periodic audit to trigger self-healing in stateless automations
+  triggers:
+  - trigger: time_pattern
+    minutes: /15
+  - trigger: homeassistant
+    event: start
+  actions:
+  - event: watchman_audit_ping
+    event_data:
+      area_key: powder_room
+      source: system_heartbeat
+  mode: single
+- id: '1769441182178'
+  alias: 'Kitchen: Pro Adaptive Lighting (Multi-Zone with Delays)'
+  description: Syncs non-CCT kitchen lights to Lux, CCT, and Zone Presence with 20s
+    grace period
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.hallway_presence
+    id: hallway
+  - trigger: state
+    entity_id:
+    - binary_sensor.kitchen_prep_zone_presence
+    id: prep_zone
+  - trigger: state
+    entity_id:
+    - binary_sensor.kitchen_island_presence
+    id: island
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.night_lights_sensor
+    state: 'off'
+  actions:
+  - variables:
+      raw_lux: '{{ states(''sensor.kitchen_light_level'') | float(0) }}'
+      master_cct: '{{ states(''sensor.cct_calculation'') | float(3400) }}'
+      is_dark_enough: '{{ states(''binary_sensor.kitchen_light_required'') == ''on''
+        }}'
+      current_brightness: '{{ (state_attr(''light.kitchen_main'', ''brightness'')
+        | float(0) ) }}
+
+        '
+      lux_offset: '{{ (current_brightness * 0.4) | round(0) }}'
+      effective_lux: "{% set result = raw_lux - lux_offset %} \n{{ result if result
+        > 0 else 0 }}\n"
+      base_brightness: "{% if is_dark_enough %}\n  {% set lux_ratio = (effective_lux
+        / 100) %}\n  {% set lux_ratio = 1 if lux_ratio > 1 else lux_ratio %}\n  {%
+        set brightness = (255 * 75 / 100) * (1 - lux_ratio ** 0.8) %}\n  {% set final
+        = brightness | round(0) | int %}\n  {{ final if final > 25 else 25 }}\n{%
+        else %}\n  0\n{% endif %}\n"
+      pots: "{% if not is_dark_enough %}\n  0\n{% elif master_cct > 2700 %}\n  {{
+        base_brightness | int }}\n{% elif master_cct <= 2202 %}\n  0\n{% else %}\n
+        \ {% set range_total = 2700 - 2202 %}\n  {% set current_pos = master_cct -
+        2202 %}\n  {% set fade_factor = (current_pos / range_total) ** 2 %}\n  {{
+        (base_brightness * fade_factor) | round(0) | int }}\n{% endif %}\n"
+  - choose:
+    - conditions:
+      - condition: trigger
+        id:
+        - hallway
+      sequence:
+      - if:
+        - condition: template
+          value_template: "{% set current = state_attr('light.kitchen_main', 'brightness')
+            | float(0) %} \n{{ (pots - current) | abs > 15 or pots == 0 }}\n"
+        - condition: template
+          value_template: '{{ states(''binary_sensor.hallway_presence'') == ''on''
+            and pots > 0 }}'
+        then:
+        - action: light.turn_on
+          target:
+            entity_id: light.kitchen_main
+          data:
+            brightness: '{{ pots }}'
+            transition: 5
+        else:
+        - delay: 00:02:00
+        - action: light.turn_off
+          target:
+            entity_id: light.kitchen_main
+          data: {}
+    - conditions:
+      - condition: trigger
+        id:
+        - island
+      sequence:
+      - if:
+        - condition: template
+          value_template: '{{ states(''binary_sensor.kitchen_island_presence'') ==
+            ''on'' and base_brightness > 0 }}'
+        - condition: template
+          value_template: '{% set current = state_attr(''light.kitchen_island'', ''brightness'')
+            | float(0) %}
+
+            {{ (base_brightness - current) | abs > 15 or base_brightness == 0 }}
+
+            '
+        then:
+        - action: light.turn_on
+          target:
+            entity_id: light.kitchen_island
+          data:
+            brightness: '{{ base_brightness }}'
+            transition: 3
+        else:
+        - delay: 00:00:20
+        - action: light.turn_off
+          target:
+            entity_id: light.kitchen_island
+    - conditions:
+      - condition: trigger
+        id:
+        - prep_zone
+      sequence:
+      - if:
+        - condition: template
+          value_template: '{{ states(''binary_sensor.kitchen_prep_zone_presence'')
+            == ''on'' and base_brightness > 0 }}'
+        - condition: template
+          value_template: "{% set current = state_attr('light.kitchen_counter', 'brightness')
+            | float(0) %} \n{{ (base_brightness - current) | abs > 5 or base_brightness
+            == 0 }}\n"
+        then:
+        - action: light.turn_on
+          target:
+            entity_id: light.kitchen_counter
+          data:
+            brightness: '{{ base_brightness }}'
+            transition: 3
+        else:
+        - delay: 00:00:20
+        - action: light.turn_off
+          target:
+            entity_id: light.kitchen_counter
+  mode: restart
+- id: '1769529750050'
+  alias: 'Watchdog - Boiling Water Extended Heating '
+  description: ''
+  triggers:
+  - entity_id:
+    - sensor.boiling_water_kitchen_boiling_water_watchdog_power
+    above: 1000
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+      milliseconds: 0
+    id: warning
+    trigger: numeric_state
+  - entity_id: sensor.boiling_water_kitchen_boiling_water_watchdog_power
+    above: 1000
+    for: 00:10:00
+    id: kill_switch
+    trigger: numeric_state
+  - type: power
+    device_id: f4da7490d47fc43437fa315573dbab8b
+    entity_id: a3491093e83a603288c2eb072e81c8e6
+    domain: sensor
+    metadata:
+      secondary: false
+    trigger: device
+    above: 1000
+    for:
+      hours: 0
+      minutes: 10
+      seconds: 0
+    id: kill_switch
+  - type: current
+    device_id: 91c3753a18068bf4c9c9dbfe6d355620
+    entity_id: 2585cd1fa10f67c05d1169d2023777ea
+    domain: sensor
+    trigger: device
+    above: 8
+    for:
+      hours: 0
+      minutes: 10
+      seconds: 0
+    id: kill_switch
+  - type: turned_off
+    device_id: 91c3753a18068bf4c9c9dbfe6d355620
+    entity_id: 026c85c714f63e5268617f8b9542d16c
+    domain: switch
+    trigger: device
+    id: local_trip
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: warning
+      sequence:
+      - action: notify.mobile_app_work_iphone
+        data:
+          title: ⚠️ Water Heater Warning
+          message: The Kitchen Boiling Water has been heating for 5 minutes. Investigating
+            status...
+    - conditions:
+      - condition: trigger
+        id: kill_switch
+      sequence:
+      - action: switch.turn_off
+        metadata: {}
+        data: {}
+        target:
+          device_id: 91c3753a18068bf4c9c9dbfe6d355620
+      - action: notify.mobile_app_work_iphone
+        data:
+          title: "\U0001F6D1 EMERGENCY SHUTDOWN"
+          message: HotMaster killed by HA after 10 min continuous draw.
+    - conditions:
+      - condition: trigger
+        id: local_trip
+      sequence:
+      - action: notify.mobile_app_work_iphone
+        data:
+          title: "\U0001F6E1️ Local Safety Trip"
+          message: The Athom plug locally killed the HotMaster power due to prolonged
+            heating.
+  mode: single
+- id: '1769615841394'
+  alias: Kitchen Lighting Dispatcher
+  description: Hallway and Kitchen Presence - State
+  triggers:
+  - entity_id:
+    - binary_sensor.hallway_presence
+    trigger: state
+    id: Vacant
+    to:
+    - 'off'
+  - entity_id:
+    - binary_sensor.hallway_presence
+    trigger: state
+    to:
+    - 'on'
+    id: Occupied
+  - trigger: event
+    event_type: timer.finished
+    event_data:
+      entity_id: timer.kitchen_light_timer
+    id: Timer
+  - trigger: state
+    entity_id:
+    - binary_sensor.hallway_presence
+    id: hallway
+  - trigger: state
+    entity_id:
+    - binary_sensor.kitchen_prep_zone_presence
+    id: prep_zone
+  - trigger: state
+    entity_id:
+    - binary_sensor.kitchen_island_presence
+    id: island
+  conditions: []
+  actions:
+  - variables:
+      raw_lux: '{{ states(''sensor.kitchen_fp2_light_sensor_light_level'') | float(0)
+        }}'
+      master_cct: '{{ states(''sensor.cct_calculation'') | float(3400) }}'
+      is_dark_enough: '{{ states(''binary_sensor.kitchen_light_required'') == ''on''
+        }}'
+      current_brightness: '{{ (state_attr(''light.kitchen_main'', ''brightness'')
+        | float(0) ) }}
+
+        '
+      lux_offset: '{{ (current_brightness * 0.4) | round(0) }}'
+      effective_lux: "{% set result = raw_lux - lux_offset %} \n{{ result if result
+        > 0 else 0 }}\n"
+      base_brightness: "{% if is_dark_enough %}\n  {% set lux_ratio = (effective_lux
+        / 100) %}\n  {% set lux_ratio = 1 if lux_ratio > 1 else lux_ratio %}\n  {%
+        set brightness = (255 * 75 / 100) * (1 - lux_ratio ** 0.8) %}\n  {% set final
+        = brightness | round(0) | int %}\n  {{ final if final > 25 else 25 }}\n{%
+        else %}\n  0\n{% endif %}\n"
+      pots: "{% if not is_dark_enough %}\n  0\n{% elif master_cct > 2700 %}\n  {{
+        base_brightness | int }}\n{% elif master_cct <= 2202 %}\n  0\n{% else %}\n
+        \ {% set range_total = 2700 - 2202 %}\n  {% set current_pos = master_cct -
+        2202 %}\n  {% set fade_factor = (current_pos / range_total) ** 2 %}\n  {{
+        (base_brightness * fade_factor) | round(0) | int }}\n{% endif %}\n"
+  - if:
+    - condition: state
+      entity_id: binary_sensor.night_lights_sensor
+      state: 'on'
+    then:
+    - choose:
+      - conditions:
+        - condition: trigger
+          id:
+          - Vacant
+        sequence:
+        - if:
+          - condition: state
+            entity_id: input_boolean.visitor_mode
+            state: 'off'
+          then:
+          - action: timer.start
+            metadata: {}
+            data: {}
+            target:
+              entity_id:
+              - timer.kitchen_light_timer
+      - conditions:
+        - condition: trigger
+          id:
+          - Occupied
+        sequence:
+        - action: timer.cancel
+          metadata: {}
+          data: {}
+          target:
+            entity_id:
+            - timer.kitchen_light_timer
+        - alias: Emit Generic Universal Controller Command Event
+          event: universal_controller_command
+          event_data:
+            source_device: presence
+            action_type: light_call
+            action_value: 90
+            command_input: turn_on
+            target_label: night_light
+            area_key: kitchen
+            data_payload: '{{ trigger }}'
+            overrides: {}
+      - conditions:
+        - condition: trigger
+          id:
+          - Timer
+        sequence:
+        - alias: Emit Generic Universal Controller Command Event
+          event: universal_controller_command
+          event_data:
+            source_device: presence
+            action_type: light_call
+            action_value: ''
+            command_input: turn_off
+            target_label: ''
+            area_key: kitchen
+            data_payload: '{{ trigger }}'
+            overrides: {}
+    else:
+    - choose:
+      - conditions:
+        - condition: trigger
+          id:
+          - hallway
+        sequence:
+        - if:
+          - condition: template
+            value_template: "{% set current = state_attr('light.kitchen_main', 'brightness')
+              | float(0) %} \n{{ (pots - current) | abs > 15 or pots == 0 }}\n"
+          - condition: template
+            value_template: '{{ states(''binary_sensor.hallway_presence'') == ''on''
+              and pots > 0 }}'
+          then:
+          - action: light.turn_on
+            target:
+              entity_id: light.kitchen_main
+            data:
+              brightness: '{{ pots }}'
+              transition: 5
+          else:
+          - delay: 00:02:00
+          - action: light.turn_off
+            target:
+              entity_id: light.kitchen_main
+            data: {}
+      - conditions:
+        - condition: trigger
+          id:
+          - island
+        sequence:
+        - if:
+          - condition: template
+            value_template: '{{ states(''binary_sensor.kitchen_island_presence'')
+              == ''on'' and base_brightness > 0 }}'
+          - condition: template
+            value_template: '{% set current = state_attr(''light.kitchen_island'',
+              ''brightness'') | float(0) %}
+
+              {{ (base_brightness - current) | abs > 15 or base_brightness == 0 }}
+
+              '
+          then:
+          - action: light.turn_on
+            target:
+              entity_id: light.kitchen_island
+            data:
+              brightness: '{{ base_brightness }}'
+              transition: 3
+          else:
+          - delay: 00:00:20
+          - action: light.turn_off
+            target:
+              entity_id: light.kitchen_island
+      - conditions:
+        - condition: trigger
+          id:
+          - prep_zone
+        sequence:
+        - if:
+          - condition: template
+            value_template: '{{ states(''binary_sensor.kitchen_prep_zone_presence'')
+              == ''on'' and base_brightness > 0 }}'
+          - condition: template
+            value_template: "{% set current = state_attr('light.kitchen_counter',
+              'brightness') | float(0) %} \n{{ (base_brightness - current) | abs >
+              5 or base_brightness == 0 }}\n"
+          then:
+          - action: light.turn_on
+            target:
+              entity_id: light.kitchen_counter
+            data:
+              brightness: '{{ base_brightness }}'
+              transition: 3
+          else:
+          - delay: 00:00:20
+          - action: light.turn_off
+            target:
+              entity_id: light.kitchen_counter
+  mode: queued
+  max: 10
+- id: '1769837598005'
+  alias: Dispatcher - Hallway  Kitchen Lights
+  description: Native Binary sensor Hallway Presence changes State
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.kitchen_presence_master
+    id: Vacant
+    to:
+    - 'off'
+  - trigger: state
+    entity_id:
+    - binary_sensor.kitchen_presence_master
+    to:
+    - 'on'
+    id: Occupied
+  - trigger: state
+    entity_id: binary_sensor.kitchen_light_required
+    to: 'on'
+    id: GotDark
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: or
+        conditions:
+        - condition: trigger
+          id:
+          - Occupied
+        - condition: trigger
+          id: GotDark
+      - condition: state
+        entity_id: binary_sensor.kitchen_presence_master
+        state: 'on'
+      - condition: state
+        entity_id: binary_sensor.kitchen_light_required
+        state: 'on'
+      - condition: state
+        entity_id: input_boolean.kitchen_light_override
+        state: 'off'
+        enabled: false
+      sequence:
+      - if:
+        - condition: state
+          entity_id: binary_sensor.night_lights_sensor
+          state: 'on'
+        then:
+        - alias: Emit Generic Universal Controller Command Event
+          event: universal_controller_command
+          event_data:
+            source_device: presence
+            action_type: light_call
+            action_value: 90
+            command_input: turn_on
+            target_label: night_light
+            area_key: kitchen
+            data_payload: '{{ trigger }}'
+            overrides: {}
+        else:
+        - alias: Emit Generic Universal Controller Command Event
+          event: universal_controller_command
+          event_data:
+            source_device: presence
+            action_type: light_call
+            action_value: 151
+            command_input: turn_on
+            target_label: main
+            area_key: kitchen
+            data_payload: '{{ trigger }}'
+            overrides: {}
+          enabled: true
+    - conditions:
+      - condition: trigger
+        id:
+        - Vacant
+      sequence:
+      - alias: Emit Generic Universal Controller Command Event
+        event: universal_controller_command
+        event_data:
+          source_device: presence
+          action_type: light_call
+          action_value: ''
+          command_input: turn_off
+          target_label: ''
+          area_key: kitchen
+          data_payload: '{{ trigger }}'
+          overrides: {}
+      - delay: 00:30:00
+        enabled: false
+      - if:
+        - condition: state
+          entity_id: binary_sensor.kitchen_presence_master
+          state: 'off'
+        then:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.kitchen_light_override
+        enabled: false
+  mode: queued

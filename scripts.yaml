@@ -324,7 +324,7 @@ living_room_entertain:
       metadata: {}
       data:
         brightness_pct: 80
-        color_temp_kelvin: '{{ states(''sensor.cct_calculation'') }}'
+        color_temp_kelvin: '{{ states(''sensor.cct_calculation'') | int(3200) }}'
       target:
         entity_id:
         - light.living_room_lamp_right
@@ -335,13 +335,13 @@ living_room_entertain:
       metadata: {}
       data:
         brightness_pct: 100
-        color_temp_kelvin: '{{ states(''sensor.cct_calculation'') }}'
+        color_temp_kelvin: '{{ states(''sensor.cct_calculation'') | int(3200)  }}'
       target:
         entity_id:
-        - light.wall_sconce_left_up_light
-        - light.wall_sconce_right_up_light
-        - light.wall_sconce_right_down_light
-        - light.wall_sconce_left_down_light
+        - light.living_room_lamp_right
+        - light.living_room_lamp_left
+        - light.living_room_main_bulb_1
+        - light.living_room_main_bulb_2
     - action: light.turn_off
       metadata: {}
       data: {}
@@ -359,7 +359,7 @@ living_room_entertain:
     - action: light.turn_on
       metadata: {}
       data:
-        brightness_pct: '{{ states(''sensor.cct_percentage_2'') }}'
+        brightness: '{{ states(''sensor.cct_to_brightness'') | float(150) }}'
       target:
         entity_id:
         - light.hallway_bar_servery
@@ -372,15 +372,15 @@ living_room_entertain:
         metadata: {}
         data:
           brightness_pct: 100
-          color_temp_kelvin: '{{ states(''sensor.cct_percentage'') }}'
+          color_temp_kelvin: '{{ states(''sensor.cct_calculation'') | int(3200)  }}'
         target:
-          entity_id: light.dining_room_window_light_2
+          entity_id: light.dining_room_fireplace
       else:
       - action: light.turn_off
         metadata: {}
         data: {}
         target:
-          entity_id: light.dining_room_window_light_2
+          entity_id: light.dining_room_fireplace
   alias: Living Room 80. Entertain
   description: ''
 living_room_lights_off:
@@ -1752,17 +1752,6 @@ art_mode_toggle_controller:
   - variables:
       is_physically_art: '{{ is_state(''binary_sensor.frame_physical_art_state'',
         ''on'')}}'
-  - choose:
-    - conditions:
-      - condition: template
-        value_template: '{{ not (action == ''enable'' and is_physically_art) }}'
-      sequence: []
-    - conditions:
-      - condition: template
-        value_template: '{{ not (action == ''disable'' and not is_physically_art)
-          }}'
-      sequence: []
-    enabled: false
   - alias: Abort if Reality already matches Action
     condition: template
     value_template: '{{ not (action == ''enable'' and is_physically_art) and not (action

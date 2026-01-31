@@ -16,23 +16,23 @@ sensor:
         {% set wind_down_start = '21:30' %}
       {% endif %}
       {% set start_dt = today_at(wind_down_start) %}
-      {% set end_time = (start_dt + timedelta(minutes=30)).strftime('%H:%M') %}
+      {% set end_time = (start_dt + timedelta(minutes=90)).strftime('%H:%M') %}
       {% if now_dt >= end_time or (now_dt < '05:00' and wind_down_start != '01:00') %}
         {{ temp_min }}
       {% elif now_dt >= wind_down_start %}
         {% set seconds_past_start = (now() - start_dt).total_seconds() %}
-        {% set progress = (seconds_past_start / 1800) * (pi / 2) %}
+        {% set progress = (seconds_past_start / 5400 ) * (pi / 2) %}
         {{ (temp_min + (temp_base - temp_min) * cos(progress)) | int }}
       {% elif elev > 15 %}
         {{ temp_max }}
       {% elif elev >= 0 and elev <= 15 %}
-        {% set sine_factor = sin((elev * 6) | deg2rad) %}
+        {% set sine_factor = sin((elev * 6) * pi / 180) %}
         {{ (temp_base + (temp_max - temp_base) * sine_factor) | int }}
       {% elif elev < 0 and now().hour >= 12 %}
         {{ temp_base }}
       {% elif elev < 0 and elev >= -15 and now().hour < 12 %}
         {% set adjusted_elev = (elev + 15) * 6 %}
-        {% set sine_factor = sin(adjusted_elev | deg2rad) %}
+        {% set sine_factor = sin(adjusted_elev * pi / 180) %}
         {{ (temp_min + (temp_base - temp_min) * sine_factor) | int }}
       {% else %}
         {{ temp_min }}

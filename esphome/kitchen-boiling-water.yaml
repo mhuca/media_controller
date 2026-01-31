@@ -1,0 +1,141 @@
+substitutions:
+  name: kitchen-boiling-water #change
+  friendly_name: Kitchen Boiling Water Watchdog #change
+  icon: "mdi:light-switch"
+  event: nodered_automation
+  button: button
+  board: esp8285 # Most Athom plugs use the 8285 (built-in flash)
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  project:
+    name: "Athom.PG03-US16A-TAS"
+    version: "1.0"
+
+esp8266:
+  board: ${board}
+  restore_from_flash: OFF
+
+# Use the 'common/wifi.yaml' if you prefer, or just add wifi details here
+packages:
+  - !include common/wifi.yaml
+
+# Essential Communication
+api:
+ota:
+  - platform: esphome
+
+logger:
+  level: DEBUG
+  baud_rate: 0 # Important: Disables logging to hardware UART so it doesn't interfere with Tuya
+
+web_server:
+  port: 80
+
+time:
+  - platform: sntp
+    id: esptime
+    timezone: "America/Toronto"
+
+
+# The "Brains" - Local 10-minute Kill Switch
+sensor:
+  - platform: hlw8012
+    sel_pin:
+      number: GPIO12
+      inverted: True
+    cf_pin: GPIO4
+    cf1_pin: GPIO5
+    voltage_divider: 745
+    current:
+      name: "${friendly_name} Current"
+      icon: mdi:lightning-bolt-circle
+      filters:
+        - calibrate_linear:
+            - 0.0000 -> 0.0110 # Relay off no load
+            - 0.0097 -> 0.0260 # Relay on no load
+            - 0.9270 -> 0.7570
+            - 2.0133 -> 1.6330
+            - 2.9307 -> 2.3750
+            - 5.4848 -> 4.4210
+            - 8.4308 -> 6.8330
+            - 9.9171 -> 7.9830
+        # Normalize for plug load
+        - lambda: if (x < 0.0260) return 0; else return (x - 0.0260);
+    voltage:
+      name: "${friendly_name} Voltage"
+      icon: mdi:lightning-bolt-circle
+
+    power:
+      name: "${friendly_name} Power"
+      icon: mdi:lightning-bolt-circle
+      id: socket_my_power
+      unit_of_measurement: W
+      filters:
+        - calibrate_linear:
+            - 0.0000 -> 0.5900 # Relay off no load
+            - 0.0000 -> 1.5600 # Relay on no load
+            - 198.5129 -> 87.8300
+            - 434.2469 -> 189.5000
+            - 628.6241 -> 273.9000
+            - 1067.0067 -> 460.1000
+            - 1619.8098 -> 699.2000
+            - 2043.0282 -> 885.0000
+        # Normalize for plug load
+        - lambda: if (x < 1.5600) return 0; else return (x - 1.5600);
+      on_value:
+        then:
+          - if:
+              condition:
+                sensor.in_range:
+                  id: socket_my_power
+                  above: 1000.0
+              then:
+                # If above 1000W, wait 10 mins then check again
+                - delay: 10min
+                - if:
+                    condition:
+                      sensor.in_range:
+                        id: socket_my_power
+                        above: 1000.0
+                    then:
+                      - switch.turn_off: relay_output
+                      - homeassistant.action:
+                          action: notify.mobile_app_work_iphone
+                          data:
+                            title: "🛑 ESPHome SHUTDOWN"
+                            message: "Local watchdog killed HotMaster after 10m continuous draw."
+    change_mode_every: 1
+    update_interval: 2s
+
+  - platform: total_daily_energy
+    name: "${friendly_name} Total Energy"
+    icon: mdi:clock-alert
+    power_id: socket_my_power
+    unit_of_measurement: kWh
+    accuracy_decimals: 3
+    restore: true
+    filters:
+      - multiply: 0.001
+
+switch:
+  - platform: gpio
+    name: "HotMaster Power Switch"
+    pin: GPIO14
+    id: relay_output
+    restore_mode: RESTORE_DEFAULT_OFF # Safety: don't turn on automatically after power cut
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO3
+      inverted: true
+    name: "Physical Button"
+    on_press:
+      - switch.toggle: relay_output
+
+status_led:
+  pin:
+    number: GPIO13
+    inverted: true
