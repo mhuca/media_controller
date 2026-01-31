@@ -5755,3 +5755,88 @@
             entity_id: input_boolean.kitchen_light_override
         enabled: false
   mode: queued
+- id: '1769870132062'
+  alias: Powder Room Presence Logic (Dim Warning)
+  description: ''
+  triggers:
+  - entity_id: binary_sensor.powder_room_fan_motion
+    to: 'on'
+    trigger: state
+    id: Motion_On
+  - entity_id:
+    - binary_sensor.powder_room_door
+    trigger: state
+    to:
+    - 'on'
+    id: Door_Open
+  - entity_id:
+    - binary_sensor.powder_room_door
+    trigger: state
+    to:
+    - 'off'
+    id: Door_Closed
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id:
+        - Motion_On
+        - Door_Open
+      sequence:
+      - data:
+          brightness_pct: 100
+        action: light.turn_on
+        target:
+          entity_id: light.powder_room_lights
+      - alias: IsDoorOpen
+        if:
+        - condition: state
+          entity_id: binary_sensor.powder_room_door
+          state:
+          - 'on'
+        then:
+        - delay:
+            hours: 0
+            minutes: 2
+            seconds: 0
+            milliseconds: 0
+        - target:
+            entity_id: light.powder_room_lights
+          action: light.turn_off
+          data: {}
+        else:
+        - stop: Sequence complete - Door Closed
+    - conditions:
+      - condition: trigger
+        id:
+        - Door_Closed
+      sequence:
+      - delay:
+          hours: 0
+          minutes: 0
+          seconds: 5
+          milliseconds: 0
+      - alias: Wait for Motion
+        wait_template: '{{ is_state(''binary_sensor.powder_room_fan_motion'', ''on'')
+          }}'
+        timeout: 00:00:20
+        continue_on_timeout: true
+      - condition: template
+        value_template: '{{ wait.remaining == 0 }}'
+      - target:
+          entity_id: light.powder_room_lights
+        data:
+          brightness_pct: 10
+        action: light.turn_on
+      - alias: Wait for Motion
+        wait_template: '{{ is_state(''binary_sensor.powder_room_fan_motion'', ''on'')
+          }}'
+        timeout: 00:00:10
+        continue_on_timeout: true
+      - condition: template
+        value_template: '{{ not wait.completed }}'
+      - target:
+          entity_id: light.powder_room_lights
+        action: light.turn_off
+        data: {}
+  mode: restart

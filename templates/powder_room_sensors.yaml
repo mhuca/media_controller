@@ -1,0 +1,25 @@
+trigger:
+  - trigger: state
+    entity_id: 
+      - binary_sensor.powder_room_fan_motion
+      - binary_sensor.powder_room_door
+  - trigger: homeassistant
+    event: start
+  - trigger: event
+    event_type: event_template_reloaded
+binary_sensor:
+  - name: "Powder Room Presence Master"
+    unique_id: powder_room_presence_master_001
+    device_class: presence
+    state: |
+      {{ 
+        is_state('binary_sensor.powder_room_fan_motion', 'on') or 
+        is_state('binary_sensor.powder_room_door', 'on') 
+      }}
+    availability: >
+      {{ has_value('binary_sensor.powder_room_presence_sensor') }}
+    # The 2-minute delay reset logic is handled here
+    delay_off:
+      minutes: |
+        {{ 2 | float if is_state('binary_sensor.powder_room_door', 'on') else 0 | float }}
+
