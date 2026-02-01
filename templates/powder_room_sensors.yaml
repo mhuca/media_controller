@@ -20,6 +20,4 @@ binary_sensor:
       {{ has_value('binary_sensor.powder_room_presence_sensor') }}
     # The 2-minute delay reset logic is handled here
     delay_off:
-      minutes: |
-        {{ 2 | float if is_state('binary_sensor.powder_room_door', 'on') else 0 | float }}
-
+      minutes: 2

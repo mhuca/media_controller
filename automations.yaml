@@ -3370,7 +3370,7 @@
       area_key: '{{ trigger.event.data.area_key }}'
       target_override: '{{ overrides.target | default('''', true) }}'
       target_kelvin: '{{ states(''sensor.cct_calculation'') | int(3200) }}'
-      val: '{{ trigger.event.data.target_label | default([]) }}'
+      val: '{{ trigger.event.data.target_label | default([], true) }}'
       target_labels: '{{ [val] if val is string else val }}'
       raw_target: "{% if target_override == '' %} \n  {{ {'area_id': area_key} }}
         \n{% else %}\n  {{ target_override }} \n{% endif %}\n"
@@ -4742,9 +4742,11 @@
       area_key: '{{ area_id(device_id) | default(''none'') }}'
       target_device_name: "{{ device_name \n  | lower \n  | replace(' ','_') \n  |
         regex_replace(find='\\\\d+', replace='') \n  | default('unknown') }}\n"
+      target_label: '{{ '''' if target_device_name == ''remote'' else target_device_name
+        }}'
       device_prefix: '{{ ''media_'' if ''media'' in target_device_name else '''' }}'
-      default_action_type: "{% set intent_map = {\n    'zone': 'scene_cycle', \n    'scene':
-        'scene_cycle', \n    'media': 'media_call'\n    } %} \n    {{ intent_map.get(target_device_name,
+      default_action_type: "{% set intent_map = {\n  'zone': 'scene_cycle', \n  'scene':
+        'scene_cycle', \n  'media': 'media_call'\n  }\n%} \n{{ intent_map.get(target_device_name,
         'light_call') }}\n"
   - alias: Wait for first Release Event... If None After 450ms then it's Hold
     wait_for_trigger:
@@ -4761,25 +4763,7 @@
   - variables:
       is_hold: '{{ wait.trigger is none }}'
       release_wait: '{{ wait }}'
-      data_override: "{% set all_overrides = label_entities('override') \n  | select('match',
-        'sensor.')\n  | list\n%}\n{% set overrides = \n  device_entities(device_id)
-        \n  | select('match','sensor.')\n  | select('in', all_overrides )\n  | list\n%}\n{%
-        if overrides | length > 0 %}\n  {{ states(overrides[0]) | default('') }}\n{%
-        endif%}\n"
       command_input: '{{ ''turn_off'' if button_type == ''off'' else ''turn_on'' }}'
-      temp_all: "{{\n  label_entities(target_device_name) \n    | select('match',
-        'light.')\n    | list \n}}\n"
-      temp_area_lights: "{{\n  area_entities(area_key) \n  | select('match','light.')\n
-        \ | list\n}}\n"
-      target_lights: "{% set all_lights = label_entities(target_device_name) \n  |
-        select('match', 'light.')\n  | list\n%}    \n{{\n  area_entities(area_key)
-        \n  | select('match','light.')\n  | select('in', all_lights )\n  | list\n}}\n"
-      target: "{% set target = {} %}\n{% if device_name != 'Remote' %} \n  {% set
-        target = target \n    | combine({'target':{'entity_id': target_lights }})
-        \n  %}\n{% endif %}\n{% if data_override | length > 0 %}\n  {% set target
-        = target \n    | combine(data_override) \n  %}\n{% endif %}\n{{ target }}
-        \n"
-      hold_duration: '{{ 500 - (wait.remaining | default(0) * 1000) }}'
   - if:
     - condition: template
       value_template: '{{ not is_hold }}'
@@ -4826,39 +4810,6 @@
           {}).get(''type'', default_action_type) }}'
         the_action_value: '{{ cmd_map.get(command, {}).get(button_number | string,
           {}).get(''value'', action_value ) }}'
-    - variables:
-        override_command: "{% if subscription is not none %}\n  {{ subscription.command_map[command]
-          is not none }}\n{% else %}\n  {{ false }}\n{% endif %}\n"
-        valid_commands: '{{ subscription.command_map[command] if override_command
-          else none }}'
-        override_button: "{% if valid_commands is not none %}\n  {{ valid_commands[
-          button_number | string ] is not none }}\n{% else %}\n  {{ false }}\n{% endif
-          %}\n"
-        he_action_type: "{{ \n  subscription.command_map[command][ button_number |
-          string ]['type']\n  if override_button else default_action_type\n}}\n"
-        he_action_value: "{{ \n  subscription.command_map[command][ button_number
-          | string ]['value']\n  if override_button else action_value\n}}\n"
-        the_action_type: '{{ cmd_map.get(command, {}).get(button_number | string,
-          {}).get(''type'', default_action_type) }}
-
-          '
-        the_action_value: '{{ (subscription or {}).get(''command_map'', {}).get(command,
-          {}).get(button_number | string, {}).get(''value'', '''') }}'
-      enabled: false
-    - alias: Press Event
-      event: universal_controller_command
-      event_data:
-        source_device: pico
-        action_type: '{{ the_action_type }}'
-        action_value: '{{ the_action_value }}'
-        command_input: '{{ command_input }}'
-        area_key: '{{ area_id(device_id) | default(none) }}'
-        session_id: '{{ session_id }}'
-        data_payload: '{{ trigger.event.data }}'
-        overrides: '{}'
-        command: '{{ command }}'
-        command_type: '{{ command_type }}'
-      enabled: true
     else:
     - variables:
         command: hold
@@ -4896,6 +4847,7 @@
             action_value: '{{ the_action_value }}'
             command_input: '{{ command_input }}'
             area_key: '{{ area_id(device_id) | default(none) }}'
+            target_label: '{{ target_label }}'
             session_id: '{{ session_id }}'
             data_payload: '{{ trigger.event.data }}'
             overrides: '{}'
@@ -4920,20 +4872,22 @@
       enabled: true
     - variables:
         command: release
-    - alias: Release Event
-      event: universal_controller_command
-      event_data:
-        source_device: pico
-        action_type: '{{ the_action_type }}'
-        action_value: release
-        command_input: '{{ command_input }}'
-        area_key: '{{ area_id(device_id) | default(none) }}'
-        session_id: '{{ session_id }}'
-        data_payload: '{{ trigger.event.data }}'
-        overrides: '{}'
-        command: '{{ command }}'
-        command_type: '{{ command_type }}'
-      enabled: true
+        the_action_value: release
+  - alias: Press Event
+    event: universal_controller_command
+    event_data:
+      source_device: pico
+      action_type: '{{ the_action_type }}'
+      action_value: '{{ the_action_value }}'
+      command_input: '{{ command_input }}'
+      area_key: '{{ area_id(device_id) | default(none) }}'
+      target_label: '{{ target_label }}'
+      session_id: '{{ session_id }}'
+      data_payload: '{{ trigger.event.data }}'
+      overrides: '{}'
+      command: '{{ command }}'
+      command_type: '{{ command_type }}'
+    enabled: true
   mode: single
   variables:
     session_id: '{{ trigger.event.context.id }}'
@@ -5685,6 +5639,7 @@
         state: 'off'
         enabled: false
       sequence:
+      - variables: {}
       - if:
         - condition: state
           entity_id: binary_sensor.night_lights_sensor
@@ -5886,3 +5841,28 @@
           entity_id: input_boolean.powder_room_light_override
         data: {}
   mode: restart
+- id: '1769978547753'
+  alias: System - HomeKit Repair on Startup
+  description: ''
+  triggers:
+  - event: start
+    trigger: homeassistant
+  - trigger: state
+    entity_id:
+    - light.kitchen_main
+    - light.kitchen_island
+    to:
+    - unavailable
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+  actions:
+  - delay: 00:02:00
+  - action: homeassistant.reload_config_entry
+    data:
+      entry_id: 01K78JT7DZWDZ4GQTE808R3F2H
+    target:
+      device_id:
+      - c40dd3687b59ba64b1b0ac2e15e770b6
+      - 51685bd721d0abf1af61750ff6388337

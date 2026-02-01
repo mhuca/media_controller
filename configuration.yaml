@@ -15,7 +15,7 @@ template: !include_dir_list templates/
 utility_meter: !include utility_meter.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
-sql: !include sql.yaml
+#sql: !include sql.yaml
 switch: !include switch.yaml
 # panel_iframe: !include panel_iframe.yaml
 media_player: !include media_player.yaml
