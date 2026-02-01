@@ -3370,7 +3370,8 @@
       area_key: '{{ trigger.event.data.area_key }}'
       target_override: '{{ overrides.target | default('''', true) }}'
       target_kelvin: '{{ states(''sensor.cct_calculation'') | int(3200) }}'
-      target_label: '{{ trigger.event.data.target_label | default('''', true) }}'
+      val: '{{ trigger.event.data.target_label | default([]) }}'
+      target_labels: '{{ [val] if val is string else val }}'
       raw_target: "{% if target_override == '' %} \n  {{ {'area_id': area_key} }}
         \n{% else %}\n  {{ target_override }} \n{% endif %}\n"
       area_entities_list: "{% set ns = namespace(found=[]) %}\n{% if raw_target.area_id
@@ -3380,15 +3381,15 @@
         set expanded = ns.found \n    | map('expand') \n    | sum(start=[]) \n    |
         selectattr('domain', 'eq', 'light') \n    | map(attribute='entity_id') \n
         \   | list \n%}\n{{ expanded }}\n"
-      label_entities_list: '{{ label_entities(target_label) | list | unique | list
-        }}
-
-        '
   - alias: Target Expansion (The "Engine")
     variables:
-      target_entities: "{% if target_label != '' %}\n  {{ area_entities_list | select('in',
-        label_entities(target_label)) | list | unique | list }}\n{% else %}\n  {{
-        area_entities_list | unique | list }}\n{% endif %}\n"
+      target_entities: "{% if target_labels | length > 0 %}\n  {# Get all entities
+        that have ANY of the labels in our list #}\n  {% set ns = namespace(lbl_ents=[])
+        %}\n  {% for l in target_labels %}\n    {% set ns.lbl_ents = ns.lbl_ents +
+        label_entities(l) %}\n  {% endfor %}\n  \n  {# Perform the intersection: Only
+        keep labeled entities that are IN the area #}\n  {{ area_entities_list | select('in',
+        ns.lbl_ents | unique | list) | list }}\n{% else %}\n  {{ area_entities_list
+        | unique | list }}\n{% endif %}\n"
       apply_cct: '{{ action_val == '''' }}'
       current_kelvin: '{{ states(''sensor.cct_calculation'') | int(4000) }}'
   - alias: Hardware Bucketing
@@ -5234,20 +5235,6 @@
         target:
           entity_id: input_boolean.powder_room_light_override
   mode: restart
-- id: '1769283408209'
-  alias: 'System: Lighting Watchman Heartbeat'
-  description: Periodic audit to trigger self-healing in stateless automations
-  triggers:
-  - trigger: time_pattern
-    minutes: /15
-  - trigger: homeassistant
-    event: start
-  actions:
-  - event: watchman_audit_ping
-    event_data:
-      area_key: powder_room
-      source: system_heartbeat
-  mode: single
 - id: '1769441182178'
   alias: 'Kitchen: Pro Adaptive Lighting (Multi-Zone with Delays)'
   description: Syncs non-CCT kitchen lights to Lux, CCT, and Zone Presence with 20s
@@ -5775,19 +5762,37 @@
     to:
     - 'off'
     id: Door_Closed
+  - trigger: state
+    entity_id: switch.powder_room_relay
+    id: Manual_Toggle
   actions:
+  - variables:
+      brightness: '{{ 90 if is_state(''binary_sensor.night_lights_sensor'' ,''on'')
+        else 191 }}
+
+        '
   - choose:
     - conditions:
       - condition: trigger
         id:
         - Motion_On
         - Door_Open
+      - condition: state
+        entity_id: input_boolean.powder_room_light_override
+        state:
+        - 'off'
       sequence:
-      - data:
-          brightness_pct: 100
-        action: light.turn_on
-        target:
-          entity_id: light.powder_room_lights
+      - alias: Emit Generic Universal Controller Command Event
+        event: universal_controller_command
+        event_data:
+          source_device: presence
+          action_type: light_call
+          action_value: '{{ brightness }}'
+          command_input: turn_on
+          target_label: main
+          area_key: powder_room
+          data_payload: '{{ trigger }}'
+          overrides: {}
       - alias: IsDoorOpen
         if:
         - condition: state
@@ -5800,10 +5805,17 @@
             minutes: 2
             seconds: 0
             milliseconds: 0
-        - target:
-            entity_id: light.powder_room_lights
-          action: light.turn_off
-          data: {}
+        - alias: Emit Generic Universal Controller Command Event
+          event: universal_controller_command
+          event_data:
+            source_device: presence
+            action_type: light_call
+            action_value: ''
+            command_input: turn_off
+            target_label: main
+            area_key: powder_room
+            data_payload: '{{ trigger }}'
+            overrides: {}
         else:
         - stop: Sequence complete - Door Closed
     - conditions:
@@ -5823,11 +5835,17 @@
         continue_on_timeout: true
       - condition: template
         value_template: '{{ wait.remaining == 0 }}'
-      - target:
-          entity_id: light.powder_room_lights
-        data:
-          brightness_pct: 10
-        action: light.turn_on
+      - alias: Emit Generic Universal Controller Command Event
+        event: universal_controller_command
+        event_data:
+          source_device: presence
+          action_type: light_call
+          action_value: 26
+          command_input: turn_on
+          target_label: main
+          area_key: powder_room
+          data_payload: '{{ trigger }}'
+          overrides: {}
       - alias: Wait for Motion
         wait_template: '{{ is_state(''binary_sensor.powder_room_fan_motion'', ''on'')
           }}'
@@ -5835,8 +5853,36 @@
         continue_on_timeout: true
       - condition: template
         value_template: '{{ not wait.completed }}'
-      - target:
-          entity_id: light.powder_room_lights
-        action: light.turn_off
+      - alias: Emit Generic Universal Controller Command Event
+        event: universal_controller_command
+        event_data:
+          source_device: presence
+          action_type: light_call
+          action_value: ''
+          command_input: turn_off
+          target_label: main
+          area_key: powder_room
+          data_payload: '{{ trigger }}'
+          overrides: {}
+    - conditions:
+      - condition: trigger
+        id:
+        - Door_Open
+      sequence:
+      - action: input_boolean.turn_off
+        metadata: {}
+        target:
+          entity_id: input_boolean.powder_room_light_override
+        data: {}
+    - conditions:
+      - condition: trigger
+        id: Manual_Toggle
+      - condition: template
+        value_template: '{{ trigger.to_state.context.user_id is none and trigger.to_state.context.parent_id
+          is none }}'
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.powder_room_light_override
         data: {}
   mode: restart
