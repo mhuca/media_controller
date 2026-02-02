@@ -23,3 +23,8 @@ custom_components/
 
 # STuff I don't want to track
 .tts/
+
+# Editor temporaries
+*.swp
+.DS_Store
+.vscode/
