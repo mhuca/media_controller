@@ -1,0 +1,100 @@
+trigger:
+  - platform: event
+    event_type: "lutron_button_event"
+  - platform: event
+    event_type: "pico_register_override"
+
+sensor:
+  - name: "Pico Registry"
+    unique_id: pico_registry
+    state: "{{ trigger.event.data.device_id | default('idle') }}"
+    attributes:
+      active_sessions: >
+        {% set current = state_attr('sensor.pico_registry', 'active_sessions') or {} %}
+        {% set now_ts = as_timestamp(now()) %}
+        {% set device_id = trigger.event.data.device_id %}
+        {% set isOwned = trigger.event.data.isOwned | bool(false) %}
+
+        {% if trigger.event.event_type == 'lutron_button_event' %}
+          {# 1. Filter out old/expired locks (> 10s) and the current device #}
+          {% set ns = namespace(new={}) %}
+          {% for s_id, data in current.items() %}
+            {% if (now_ts - data.ts) < 10 and s_id != device_id %}
+              {% set ns.new = dict(ns.new, **{s_id: data}) %}
+            {% endif %}
+          {% endfor %}
+
+          {% if isOwned %}
+            {# 2. LOCK: Add device to registry #}
+            {% set update = { device_id: { 'isOwned': true, 'ts': now_ts } } %}
+            {{ dict(ns.new, **update) }}
+          {% else %}
+            {# 3. RELEASE: Clear device from registry #}
+            {{ ns.new }}
+          {% endif %}
+        {% else %}
+          {{ current }}
+        {% endif %}
+        
+        # {% if trigger.event.event_type == 'lutron_caseta_button_event' %}
+        #   {% set device_id = trigger.event.data.device_id %}
+        #   {% set act = trigger.event.data.action %}
+        #   {% set now_ts = as_timestamp(now()) %}
+        #   {% set event_context = trigger.event.context.id %}
+          
+        #   {# Load previous state for this specific device #}
+        #   {% set s = current.get(device_id, {'count': 0, 'status': 'idle', 'ts': now_ts, 'verdict': 'none', 'context': ''}) %}
+        #   {% set time_diff = now_ts - s.ts %}
+          
+        #   {% set ns = namespace(status=s.status, count=s.count, verdict='none', context=s.context, ts=s.ts) %}
+
+        #   {% if act == 'press' %}
+        #     {# If we are already pending and a NEW press context arrives quickly #}
+        #     {% if s.status == 'pending' and time_diff < 0.5 %}
+        #       {% set ns.status = 'complete' %}
+        #       {% set ns.count = 2 %}
+        #       {% set ns.verdict = 'double' %}
+        #     {% else %}
+        #       {# Initial Press #}
+        #       {% set ns.status = 'pending' %}
+        #       {% set ns.count = 1 %}
+        #       {% set ns.verdict = 'none' %}
+        #       {% set ns.context = event_context %}
+        #       {% set ns.ts = now_ts %}
+        #     {% endif %}
+          
+        #   {% elif act == 'release' %}
+        #     {# A release of the SAME press that started the window = Single #}
+        #     {% if s.status == 'pending' and s.verdict == 'none' and time_diff < 0.5 %}
+        #       {# We don't mark 'complete' yet in case a double is coming, #}
+        #       {# but we can set the verdict. #}
+        #       {% set ns.verdict = 'single' %}
+        #       {% set ns.status = 'complete' %}
+        #     {% elif s.status == 'pending' and s.verdict == 'none' and time_diff >= 0.5 %}
+        #       {% set ns.status = 'idle' %}
+        #       {% set ns.verdict = 'hold_stop' %}
+        #     {% else %}
+        #       {# Maintain existing verdict for double-press releases #}
+        #       {% set ns.status = s.status %}
+        #       {% set ns.verdict = s.verdict %}
+        #     {% endif %}
+        #   {% endif %}
+
+          
+        # {% else %}
+        #   {{ current }}
+        # {% endif %}
+
+      overrides: >
+        {% set current = state_attr('sensor.pico_registry', 'overrides') %}
+        {% set current = current if current is mapping else {} %}
+        
+        {% if trigger.event.event_type == 'pico_register_override' %}
+          {% set new_entries = namespace(data={}) %}
+          {% for s in trigger.event.data.device_ids %}
+            {% set new_entries.data = dict(new_entries.data, **{s|string: trigger.event.data.command_map}) %}
+          {% endfor %}
+          {{ dict(current, **new_entries.data) }}
+        {% else %}
+          {{ current }}
+        {% endif %}

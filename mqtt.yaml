@@ -1,5 +1,12 @@
 #mqtt:
 sensor:
+- name: "Pico Registry Permanent"
+  unique_id: pico_registry_permanent
+  state_topic: "home/pico/registry"
+  # We expect a JSON object where keys are Device IDs
+  value_template: "{{ 'online' if value_json is mapping else 'offline' }}"
+  json_attributes_topic: "home/pico/registry"
+
 
 binary_sensor:
   # - name: Amryl Remote Trigger

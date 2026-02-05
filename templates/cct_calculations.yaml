@@ -41,21 +41,13 @@ sensor:
       friendly_name: "CCT Logic Core Sensor"
       icon: "mdi:thermometer"
       brightness: |
-        {% set current_cct = states('sensor.cct_logic_core') | int(3200) %}
         {% set temp_min = states('input_number.cct_min') | int(2000) %}
         {% set temp_max = states('input_number.cct_max') | int(5500) %}
         
         {% set bright_min = 115 %}
         {% set bright_max = 255 %}
         
-        {% if current_cct <= temp_min %}
-          {{ bright_min }}
-        {% elif current_cct >= temp_max %}
-          {{ bright_max }}
-        {% else %}
-          {% set ratio = (current_cct - temp_min) / (temp_max - temp_min) %}
-          {{ (bright_min + (ratio * (bright_max - bright_min))) | int }}
-        {% endif %}
+        {{ this.state | int(3200) | remap(temp_min, temp_max, bright_min, bright_max) | int }}
 
   - name: "CCT to Brightness Core"
     unique_id: cct_to_brightness
@@ -80,3 +72,49 @@ sensor:
         {# Apply that ratio to the brightness scale #}
         {{ (bright_min + (ratio * (bright_max - bright_min))) | int }}
       {% endif %}
+
+binary_sensor:
+  - name: "Night logic Core"
+    unique_id: night_logic_core
+    device_class: occupancy
+    state: >
+      {% set now_dt = now() %}
+      
+      {# 1. Calendar Parsing #}
+      {% set event_active = is_state('calendar.house_activities', 'on') %}
+      {% set event_title = state_attr('calendar.house_activities', 'message') | default('', true) | lower %}
+      
+      {% set is_guest = event_active and ('stay' in event_title or 'guest' in event_title or 'visitor' in event_title) %}
+      {% set is_party = event_active and ('party' in event_title or 'social' in event_title) %}
+
+      {# 2. Determine Night Start Hour #}
+      {% if is_party %}
+        {% set start_hour = 1 %}   {# 1:00 AM #}
+      {% elif is_guest %}
+        {% set start_hour = 0 %}   {# Midnight #}
+      {% else %}
+        {% set start_hour = 23 %}  {# 11:00 PM #}
+      {% endif %}
+
+      {# 3. Determine Night End (Sun or 7:00 AM) #}
+      {% set sun_rise = state_attr('sun.sun', 'next_rising') | as_datetime | as_local %}
+      {% set fixed_end = today_at("07:00") %}
+      {% set end_dt = sun_rise if sun_rise < fixed_end else fixed_end %}
+
+      {# 4. Create Start Timestamp #}
+      {% set start_dt = today_at("%02d:00" | format(start_hour)) %}
+
+      {# 5. Midnight Correction #}
+      {# If we are in the 'Early Morning' (e.g., 2 AM) and start is 11 PM, #}
+      {# start_dt needs to be 'yesterday' so the range check works. #}
+      {% if start_dt > end_dt %}
+        {% if now_dt >= start_dt %}
+          {% set end_dt = end_dt + timedelta(days=1) %}
+        {% elif now_dt < end_dt %}
+          {% set start_dt = start_dt - timedelta(days=1) %}
+        {% endif %}
+      {% endif %}
+
+      {# 6. Final Logic Gate #}
+      {{ start_dt <= now_dt < end_dt and is_state('sun.sun', 'below_horizon') }}
+
