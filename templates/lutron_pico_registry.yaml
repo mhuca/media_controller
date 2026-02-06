@@ -1,40 +1,107 @@
 trigger:
   - platform: event
     event_type: "lutron_button_event"
-  - platform: event
-    event_type: "pico_register_override"
 
 sensor:
   - name: "Pico Registry"
     unique_id: pico_registry
-    state: "{{ trigger.event.data.device_id | default('idle') }}"
+    state: >
+      {% set sessions = state_attr('sensor.pico_registry', 'active_sessions') %}
+      {% if sessions is mapping %}
+        {{ sessions | length }}
+      {% else %}
+        0
+      {% endif %}
+    unit_of_measurement: "sessions"
+    icon: >
+      {% if states('sensor.pico_registry') | int(0) > 0 %}
+        mdi:remote-desktop
+      {% else %}
+        mdi:remote-off
+      {% endif %}
     attributes:
       active_sessions: >
+        {# 1. Initialize State #}
         {% set current = state_attr('sensor.pico_registry', 'active_sessions') or {} %}
-        {% set now_ts = as_timestamp(now()) %}
-        {% set device_id = trigger.event.data.device_id %}
-        {% set isOwned = trigger.event.data.isOwned | bool(false) %}
+        {% set device_id = trigger.event.data.device_id | default('unknown') %}
+        
+        {# 2. Establish "The Truth" (Using the Event's specific timestamp) #}
+        {% set event_ts = trigger.event.data.owned_ts | default(as_timestamp(trigger.event.time_fired)) | round(3) %}
+        {% set now_ts = as_timestamp(now()) | round(3) %}
+        {% set is_incoming_claim = trigger.event.data.isOwned | bool(false) %}
 
-        {% if trigger.event.event_type == 'lutron_button_event' %}
-          {# 1. Filter out old/expired locks (> 10s) and the current device #}
-          {% set ns = namespace(new={}) %}
-          {% for s_id, data in current.items() %}
-            {% if (now_ts - data.ts) < 10 and s_id != device_id %}
-              {% set ns.new = dict(ns.new, **{s_id: data}) %}
-            {% endif %}
-          {% endfor %}
-
-          {% if isOwned %}
-            {# 2. LOCK: Add device to registry #}
-            {% set update = { device_id: { 'isOwned': true, 'ts': now_ts } } %}
-            {{ dict(ns.new, **update) }}
-          {% else %}
-            {# 3. RELEASE: Clear device from registry #}
-            {{ ns.new }}
+        {# 3. Global Purge (Clean the house of any naturally expired locks) #}
+        {% set ns = namespace(clean={}) %}
+        {% for s_id, data in current.items() %}
+          {% if event_ts < (data.expiry | default(0)) %}
+            {% set ns.clean = dict(ns.clean, **{s_id: data}) %}
           {% endif %}
+        {% endfor %}
+
+        {# 4. Logic Execution Path #}
+        {% if is_incoming_claim %}
+          {# --- THE LOCK PATH --- #}
+          {% set existing = ns.clean.get(device_id, {}) %}
+          {% set is_owned = existing.isOwned | default(false) %}
+          {# A lock is available if it's not owned OR if the existing lock is older than our new event #}
+          {% set can_take_lock = not is_owned or (event_ts > existing.ts | default(0)) %}
+
+          {% if can_take_lock %}
+            {% set new_lock = { 
+              device_id: {
+                'isOwned': true, 
+                'ts': event_ts, 
+                'expiry': (event_ts + 10) | round(3)
+              } 
+            } %}
+            {{ dict(ns.clean, **new_lock) }}
+          {% else %}
+            {{ ns.clean }}
+          {% endif %}
+
         {% else %}
-          {{ current }}
+          {# --- THE RELEASE PATH --- #}
+          {% set existing = ns.clean.get(device_id, {}) %}
+          
+          {# Only release if this signal is actually from the same time or newer than the active lock #}
+          {% if event_ts >= (existing.ts | default(0)) %}
+            {% set ns_final = namespace(output={}) %}
+            {% for s_id, data in ns.clean.items() if s_id != device_id %}
+              {% set ns_final.output = dict(ns_final.output, **{s_id: data}) %}
+            {% endfor %}
+            {{ ns_final.output }}
+          {% else %}
+            {# Stale release signal detected; ignore it to protect newer active session #}
+            {{ ns.clean }}
+          {% endif %}
         {% endif %}
+      
+      # active_sessions: >
+      #   {% set current = state_attr('sensor.pico_registry', 'active_sessions') or {} %}
+      #   {% set now_ts = as_timestamp(now()) %}
+      #   {% set device_id = trigger.event.data.device_id %}
+      #   {% set isOwned = trigger.event.data.isOwned | bool(false) %}
+
+      #   {% if trigger.event.event_type == 'lutron_button_event' %}
+      #     {# 1. Filter out old/expired locks (> 10s) and the current device #}
+      #     {% set ns = namespace(new={}) %}
+      #     {% for s_id, data in current.items() %}
+      #       {% if (now_ts - data.ts) < 10 and s_id != device_id %}
+      #         {% set ns.new = dict(ns.new, **{s_id: data}) %}
+      #       {% endif %}
+      #     {% endfor %}
+
+      #     {% if isOwned %}
+      #       {# 2. LOCK: Add device to registry #}
+      #       {% set update = { device_id: { 'isOwned': true, 'ts': now_ts } } %}
+      #       {{ dict(ns.new, **update) }}
+      #     {% else %}
+      #       {# 3. RELEASE: Clear device from registry #}
+      #       {{ ns.new }}
+      #     {% endif %}
+      #   {% else %}
+      #     {{ current }}
+      #   {% endif %}
         
         # {% if trigger.event.event_type == 'lutron_caseta_button_event' %}
         #   {% set device_id = trigger.event.data.device_id %}
@@ -85,16 +152,16 @@ sensor:
         #   {{ current }}
         # {% endif %}
 
-      overrides: >
-        {% set current = state_attr('sensor.pico_registry', 'overrides') %}
-        {% set current = current if current is mapping else {} %}
+      # overrides: >
+      #   {% set current = state_attr('sensor.pico_registry', 'overrides') %}
+      #   {% set current = current if current is mapping else {} %}
         
-        {% if trigger.event.event_type == 'pico_register_override' %}
-          {% set new_entries = namespace(data={}) %}
-          {% for s in trigger.event.data.device_ids %}
-            {% set new_entries.data = dict(new_entries.data, **{s|string: trigger.event.data.command_map}) %}
-          {% endfor %}
-          {{ dict(current, **new_entries.data) }}
-        {% else %}
-          {{ current }}
-        {% endif %}
+      #   {% if trigger.event.event_type == 'pico_register_override' %}
+      #     {% set new_entries = namespace(data={}) %}
+      #     {% for s in trigger.event.data.device_ids %}
+      #       {% set new_entries.data = dict(new_entries.data, **{s|string: trigger.event.data.command_map}) %}
+      #     {% endfor %}
+      #     {{ dict(current, **new_entries.data) }}
+      #   {% else %}
+      #     {{ current }}
+      #   {% endif %}

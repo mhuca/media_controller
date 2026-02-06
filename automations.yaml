@@ -5710,17 +5710,13 @@
       action: press
   conditions:
   - condition: template
-    value_template: '{% set session = sessions.get(device_id, {''isOwned'': false})
-      %}
-
-      {{ not session.isOwned }}
-
-      '
+    value_template: '{{ not is_owned or is_expired }}'
   actions:
   - event: lutron_button_event
     event_data:
       device_id: '{{ device_id }}'
       isOwned: true
+      owned_ts: '{{ as_timestamp(trigger.event.time_fired) }}'
   - variables:
       device_id: '{{ trigger.event.data.device_id | default(''none'') }}'
       session_id: '{{ trigger.event.context.id | default(''none'') }}'
@@ -5748,7 +5744,10 @@
       id: release_event
       trigger: event
     timeout:
-      milliseconds: 350
+      hours: 0
+      minutes: 0
+      seconds: 0
+      milliseconds: 500
     continue_on_timeout: true
   - variables:
       is_hold: '{{ wait.trigger is none }}'
@@ -5788,12 +5787,9 @@
           ', '') \n  | replace('_', '') }}_{{ command }}\n"
         action_map: '{{ command_map.get(command,{}) }}'
         cmd: '{{ action_map.get(button_number | string , {}) }}'
-        repeat_delay: '{{ 125 if cmd.type == ''media_call'' else 450 }}'
-        max_hold_time: 9
-        max_iterations: '{{ (max_hold_time / (repeat_delay / 1000)) | round(0) }}'
       alias: Dedicated Hold Variables
     - variables:
-        repeat_delay: '{{ 125 if cmd.type == ''media_call'' else 450 }}'
+        repeat_delay: '{{ 125 if cmd.type == ''media_call'' else 500 }}'
         max_hold_time: 9
         max_iterations: '{{ (max_hold_time / (repeat_delay / 1000)) | round(0) }}'
       alias: Dedicated Repeat Variables
@@ -5807,9 +5803,9 @@
           event: universal_controller_command
           event_data:
             source_device: pico
-            action_type: '{{ the_action_type }}'
-            action_value: '{{ the_action_value }}'
-            command_input: '{{ command_input }}'
+            action_type: '{{ cmd.type | default(none) }}'
+            action_value: '{{ cmd.value | default(none) }}'
+            command_input: '{{ cmd.action | default(none) }}'
             area_key: '{{ area_id(device_id) | default(none) }}'
             target_label: '{{ target_label }}'
             session_id: '{{ session_id }}'
@@ -5817,7 +5813,7 @@
             overrides: '{}'
             command: '{{ command }}'
             command_type: '{{ command_type }}'
-          enabled: false
+          enabled: true
         - wait_for_trigger:
           - event_type: lutron_caseta_button_event
             event_data:
@@ -5834,6 +5830,11 @@
           continue_on_timeout: true
         - variables:
             is_hold: '{{ wait.trigger is none }}'
+            hold_duration: '{% set end = as_timestamp(wait.trigger.event.time_fired)
+              if wait.trigger is not none else as_timestamp(now()) %} {{ (end - start_ts)
+              | round(3) }}
+
+              '
       enabled: true
     - variables:
         command: release
@@ -5841,32 +5842,42 @@
       command_type: "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
         ', '') \n  | replace('_', '') }}_{{ command }}\n"
       action_map: '{{ command_map.get(command,{}) }}'
-      cmd: '{{ action_map.get(button_number | string , {}) }}'
-  - alias: Press Event
-    event: universal_controller_command
-    event_data:
-      source_device: pico
-      action_type: '{{ cmd.type | default(none) }}'
-      action_value: '{{ cmd.value | default(none) }}'
-      command_input: '{{ cmd.action | default(none) }}'
-      area_key: '{{ area_id(device_id) | default(none) }}'
-      target_label: '{{ target_label }}'
-      session_id: '{{ session_id }}'
-      data_payload: '{{ trigger.event.data }}'
-      overrides: '{}'
-      command: '{{ command }}'
-      command_type: '{{ command_type }}'
-    enabled: false
+      cmd: '{{ action_map.get(button_number | string , none ) }}'
+  - if:
+    - condition: template
+      value_template: '{{ cmd is not none }}'
+    then:
+    - alias: Press Event
+      event: universal_controller_command
+      event_data:
+        source_device: pico
+        action_type: '{{ cmd.type | default(none) }}'
+        action_value: '{{ cmd.value | default(none) }}'
+        command_input: '{{ cmd.action | default(none) }}'
+        area_key: '{{ area_id(device_id) | default(none) }}'
+        target_label: '{{ target_label }}'
+        session_id: '{{ session_id }}'
+        data_payload: '{{ trigger.event.data }}'
+        overrides: '{}'
+        command: '{{ command }}'
+        command_type: '{{ command_type }}'
+      enabled: true
   - event: lutron_button_event
     event_data:
       device_id: '{{ device_id }}'
       isOwned: false
+      owned_ts: '{{ as_timestamp(now()) }}'
   mode: parallel
   variables:
     session_id: '{{ trigger.event.context.id }}'
     sessions: '{{ state_attr(''sensor.pico_registry'', ''active_sessions'') | default({})
       }}'
     device_id: '{{ trigger.event.data.device_id | default(''none'') }}'
+    session: '{{ sessions.get(device_id, {}) }}'
+    is_owned: '{{ session.isOwned | default(false) }}'
+    start_ts: '{{ as_timestamp(trigger.event.time_fired) | default(as_timestamp(now()))
+      }}'
+    is_expired: '{{start_ts >= (session.expiry | default(0)) }}'
   max: 10
 - id: '1770172132103'
   alias: System - Pico Registry Update Engine
@@ -5918,3 +5929,73 @@
         value: '{{ cmd.value | default(''none'') }}'
         device_name: '{{ trigger.event.data.device_name }}'
         area_id: '{{ area_id(device_id) }}'
+- id: '1770349756358'
+  alias: Override - Light Scene Mini
+  description: ''
+  triggers:
+  - trigger: event
+    event_type: universal_controller_command
+    event_data:
+      action_type: light_scene
+    enabled: true
+  conditions: []
+  actions:
+  - alias: Define Actions
+    variables:
+      area_key: '{{ trigger.event.data.area_key }}'
+      command: '{{ trigger.event.data.command_input }}'
+      action_type: '{{ trigger.event.data.action_type }}'
+      action_value: '{{ trigger.event.data.action_value }}'
+  - variables:
+      transition: 0.2
+      labels: "{{ command\n  | lower \n  | default([], true)\n}}\n"
+      target_labels: "{{ ( [labels] if labels is string else labels ) \n  | map('label_entities')
+        \n  | sum(start=[]) \n  | unique \n  | list \n}}\n"
+      area_lights: '{{ area_entities(area_key) | select(''match'', ''light.*'') |
+        list }}'
+      target_entities: "{% if target_labels | length > 0 %}\n  {{ area_lights | intersect(target_labels)
+        }}\n{% else %}\n  {{ area_lights }}\n{% endif %}\n"
+  - alias: Data Constants
+    variables:
+      dim_factor: 7
+      command_map:
+        max:
+          brightness_pct: 100
+        raise:
+          brightness_step_pct: 15
+        lower:
+          brightness_step_pct: -15
+        min:
+          brightness_pct: 10
+        night_mode:
+          brightness_pct: 35
+        day_mode:
+          brightness_pct: 75
+        release:
+          brightness_step_pct: 0
+        'off':
+          brightness_pct: 0
+      payload:
+        transition: 0.4
+  - variables:
+      serv_data: "{% set cmd = command_map.get(action_value, {}) | default({}) %}\n{%
+        if is_number(action_value) %}\n  {% set cmd = {'brightness': action_value
+        | int(127) } %}\n{% endif %}   \n{{ payload | combine(cmd) }}\n"
+  - action: light.turn_on
+    target:
+      entity_id: '{{ target_entities }}'
+    data: '{{ serv_data }}'
+  mode: queued
+  max: 5
+- id: '1770362460402'
+  alias: 'Music: Play My Plex Vibe via Button'
+  description: Starts the active Plexamp stream on Music Assistant
+  triggers: []
+  conditions: []
+  actions:
+  - action: music_assistant.play_media
+    data:
+      media_id: plex--NkU9PZcC://playlist//playlists/147967
+      media_type: playlist
+      radio_mode: true
+  mode: restart
