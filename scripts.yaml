@@ -60,8 +60,9 @@ night_lights_sensor_on:
           area_id: kitchen
     - if:
       - condition: state
-        entity_id: binary_sensor.mark_office_presence_sensor
-        state: 'on'
+        entity_id: binary_sensor.mark_office_presence_sensor_occupancy
+        state:
+        - 'on'
       then:
       - action: light.turn_on
         metadata: {}

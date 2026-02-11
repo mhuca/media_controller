@@ -852,6 +852,17 @@
       - variables:
           action_value: 191
           command_input: turn_on
+  - variables:
+      data_payload:
+        entity_id: '{{ trigger.entity_id }}'
+        state: '{{ trigger.to_state.state }}'
+        to_state:
+          attributes: '{{ trigger.to_state.attributes }}'
+          last_changed: '{{ trigger.to_state.attributes }}'
+          last_reported: '{{ trigger.to_state.last_reported }}'
+          last_updated: '{{ trigger.to_state.last_updated }}'
+          context:
+            id: '{{ trigger.to_state.context.id }}'
   - alias: Emit Generic Universal Controller Command Event
     event: universal_controller_command
     event_data:
@@ -859,9 +870,9 @@
       action_type: light_call
       action_value: '{{ action_value }}'
       command_input: '{{ command_input }}'
-      target_label: ''
+      target_label: []
       area_key: mark_office
-      data_payload: '{{ trigger }}'
+      data_payload: '{{ data_payload }}'
       overrides: {}
   mode: single
 - id: AutoGen2-b888-49cb-b4e5-f7379ba5b9d5
@@ -1518,26 +1529,71 @@
             - switch.mark_office_relay_switch
   mode: single
 - id: AutoGen2-4990-4bd5-8444-49a1b770c388
-  alias: Binary sensor Night Lights Sensor changes State
+  alias: Night Lights Sensor Changes State
   description: Native Binary sensor Night Lights Sensor changes State
   triggers:
-  - entity_id: binary_sensor.night_lights_sensor
+  - entity_id:
+    - binary_sensor.night_lights_sensor
     trigger: state
+    to:
+    - 'on'
   conditions: []
   actions:
-    choose:
-    - conditions:
+  - parallel:
+    - action: light.turn_off
+      data: {}
+      target:
+        entity_id:
+        - light.living_room_main_bulb_1
+        - light.living_room_main_bulb_2
+        area_id:
+        - dining_room
+        - hallway
+    - if:
       - condition: state
-        entity_id: binary_sensor.night_lights_sensor
+        entity_id: binary_sensor.hallway_presence
         state: 'off'
-      sequence:
-      - stop: ''
-    - conditions:
+      then:
+      - action: light.turn_off
+        metadata: {}
+        data:
+          transition: 60
+        target:
+          area_id: kitchen
+      alias: Turn Off Kitchen If Empty
+    - if:
       - condition: state
-        entity_id: binary_sensor.night_lights_sensor
-        state: 'on'
-      sequence:
-      - action: script.night_lights_sensor_on
+        entity_id: binary_sensor.mark_office_presence_sensor_occupancy
+        state:
+        - 'on'
+      then:
+      - action: light.turn_on
+        metadata: {}
+        data:
+          brightness_pct: 75
+        target:
+          area_id: mark_office
+      else:
+      - action: light.turn_off
+        metadata: {}
+        data:
+          transition: 10
+        target:
+          area_id: mark_office
+    - action: input_boolean.turn_off
+      metadata: {}
+      data: {}
+      target:
+        entity_id:
+        - input_boolean.mark_office_wall_override
+        - input_boolean.garage_light_override
+        - input_boolean.mud_room_light_override
+        - input_boolean.powder_room_light_override
+    - action: timer.start
+      metadata: {}
+      data: {}
+      target:
+        entity_id: timer.door_open_timer
   mode: single
 - id: '1758862246066'
   alias: AI Check Two Garage Doors
@@ -2622,6 +2678,7 @@
       source_device: sofabaton
       action_type: '{{ final_type }}'
       action_value: '{{ final_value }}'
+      target_label: []
       command: press
       area_key: '{{ area_key }}'
       data_payload: '{{ incoming_payload }}'
@@ -2757,6 +2814,13 @@
     target:
       entity_id: '{{ target_entities }}'
     enabled: true
+  - action: logbook.log
+    data:
+      entity_id: '{{ trigger.event.data.data_payload.entity_id | default(this.entity_id)
+        }}'
+      name: 'Light Call Source: {{ trigger.event.data.source_device }}'
+      message: 'Light Call Source: {{ trigger.event.data.source_device }}'
+      domain: light
   mode: queued
   max: 5
 - id: '1765533930198'
@@ -2871,20 +2935,15 @@
     variables:
       area_key: '{{ trigger.event.data.area_key }}'
       action_value: '{{ trigger.event.data.action_value | default('''', true) }}'
-      passed_remote: "{% set data = trigger.event.data %} {% set ov = data.get('overrides',
-        {}) %} {{ data.get('remote_id') \n   | default(ov.get('remote_id'), true)\n
-        \  | default(ov.get('entity_id') if 'remote.' in ov.get('entity_id', '') else
-        none, true)\n   | default('', true) }}\n"
       payload: '{{ trigger.event.data.get(''data_payload'', {}) }}'
       hold_secs: '{{ payload.get(''hold_secs'') | default(0, true) }}'
       delay_secs: '{{ payload.get(''delay_secs'') | default(0.1, true) }}'
       num_repeats: '{{ payload.get(''num_repeats'') | default(1, true) }}'
   - alias: Determine Targets
     variables:
-      dynamic_remote: "{{ area_entities(area_key) \n   | select('match', 'remote.')
-        \n   | first | default(none) }}\n"
-      target_remote: '{{ passed_remote if passed_remote | length > 0 else dynamic_remote
-        }}'
+      target_remote: "{% set device_id =  \n  (area_devices(area_key) \n    | intersect(label_devices('media_role_source_atv')))\n
+        \   | first\n%}\n{{ device_entities(device_id) \n  | select('match','remote.')
+        \n  | first\n}}\n"
   - if:
     - condition: template
       value_template: '{{ target_remote is not none }}'
@@ -2934,16 +2993,13 @@
         else 1 }}'
   - alias: Local Area Heavy Lifting
     variables:
-      all_receivers: '{{ label_entities(''receiver'') | select(''match'', ''media_player.'')
-        | list }}'
-      local_receiver: '{{ area_entities(area_key) | select(''match'',''media_player.'')
-        | select(''in'', all_receivers ) | first | default(none) }}
-
-        '
-      local_media_player: '{{ area_entities(area_key) | select(''match'', ''media_player.'')
-        | difference(all_receivers) | first | default(none) }}
-
-        '
+      local_receiver: "{{ area_entities(area_key) \n  | select('match','media_player.')
+        \n  | list \n  | intersect( label_entities('media_role_avr') \n    | select('match',
+        'media_player.') \n    | list)\n  | first\n  | default(none) }}\n"
+      local_media_player: "{{ area_entities(area_key) \n  | select('match','media_player.')
+        \n  | list \n  | intersect( label_entities('media_role_source_atv') \n      |
+        select('match', 'media_player.') \n      | list)\n  | first\n  | default(none)
+        }}\n"
       current_source: '{{ state_attr(local_receiver, ''source'') if local_receiver
         is not none else none }}'
       final_target: "{% if local_media_player is not none and state_attr(local_media_player,
@@ -3179,6 +3235,9 @@
           brightness_step_pct: 0
       payload:
         transition: 0.4
+  - alias: Temp Data Payload
+    variables:
+      raw_data_payload: '{{ trigger.event.data.data_payload }}'
   - parallel:
     - alias: CCT Lights Turn On
       if:
@@ -3224,58 +3283,12 @@
         target:
           entity_id: '{{ standard_lights }}'
         data: '{{ serv_data }}'
+  - action: logbook.log
+    data:
+      name: 'Light Call Source: {{ trigger.event.data.source_device }}'
+      message: 'Light Call Source: {{ trigger.event.data.source_device }}'
   mode: queued
   max: 5
-- id: '1765726951437'
-  alias: Override - Pet Feeder (Subscriber)
-  description: Subscriber and Responder for Pet Feeder Pico logic
-  triggers:
-  - trigger: event
-    event_type: lutron_caseta_button_event
-    event_data:
-      button_type: stop
-      action: press
-    id: button_press
-  - trigger: event
-    event_type: universal_controller_command
-    event_data:
-      action_type: pet_feeder
-    id: redirected_event
-  conditions: []
-  actions:
-  - choose:
-    - conditions:
-      - condition: trigger
-        id: button_press
-      sequence:
-      - variables:
-          feeder_serials:
-          - 69245860
-          - 69226042
-      - condition: template
-        value_template: '{{ trigger.event.data.serial in feeder_serials }}'
-      - delay:
-          milliseconds: 1
-      - event: pico_subscription
-        event_data:
-          session_id: '{{ trigger.event.context.id }}'
-          command_map:
-            press:
-              '3':
-                type: pet_feeder
-                value: portion
-            hold:
-              '3':
-                type: pet_feeder
-                value: portion
-    - conditions:
-      - condition: trigger
-        id: redirected_event
-      sequence:
-      - action: button.press
-        target:
-          entity_id: button.aqara_aqara_feeder_acn001_feed
-  mode: single
 - &id001
   id: '1765852842316'
   alias: Command - Pico Dispatcher - New DELETE
@@ -3825,11 +3838,13 @@
     event_type: zha_event
     event_data:
       device_ieee: 00:15:8d:00:01:98:d3:b8
-  conditions: []
+  conditions:
+  - condition: template
+    value_template: '{{ params is not none }}'
   actions:
   - variables:
       command: '{{ trigger.event.data.command | default('''') }}'
-      action: '{{ trigger.event.data.params.step_mode | string | default('''')}}'
+      action: '{{ trigger.event.data.params.step_mode | string | default('''') }}'
   - alias: Press Event
     event: universal_controller_command
     event_data:
@@ -3850,6 +3865,8 @@
       command_type: 'press_{{ command }}
 
         '
+  variables:
+    params: '{{ trigger.event.data.get(''params'', none) }}'
   mode: single
 - id: '1767986584386'
   alias: Command - Light Scene Cycle
@@ -3994,7 +4011,7 @@
       0 }}'
   - variables:
       area: '{{ area_id(dev_id) }}'
-      target_label: '{{ labels(dev_id) | reject(''eq'', ''momentary'') | first | default('''')
+      target_label: '{{ labels(dev_id) | reject(''eq'', ''momentary'') | list | default([])
         }}'
       event_count: 1
       is_hold: false
@@ -4120,6 +4137,9 @@
     enabled: false
   - variables:
       activity_key: '{{ trigger.event.data.action_value }}'
+      avr: '{{ states(''sensor.living_room_media_engine_role_avr'') }}'
+      tv: '{{ states(''sensor.living_room_media_engine_role_tv'') }}'
+      atv: '{{ states(''sensor.living_room_media_engine_role_atv'') }}'
   - alias: 1.1 Define VSX Audio Profile
     variables:
       VSX_A_Profile:
@@ -4130,7 +4150,7 @@
             action_type: source_select
             service: media_player.select_source
             target:
-              entity_id: media_player.vsx_933
+              entity_id: '{{ avr }}'
             data:
               source: CD
           '2':
@@ -4138,7 +4158,7 @@
             action_type: power_on
             service: media_player.turn_on
             target:
-              entity_id: media_player.samsung_the_frame_65_2
+              entity_id: '{{ tv }}'
           '3':
             mask: 256
             action_type: power_on
@@ -4150,7 +4170,7 @@
             action_type: mode_select
             service: media_player.select_sound_mode
             target:
-              entity_id: media_player.vsx_933
+              entity_id: '{{ avr }}'
             data:
               sound_mode: ALL CH STEREO
   - alias: 1.1 Define VSX Video Profile
@@ -4163,7 +4183,7 @@
             action_type: source_select
             service: media_player.select_source
             target:
-              entity_id: media_player.vsx_933
+              entity_id: '{{ avr }}'
             data:
               source: AirPlay
           '2':
@@ -4171,7 +4191,7 @@
             action_type: power_on
             service: media_player.turn_on
             target:
-              entity_id: media_player.samsung_the_frame_65_2
+              entity_id: '{{ tv }}'
           '3':
             mask: 512
             action_type: script_call
@@ -4184,7 +4204,7 @@
             action_type: mode_select
             service: media_player.select_sound_mode
             target:
-              entity_id: media_player.vsx_933
+              entity_id: '{{ avr }}'
             data:
               sound_mode: DIRECT
   - alias: 1.2 Define ATV Profile
@@ -4197,7 +4217,7 @@
             action_type: source_select
             service: media_player.select_source
             target:
-              entity_id: media_player.vsx_933
+              entity_id: '{{ avr }}'
             data:
               source: AppleTV
           '2':
@@ -4211,7 +4231,7 @@
             action_type: power_on
             service: media_player.turn_on
             target:
-              entity_id: media_player.samsung_the_frame_65_2
+              entity_id: '{{ tv }}'
           '4':
             mask: 512
             action_type: power_on
@@ -4223,7 +4243,7 @@
             action_type: mode_select
             service: media_player.select_sound_mode
             target:
-              entity_id: media_player.vsx_933
+              entity_id: '{{ avr }}'
             data:
               sound_mode: ENTERTAINMENT SHOW
   - alias: 1.2 Define ATV Profile
@@ -4241,7 +4261,7 @@
           '1024':
             action_type: power_on
             service: media_player.turn_on
-            target: media_player.samsung_the_frame_65_2
+            target: '{{ tv }}'
           '2048':
             action_type: power_on
             service: media_player.turn_on
@@ -4249,7 +4269,7 @@
           '4096':
             action_type: source_select
             service: media_player.select_source
-            target: media_player.vsx_933
+            target: '{{ avr }}'
             data: {}
     enabled: false
   - alias: 1.3 Define VIDEO2 Profile
@@ -4262,7 +4282,7 @@
             action_type: source_select
             service: media_player.select_source
             target:
-              entity_id: media_player.vsx_933
+              entity_id: '{{ avr }}'
             data:
               source: VIDEO2
           '2':
@@ -4270,7 +4290,7 @@
             action_type: power_on
             service: media_player.turn_on
             target:
-              entity_id: media_player.samsung_the_frame_65_2
+              entity_id: '{{ tv }}'
           '3':
             mask: 512
             action_type: power_on
@@ -4296,7 +4316,7 @@
             action_type: mode_select
             service: media_player.select_sound_mode
             target:
-              entity_id: media_player.vsx_933
+              entity_id: '{{ avr }}'
             data:
               sound_mode: DIRECT
   - alias: 2.0 Define Core Variables
@@ -5342,6 +5362,17 @@
     id: GotDark
   conditions: []
   actions:
+  - variables:
+      data_payload:
+        entity_id: '{{ trigger.entity_id }}'
+        state: '{{ trigger.to_state.state }}'
+        to_state:
+          attributes: '{{ trigger.to_state.attributes }}'
+          last_changed: '{{ trigger.to_state.attributes }}'
+          last_reported: '{{ trigger.to_state.last_reported }}'
+          last_updated: '{{ trigger.to_state.last_updated }}'
+          context:
+            id: '{{ trigger.to_state.context.id }}'
   - choose:
     - conditions:
       - condition: or
@@ -5362,7 +5393,6 @@
         state: 'off'
         enabled: false
       sequence:
-      - variables: {}
       - alias: Emit Generic Universal Controller Command Event
         event: universal_controller_command
         event_data:
@@ -5373,12 +5403,12 @@
 
             '
           command_input: turn_on
-          target_label: '{{ ''night_light'' if is_state(''binary_sensor.night_lights_sensor''
-            ,''on'') else ''main'' }}
+          target_label: '{{ [''night_light''] if is_state(''binary_sensor.night_lights_sensor''
+            ,''on'') else [''main''] }}
 
             '
           area_key: kitchen
-          data_payload: '{{ trigger }}'
+          data_payload: '{{ data_payload }}'
           overrides: {}
     - conditions:
       - condition: trigger
@@ -5394,7 +5424,7 @@
           command_input: turn_off
           target_label: ''
           area_key: kitchen
-          data_payload: '{{ trigger }}'
+          data_payload: '{{ data_payload }}'
           overrides: {}
       - delay: 00:30:00
         enabled: false
@@ -5453,7 +5483,8 @@
 
             '
           command_input: turn_on
-          target_label: main
+          target_label:
+          - main
           area_key: powder_room
           data_payload: '{{ trigger }}'
           overrides: {}
@@ -5476,7 +5507,8 @@
             action_type: light_call
             action_value: ''
             command_input: turn_off
-            target_label: main
+            target_label:
+            - main
             area_key: powder_room
             data_payload: '{{ trigger }}'
             overrides: {}
@@ -5506,7 +5538,8 @@
           action_type: light_call
           action_value: min
           command_input: turn_on
-          target_label: main
+          target_label:
+          - main
           area_key: powder_room
           data_payload: '{{ trigger }}'
           overrides: {}
@@ -5524,7 +5557,8 @@
           action_type: light_call
           action_value: ''
           command_input: turn_off
-          target_label: main
+          target_label:
+          - main
           area_key: powder_room
           data_payload: '{{ trigger }}'
           overrides: {}
@@ -5725,7 +5759,7 @@
         ','_') \n  | regex_replace(find='\\\\d+', replace='') \n  | default('unknown')
         }}\n"
       sensor_entity: sensor.pico_config_{{ device_id[:8] }}
-      target_label: '{{ '''' if target_device_name == ''remote'' else target_device_name
+      target_label: '{{ [] if target_device_name == ''remote'' else [target_device_name]
         }}'
       serial: '{{ trigger.event.data.serial | default(0) }}'
       button_number: '{{ trigger.event.data.button_number | default(0) }}'
@@ -5999,3 +6033,18 @@
       media_type: playlist
       radio_mode: true
   mode: restart
+- id: '1770589510327'
+  alias: Override - Pet Feeder (Subscriber)
+  description: Subscriber and Responder for Pet Feeder Pico logic
+  triggers:
+  - trigger: event
+    event_type: universal_controller_command
+    event_data:
+      action_type: pet_feeder
+    id: redirected_event
+  conditions: []
+  actions:
+  - action: button.press
+    target:
+      entity_id: button.aqara_aqara_feeder_acn001_feed
+  mode: single
