@@ -248,170 +248,253 @@ mark_office_lights:
 living_room_movie:
   sequence:
   - parallel:
-    - action: light.turn_on
-      metadata: {}
-      data:
-        brightness_pct: 50
-        color_temp_kelvin: '{{ states(''sensor.cct_calculation'') }}'
-      target:
-        entity_id:
-        - light.wall_sconce_right_down_light
-        - light.wall_sconce_left_down_light
-    - action: light.turn_off
-      metadata: {}
-      data: {}
-      target:
-        entity_id:
-        - light.hallway_back_ring_light
-        - light.dining_room_window_light_2
-        - light.dining_room_fireplace
-        - light.hallway_bar_servery
-        - light.wall_sconce_left_up_light
-        - light.wall_sconce_right_up_light
-        - light.living_room_lamp_right
-        - light.living_room_lamp_left
-        - light.living_room_main_bulb_1
-        - light.living_room_main_bulb_2
-        - light.living_room_main
+    - alias: Universal Controller Command Event - Living Room Wall Down
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: 120
+        command_input: turn_on
+        target_label:
+        - living_room_wall_down_light
+        area_key: living_room
+        data_payload: ''
+        overrides: {}
+    - alias: Universal Controller Command Event - Living Room Off
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: ''
+        command_input: turn_off
+        target_label:
+        - living_room_wall_up_light
+        - lamp
+        - main
+        area_key: living_room
+        data_payload: ''
+        overrides: {}
+    - alias: Universal Controller Command Event - Hallway Off
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: ''
+        command_input: turn_off
+        target_label:
+        - back
+        - bar
+        - ring
+        area_key: hallway
+        data_payload: ''
+        overrides: {}
+    - alias: Universal Controller Command Event - Dining Room Off
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: ''
+        command_input: turn_off
+        target_label:
+        - main
+        - front
+        area_key: dining_room
+        data_payload: ''
+        overrides: {}
   alias: Living Room 10. Movie
   description: ''
+  fields: {}
 living_room_day:
   sequence:
   - parallel:
-    - action: light.turn_on
-      metadata: {}
-      data:
-        brightness_pct: 50
-        color_temp_kelvin: '{{ states(''sensor.cct_calculation'') }}'
-      target:
-        entity_id:
-        - light.living_room_main_bulb_1
-        - light.living_room_main_bulb_2
-        - light.living_room_lamp_light
-        - light.living_room_lamp_left
-        - light.living_room_lamp_right
-    - action: light.turn_on
-      metadata: {}
-      data:
-        brightness_pct: '{{  states(''sensor.cct_percentage_2'') }}'
-      target:
-        entity_id:
-        - light.hallway_bar_servery
-    - action: light.turn_on
-      metadata: {}
-      data:
-        brightness_pct: 100
-        color_temp_kelvin: '{{ states(''sensor.cct_calculation'') }}'
-      target:
-        entity_id:
-        - light.wall_sconce_left_up_light
-        - light.wall_sconce_right_up_light
-        - light.wall_sconce_right_down_light
-        - light.wall_sconce_left_down_light
-    - action: light.turn_off
-      metadata: {}
-      data: {}
-      target:
-        entity_id:
-        - light.dining_room_main
-        - light.dining_room_window_light_2
-        - light.dining_room_fireplace
+    - alias: Universal Controller Command Event - Living Room On
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: 150
+        command_input: turn_on
+        target_label:
+        - lamp
+        - main
+        area_key: living_room
+        data_payload: ''
+        overrides: {}
+    - alias: Universal Controller Command Event - Living Room On
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: 255
+        command_input: turn_on
+        target_label:
+        - living_room_lamps
+        area_key: living_room
+        data_payload: ''
+        overrides: {}
+    - alias: Universal Controller Command Event - Hallway On
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: '{{ states(''sensor.cct_to_brightness'') | int }}'
+        command_input: turn_on
+        target_label:
+        - bar_servery
+        area_key: hallway
+        data_payload: ''
+        overrides: {}
+    - alias: Universal Controller Command Event - Dining Room Off
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: ''
+        command_input: turn_off
+        target_label:
+        - main
+        - front
+        area_key: dining_room
+        data_payload: ''
+        overrides: {}
   alias: Living Room 50. Day
   description: ''
 living_room_entertain:
   sequence:
   - parallel:
-    - action: light.turn_on
-      metadata: {}
-      data:
-        brightness_pct: 80
-        color_temp_kelvin: '{{ states(''sensor.cct_calculation'') | int(3200) }}'
-      target:
-        entity_id:
-        - light.living_room_lamp_right
-        - light.living_room_lamp_left
-        - light.living_room_main_bulb_1
-        - light.living_room_main_bulb_2
-    - action: light.turn_on
-      metadata: {}
-      data:
-        brightness_pct: 100
-        color_temp_kelvin: '{{ states(''sensor.cct_calculation'') | int(3200)  }}'
-      target:
-        entity_id:
-        - light.living_room_lamp_right
-        - light.living_room_lamp_left
-        - light.living_room_main_bulb_1
-        - light.living_room_main_bulb_2
-    - action: light.turn_off
-      metadata: {}
-      data: {}
-      target:
-        entity_id:
-        - light.dining_room_main
-        - light.hallway_back_ring
-    - action: light.turn_on
-      metadata: {}
-      data:
-        brightness_pct: 35
-      target:
-        entity_id:
-        - light.dining_room_fireplace
-    - action: light.turn_on
-      metadata: {}
-      data:
-        brightness: '{{ states(''sensor.cct_to_brightness'') | float(150) }}'
-      target:
-        entity_id:
-        - light.hallway_bar_servery
+    - alias: Universal Controller Command Event - Living Room On
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: 205
+        command_input: turn_on
+        target_label:
+        - lamp
+        - main
+        area_key: living_room
+        data_payload: ''
+        overrides: {}
+    - alias: Universal Controller Command Event - Living Room On
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: 255
+        command_input: turn_on
+        target_label:
+        - living_room_lamps
+        area_key: living_room
+        data_payload: ''
+        overrides: {}
+    - alias: Universal Controller Command Event - Hallway On
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: '{{ states(''sensor.cct_to_brightness'') | int }}'
+        command_input: turn_on
+        target_label:
+        - bar_servery
+        area_key: hallway
+        data_payload: ''
+        overrides: {}
+    - alias: Universal Controller Command Event - Hallway Off
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: ''
+        command_input: turn_off
+        target_label:
+        - ring
+        area_key: hallway
+        data_payload: ''
+        overrides: {}
+    - alias: Universal Controller Command Event - Dining Room Off
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: ''
+        command_input: turn_off
+        target_label:
+        - main
+        area_key: dining_room
+        data_payload: ''
+        overrides: {}
     - if:
       - condition: state
         entity_id: sun.sun
         state: below_horizon
       then:
-      - action: light.turn_on
-        metadata: {}
-        data:
-          brightness_pct: 100
-          color_temp_kelvin: '{{ states(''sensor.cct_calculation'') | int(3200)  }}'
-        target:
-          entity_id: light.dining_room_fireplace
+      - alias: Universal Controller Command Event - Dining Room On
+        event: universal_controller_command
+        event_data:
+          source_device: light_scene
+          action_type: light_call
+          action_value: 90
+          command_input: turn_on
+          target_label:
+          - front
+          - window
+          area_key: dining_room
+          data_payload: ''
+          overrides: {}
       else:
-      - action: light.turn_off
-        metadata: {}
-        data: {}
-        target:
-          entity_id: light.dining_room_fireplace
+      - alias: Universal Controller Command Event - Dining Room On
+        event: universal_controller_command
+        event_data:
+          source_device: light_scene
+          action_type: light_call
+          action_value: ''
+          command_input: turn_off
+          target_label:
+          - front
+          area_key: dining_room
+          data_payload: ''
+          overrides: {}
   alias: Living Room 80. Entertain
   description: ''
 living_room_lights_off:
   sequence:
-  - sequence:
-    - action: light.turn_off
-      metadata: {}
-      data: {}
-      target:
-        entity_id:
-        - light.hallway_back_ring_light
-        - light.dining_room_main
-        - light.dining_room_window_light_2
-        - light.dining_room_fireplace
-        - light.hallway_bar_servery
-        - light.wall_sconce_left_up_light
-        - light.wall_sconce_right_up_light
-        - light.wall_sconce_right_down_light
-        - light.wall_sconce_left_down_light
-        - light.living_room_lamp_right
-        - light.living_room_lamp_left
-        - light.living_room_main_bulb_1
-        - light.living_room_main_bulb_2
-  - action: select.select_option
-    metadata: {}
-    data:
-      option: '{{ this.entity_id }}'
-    enabled: false
-    target:
-      entity_id: select.living_room_lighting_selector
+  - parallel:
+    - alias: Universal Controller Command Event - Dining Room Off
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: ''
+        command_input: turn_off
+        target_label: []
+        area_key: dining_room
+        data_payload: ''
+        overrides: {}
+    - alias: Universal Controller Command Event - Hallway Off
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: ''
+        command_input: turn_off
+        target_label:
+        - back
+        - bar
+        - ring
+        area_key: hallway
+        data_payload: ''
+        overrides: {}
+    - alias: Universal Controller Command Event - Hallway Off
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: ''
+        command_input: turn_off
+        target_label: []
+        area_key: living_room
+        data_payload: ''
+        overrides: {}
   alias: Living Room 00. Lights Off
   description: ''
 kitchen_night_light:
@@ -1781,6 +1864,7 @@ art_mode_toggle_controller:
     data:
       name: Art Mode Controller
       message: Successfully toggled Art Mode for action '{{ action }}'.
+      entity_id: media_player.samsung_the_frame_65_2
     action: logbook.log
   fields:
     action:
@@ -1857,4 +1941,104 @@ basement_stairs_60_media_kitchen:
     data: {}
   fields: {}
   alias: Basement Stairs 60. Media & Kitchen
+  description: ''
+living_room_85_entertain_max:
+  sequence:
+  - parallel:
+    - alias: Universal Controller Command Event - Living Room On
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: 205
+        command_input: turn_on
+        target_label:
+        - lamp
+        - main
+        area_key: living_room
+        data_payload: ''
+        overrides: {}
+    - alias: Universal Controller Command Event - Living Room On
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: 255
+        command_input: turn_on
+        target_label:
+        - living_room_lamps
+        area_key: living_room
+        data_payload: ''
+        overrides: {}
+    - alias: Universal Controller Command Event - Hallway On
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: '{{ states(''sensor.cct_to_brightness'') | int }}'
+        command_input: turn_on
+        target_label:
+        - bar_servery
+        area_key: hallway
+        data_payload: ''
+        overrides: {}
+    - alias: Universal Controller Command Event - Hallway Off
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: ''
+        command_input: turn_off
+        target_label:
+        - ring
+        area_key: hallway
+        data_payload: ''
+        overrides: {}
+    - alias: Universal Controller Command Event - Dining Room Off
+      event: universal_controller_command
+      event_data:
+        source_device: light_scene
+        action_type: light_call
+        action_value: ''
+        command_input: turn_off
+        target_label:
+        - main
+        area_key: dining_room
+        data_payload: ''
+        overrides: {}
+    - if:
+      - condition: state
+        entity_id: sun.sun
+        state: below_horizon
+      then:
+      - alias: Universal Controller Command Event - Dining Room On
+        event: universal_controller_command
+        event_data:
+          source_device: light_scene
+          action_type: light_call
+          action_value: 190
+          command_input: turn_on
+          target_label:
+          - front
+          - window
+          - main
+          area_key: dining_room
+          data_payload: ''
+          overrides: {}
+      else:
+      - alias: Universal Controller Command Event - Dining Room On
+        event: universal_controller_command
+        event_data:
+          source_device: light_scene
+          action_type: light_call
+          action_value: ''
+          command_input: turn_off
+          target_label:
+          - front
+          - main
+          - window
+          area_key: dining_room
+          data_payload: ''
+          overrides: {}
+  alias: Living Room 85. Entertain Max
   description: ''

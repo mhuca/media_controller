@@ -63,6 +63,9 @@ sensor:
             - 9.9171 -> 7.9830
         # Normalize for plug load
         - lambda: if (x < 0.0260) return 0; else return (x - 0.0260);
+# --- NOISE REDUCTION FILTERS ---
+        - delta: 0.2        # Only send to HA if power changes by > 2 Watts
+        - heartbeat: 60s    # But send an update at least once a minute
     voltage:
       name: "${friendly_name} Voltage"
       icon: mdi:lightning-bolt-circle
@@ -84,6 +87,9 @@ sensor:
             - 2043.0282 -> 885.0000
         # Normalize for plug load
         - lambda: if (x < 1.5600) return 0; else return (x - 1.5600);
+# --- NOISE REDUCTION FILTERS ---
+        - delta: 2.0        # Only send to HA if power changes by > 2 Watts
+        - heartbeat: 60s    # But send an update at least once a minute
       on_value:
         then:
           - if:
@@ -107,7 +113,7 @@ sensor:
                             title: "🛑 ESPHome SHUTDOWN"
                             message: "Local watchdog killed HotMaster after 10m continuous draw."
     change_mode_every: 1
-    update_interval: 2s
+    update_interval: 5s
 
   - platform: total_daily_energy
     name: "${friendly_name} Total Energy"

@@ -47,7 +47,7 @@ sensor:
         {% set bright_min = 115 %}
         {% set bright_max = 255 %}
         
-        {{ this.state | int(3200) | remap(temp_min, temp_max, bright_min, bright_max) | int }}
+        {{ this.state | int(3200) | remap(temp_min, temp_max, bright_min, bright_max, default=190) | int }}
 
   - name: "CCT to Brightness Core"
     unique_id: cct_to_brightness

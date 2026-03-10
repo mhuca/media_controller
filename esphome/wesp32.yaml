@@ -67,7 +67,7 @@ web_server:
 binary_sensor:
   - id: pin_23
     platform: gpio
-    name: "Garage Door Sensor"
+    name: "Mud Room Door Sensor"
     pin: 
       number: 23
       inverted: false

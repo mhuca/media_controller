@@ -4,8 +4,8 @@ api:
     key: "GsXMDLB71N6ioTk2yETmiYHt/c2EzcJEVkE+ckR0Et4="
 
 substitutions:
-  name: olimex-ea-ld2410-2
-  friendly_name: Olimex EA LD2410
+  name: olimex-ea-ld2410
+  friendly_name: Family Room Presence
   board: esp32-poe-iso
 
 #packages:
@@ -24,28 +24,61 @@ esp32:
     type: esp-idf
 
 ethernet:
-  clk_mode: GPIO17_OUT
-  phy_addr: 0
   type: LAN8720
-  power_pin: GPIO12
   mdc_pin: GPIO23
   mdio_pin: GPIO18
+  clk:
+    pin: GPIO17
+    mode: CLK_OUT
+  phy_addr: 0
+  power_pin: GPIO12
+  manual_ip:
+    static_ip: 10.0.168.149
+    gateway: 10.0.168.1
+    subnet: 255.255.255.0
+  # clk_mode: GPIO17_OUT
+  # phy_addr: 0
+  # type: LAN8720
+  # power_pin: GPIO12
+  # mdc_pin: GPIO23
+  # mdio_pin: GPIO18
+   # Optional manual IP
+
 
 # Enable logging
 logger:
 
+web_server:
+  port: 80
+
+# ota:
+  # - platform: web_server  
+  # WARNING BLE components require 4 connection slot(s) but only 3 configured. 
+  # Please set 'max_connections: 4' in the 'esp32_ble' component. 
+  # Components: bluetooth_proxy, bluetooth_proxy, bluetooth_proxy, bluetooth_proxy
+
 ota:
   platform: esphome
 
-esp32_ble_tracker:
-  scan_parameters:
-    interval: 1100ms
-    window: 1100ms
-    active: true
+esp32_ble:
+  io_capability: keyboard_only
+  disable_bt_logs: true  # Default, saves flash
+  connection_timeout: 20s  # Default, matches client timeout
+  max_connections: 4  # Default, total BLE connections
+  # advertising: true  # Only needed for advanced use cases
+  max_notifications: 12  # Default, increase if needed
+
+# esp32_ble_tracker:
+#   scan_parameters:
+#     interval: 1100ms
+#     window: 1100ms
+#     active: true
+#   max_connections: 4
 
 bluetooth_proxy:
   active: true
   connection_slots: 4
+  
 
 uart:
   tx_pin: GPIO01
@@ -72,6 +105,7 @@ number:
     optimistic: true
     restore_value: true
     initial_value: 10
+    internal: true
     icon: "mdi:arrow-collapse-right"
     entity_category: CONFIG
 
@@ -88,6 +122,7 @@ number:
     optimistic: true
     restore_value: true
     initial_value: 36
+    internal: true
     icon: "mdi:arrow-collapse-right"
     entity_category: CONFIG
 
@@ -104,61 +139,83 @@ number:
     optimistic: true
     restore_value: true
     initial_value: 100
+    internal: true
     icon: "mdi:arrow-collapse-right"
     entity_category: CONFIG
 
   - platform: ld2410
     timeout:
       name: Radar Timeout
+      internal: true
     max_move_distance_gate:
       name: Radar Max Move Distance
+      internal: true
     max_still_distance_gate:
       name: Radar Max Still Distance
+      internal: true
     g0:
       move_threshold:
         name: g0 move threshold
+        internal: true
       still_threshold:
         name: g0 still threshold
+        internal: true
     g1:
       move_threshold:
         name: g1 move threshold
+        internal: true
       still_threshold:
         name: g1 still threshold
+        internal: true
     g2:
       move_threshold:
         name: g2 move threshold
+        internal: true
       still_threshold:
         name: g2 still threshold
+        internal: true
     g3:
       move_threshold:
         name: g3 move threshold
+        internal: true
       still_threshold:
         name: g3 still threshold
+        internal: true
     g4:
       move_threshold:
         name: g4 move threshold
+        internal: true
       still_threshold:
         name: g4 still threshold
+        internal: true
     g5:
       move_threshold:
         name: g5 move threshold
+        internal: true
       still_threshold:
         name: g5 still threshold
+        internal: true
     g6:
       move_threshold:
         name: g6 move threshold
+        internal: true
       still_threshold:
         name: g6 still threshold
+        internal: true
     g7:
       move_threshold:
         name: g7 move threshold
+        internal: true
       still_threshold:
         name: g7 still threshold
+        internal: true
     g8:
       move_threshold:
         name: g8 move threshold
+        internal: true
       still_threshold:
         name: g8 still threshold
+        internal: true
 
 binary_sensor:
   - platform: ld2410
@@ -207,58 +264,81 @@ sensor:
     moving_distance:
       name: Radar Moving Distance
       id: moving_distance
+      internal: true
     still_distance:
       name: Radar Still Distance
       id: still_distance
+      internal: true
     moving_energy:
       name: Radar Move Energy
+      internal: true
     still_energy:
       name: Radar Still Energy
+      internal: true
     detection_distance:
       name: Radar Detection Distance
       id: radar_detection_distance
+      internal: true
     g0:
       move_energy:
         name: g0 move energy
+        internal: true
       still_energy:
         name: g0 still energy
+        internal: true
     g1:
       move_energy:
         name: g1 move energy
+        internal: true
       still_energy:
         name: g1 still energy
+        internal: true
     g2:
       move_energy:
         name: g2 move energy
+        internal: true
       still_energy:
         name: g2 still energy
+        internal: true
     g3:
       move_energy:
         name: g3 move energy
+        internal: true
       still_energy:
         name: g3 still energy
+        internal: true
     g4:
       move_energy:
         name: g4 move energy
+        internal: true
       still_energy:
         name: g4 still energy
+        internal: true
     g5:
       move_energy:
         name: g5 move energy
+        internal: true
       still_energy:
         name: g5 still energy
+        internal: true
     g6:
       move_energy:
         name: g6 move energy
+        internal: true
       still_energy:
         name: g6 still energy
+        internal: true
     g7:
       move_energy:
         name: g7 move energy
+        internal: true
       still_energy:
         name: g7 still energy
+        internal: true
     g8:
       move_energy:
         name: g8 move energy
+        internal: true
       still_energy:
         name: g8 still energy
+        internal: true

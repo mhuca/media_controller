@@ -56,7 +56,7 @@ sensor:
       {% if mask == 0 %}
         Vacant / Off
       {% elif (mask | bitwise_and(16384)) %}
-        PlexAmp (House Music)
+        Music
       {% elif (mask | bitwise_and(8192)) %}
         Listening via AirPlay
       {% elif (mask | bitwise_and(4096)) %}
