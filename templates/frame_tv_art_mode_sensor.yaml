@@ -1,58 +1,57 @@
 binary_sensor:
-- name: "Art Mode Frame TV"
-  unique_id: art_mode_frame_tv
-  state: >
-    {% set tv_power = states('sensor.frame_tv_power_energy_power') | float(0) %}
-    {% set intent_bool = is_state('input_boolean.art_mode_intent', 'on') %}
-    {% set physical_art = (15 < tv_power < 80) %}
-    {% set atv_playing = states('media_player.living_room_atv') in ['playing']  %}
-    
-    {# Logic: Only use the Boolean if it was changed VERY recently (5 seconds) #}
-    {# Otherwise, ALWAYS trust the physical power meter #}
-    {% set last_changed = as_timestamp(states.input_boolean.art_mode_intent.last_changed | default(0)) %}
-    {% if (as_timestamp(now()) - last_changed) < 10 %}
-        {{ intent_bool }}
-    {% elif atv_playing %}
-        {{ false }}
-    {% else %}
-        {{ physical_art }}
-    {% endif %}
-  delay_on: "00:00:02"
-  delay_off: "00:00:02"
-  
+  - name: "Art Mode Frame TV"
+    unique_id: art_mode_frame_tv
+    state: >
+      {% set tv_power = states('sensor.living_room_media_frame_tv_power') | float(0) %}
+      {% set intent_bool = is_state('input_boolean.living_room_art_mode_intent', 'on') %}
+      {% set physical_art = (15 < tv_power < 95) %}
+      {% set atv_playing = states('media_player.living_room_atv') in ['playing']  %}
 
-- name: "Frame Physical Art State"
-  unique_id: frame_physical_art_state
-  device_class: light
-  state: >
-    {% set power = states('sensor.frame_tv_power_energy_power') | float(0) %}
-    {% set atv_active = is_state('media_player.living_room_atv', 'playing') %}
-    {# True only if power is in 'Art' range and Apple TV is NOT playing #}
-    {{ 15 < power < 80 and not atv_active }}
-  delay_on: "00:00:05"
-  delay_off: "00:00:05"
-  
+      {# Logic: Only use the Boolean if it was changed VERY recently (5 seconds) #}
+      {# Otherwise, ALWAYS trust the physical power meter #}
+      {% set last_changed = as_timestamp(states.input_boolean.living_room_art_mode_intent.last_changed | default(0)) %}
+      {% if (as_timestamp(now()) - last_changed) < 10 %}
+          {{ intent_bool }}
+      {% elif atv_playing %}
+          {{ false }}
+      {% else %}
+          {{ physical_art }}
+      {% endif %}
+    delay_on: "00:00:02"
+    delay_off: "00:00:02"
+
+  - name: "Frame Physical Art State"
+    unique_id: frame_physical_art_state
+    device_class: light
+    state: >
+      {% set power = states('sensor.living_room_media_frame_tv_power') | float(0) %}
+      {% set atv_active = is_state('media_player.living_room_atv', 'playing') %}
+      {# True only if power is in 'Art' range and Apple TV is NOT playing #}
+      {{ 15 < power < 95 and not atv_active }}
+    delay_on: "00:00:05"
+    delay_off: "00:00:05"
+
 switch:
-- name: "The Frame Art Mode"
-  unique_id: the_frame_art_mode_modern
-  state: "{{ is_state('input_boolean.art_mode_intent', 'on') }}"
-  icon: "{{ 'mdi:palette' if is_state('input_boolean.art_mode_intent', 'on') else 'mdi:palette-outline' }}"
-  turn_on:
-    action: script.art_mode_toggle_controller
-    data:
-      action: "enable"
-  turn_off:
-    action: script.art_mode_toggle_controller
-    data:
-      action: "disable"
-  
+  - name: "The Frame Art Mode"
+    unique_id: the_frame_art_mode_modern
+    state: "{{ is_state('input_boolean.living_room_art_mode_intent', 'on') }}"
+    icon: "{{ 'mdi:palette' if is_state('input_boolean.living_room_art_mode_intent', 'on') else 'mdi:palette-outline' }}"
+    turn_on:
+      action: script.art_mode_toggle_controller
+      data:
+        action: "enable"
+    turn_off:
+      action: script.art_mode_toggle_controller
+      data:
+        action: "disable"
+
 sensor:
   - name: "Living Room Current Activity"
     unique_id: living_room_current_activity
     icon: mdi:play-box-multiple
     state: >
       {% set mask = states('sensor.living_room_media_current_state_mask') | int(0) %}
-      
+
       {% if mask == 0 %}
         Vacant / Off
       {% elif (mask | bitwise_and(16384)) %}
@@ -74,4 +73,3 @@ sensor:
       active_bits: >
         {% set mask = states('sensor.living_room_media_current_state_mask') | int(0) %}
         {{ mask }}
-        

@@ -1,0 +1,41 @@
+# ==========================================
+# 1. INTENT SENSOR: What the room SHOULD be
+# ==========================================
+trigger:
+  - trigger: state
+    entity_id: input_select.living_room_media_activity
+  - trigger: homeassistant
+    event: start
+  - trigger: event
+    event_type: event_template_reloaded
+sensor:
+  - name: "Living Room Media Intent"
+    unique_id: "living_room_media_intent"
+    icon: "mdi:target"
+    state: "{{ states('input_select.living_room_media_activity') | default('Power Off', true) }}"
+    attributes:
+      # Define the Map ONCE here.
+      activity_map: >
+        {% set map = {
+          'Plex':     {'bits': [1, 2, 4, 128], 'source': 'AppleTV', 'sound': 'ENTERTAINMENT SHOW', 'app': 'Plex', 'remote_cmd': 'none'},
+          'YouTube':  {'bits': [1, 2, 4, 128], 'source': 'AppleTV', 'sound': 'ENTERTAINMENT SHOW', 'app': 'YouTube', 'remote_cmd': 'none'},
+          'Netflix':  {'bits': [1, 2, 4, 128], 'source': 'AppleTV', 'sound': 'ENTERTAINMENT SHOW', 'app': 'Netflix', 'remote_cmd': 'none'},
+          'Music':    {'bits': [1, 2, 64],     'source': 'AppleTV', 'sound': 'ALL CH STEREO',      'app': 'none', 'remote_cmd': 'none'},
+          'Security': {'bits': [1, 2, 8, 128], 'source': 'VIDEO2',  'sound': 'STEREO',             'app': 'none', 'remote_cmd': 'none'},
+          'Power Off':{'bits': [],             'source': 'none',    'sound': 'none',               'app': 'none', 'remote_cmd': 'none'}
+        } %}
+        {{ map }}
+
+      # Helper attributes for easy access in Automations
+      current_activity: "{{ states('input_select.living_room_media_activity') }}"
+      active_config: "{{ this.attributes.get('activity_map', {}).get(current_activity, {}) }}"
+      target_mask: "{{ this.attributes.get('activity_map', {}).get(current_activity, {}).get('bits', []) | sum | int }}"
+      target_sound_mode: "{{ this.attributes.get('activity_map', {}).get(current_activity, {}).get('sound', 'none') }}"
+      target_avr_source: "{{ this.attributes.get('activity_map', {}).get(current_activity, {}).get('source', 'none') }}"
+      target_app_name: "{{ this.attributes.get('activity_map', {}).get(current_activity, {}).get('app', 'none') }}"
+      target_remote_cmd: "{{ this.attributes.get('activity_map', {}).get(current_activity, {}).get('remote_cmd', 'none') }}"
+
+      # target_mask: "{{ (this.attributes.get('active_config', {}).get('bits', [])) | sum | int }}"
+      # target_sound_mode: "{{ this.attributes.get('active_config', {}).get('sound', 'none') }}"
+      # target_avr_source: "{{ this.attributes.get('active_config', {}).get('source', 'none') }}"
+      # target_app_name: "{{ this.attributes.get('active_config', {}).get('app', 'none') }}"

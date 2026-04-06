@@ -1,0 +1,135 @@
+# Home Assistant Template Sensor
+# Purpose: Aggregates TV, Apple TV, AVR, and Art Mode states into a single chronologically sorted event string.
+
+sensor:
+  - name: "Living Room Media Events"
+    unique_id: "living_room_media_event_log"
+    icon: "mdi:history"
+    state: |
+      {% set area_id = 'living_room' %}
+
+      {# 1. Identify Devices by Role Label #}
+      {% set tv_dev = label_devices('media_role_tv') | select('in', area_devices(area_id)) | first | default('none') %}
+      {% set atv_dev = label_devices('media_role_source_atv') | select('in', area_devices(area_id)) | first | default('none') %}
+
+      {# 2. Resolve Entities #}
+      {% set tv = device_entities(tv_dev) | select('match', 'media_player\.') | first | default('none') %}
+      {% set atv = device_entities(atv_dev) | select('match', 'media_player\.') | first | default('none') %}
+      {% set avr = label_entities('media_role_avr') | select('in', area_entities(area_id)) | first | default('none') %}
+
+      {# Identify Art Mode Sensor by Label (e.g., 'media_role_art_sensor') #}
+      {% set art_mode = label_entities('media_role_art_sensor') | select('in', area_entities(area_id)) | first | default('none') %}
+
+      {% set events = [] %}
+
+      {# 3. TV & ATV: Track State Changes ONLY (last_changed) #}
+      {% for ent in [tv, atv] if ent != 'none' %}
+        {% if states(ent) != 'unknown' %}
+          {% set events = events + [ as_timestamp(states[ent].last_changed) ~ '@' ~ ent ~ '@state@' ~ states[ent].state ] %}
+        {% endif %}
+      {% endfor %}
+
+      {# 4. Track Confirmed Art Mode Transitions #}
+      {% if art_mode != 'none' and states(art_mode) != 'unknown' %}
+        {% set events = events + [ as_timestamp(states[art_mode].last_changed) ~ '@' ~ art_mode ~ '@connectivity@' ~ states(art_mode) ] %}
+      {% endif %}
+
+      {# 5. AVR: Track Attribute Updates ONLY (last_updated) #}
+      {% if avr != 'none' %}
+        {% set avr_s = states[avr] %}
+        {% if avr_s != none %}
+          {% set events = events + [ as_timestamp(avr_s.last_updated) ~ '@' ~ avr ~ '@source@' ~ (avr_s.attributes.source | default('unknown')) ] %}
+          {% set events = events + [ as_timestamp(avr_s.last_updated) ~ '@' ~ avr ~ '@sound_mode@' ~ (avr_s.attributes.sound_mode | default('unknown')) ] %}
+        {% endif %}
+      {% endif %}
+
+      {# 6. Output: Latest relevant event (Format: Timestamp@Entity@Attribute@Value) #}
+      {{ (events | sort(reverse=true) | first) if events | count > 0 else 'none' }}
+
+  # Home Assistant Template Sensor
+  # Purpose: Calculates an 8-bit Standardized Media Bitmask and provides "Snapshot" metadata.
+  # Standard Map: 1:AVR, 2:TV, 4:ATV, 8:INT, 64:ART, 128:VID
+
+  # - name: "Living Room Media Bitmask"
+  #   unique_id: "living_room_media_bitmask"
+  #   icon: "mdi:binary"
+  #   state: |
+  #     {% set area_id = 'living_room' %}
+
+  #     {# 1. Identify Entities via Labels #}
+  #     {% set tv_dev = label_devices('media_role_tv') | select('in', area_devices(area_id)) | first | default('none') %}
+  #     {% set tv = device_entities(tv_dev) | select('match', 'media_player\.') | first | default('none') %}
+  #     {% set atv_dev = label_devices('media_role_source_atv') | select('in', area_devices(area_id)) | first | default('none') %}
+  #     {% set atv = device_entities(atv_dev) | select('match', 'media_player\.') | first | default('none') %}
+  #     {% set avr = label_entities('media_role_avr') | select('in', area_entities(area_id)) | first | default('none') %}
+  #     {% set art = label_entities('media_role_art_sensor') | select('in', area_entities(area_id)) | first | default('none') %}
+  #     {% set interconnect = label_entities('media_role_interconnect') | select('in', area_entities(area_id)) | first | default('none') %}
+
+  #     {# 2. Physical States #}
+  #     {% set avr_on = 1 if is_state(avr, 'on') else 0 %}
+  #     {% set tv_on = 2 if is_state(tv, 'on') else 0 %}
+  #     {% set atv_on = 4 if is_state(atv, 'on') else 0 %}
+  #     {% set int_on = 8 if is_state(interconnect, 'on') else 0 %}
+
+  #     {# Posture Logic: Checks the ESPHome 'Confirmed Art Mode' sensor #}
+  #     {% set art_active = is_state(art, 'on') if art != 'none' else false %}
+  #     {% set art_on = 64 if (is_state(tv, 'on') and art_active) else 0 %}
+  #     {% set vid_on = 128 if (is_state(tv, 'on') and not art_active) else 0 %}
+
+  #     {{ (avr_on + tv_on + atv_on + int_on + art_on + vid_on) | int }}
+
+  #   attributes:
+  #     current_snapshot: |
+  #       {% set m = states('sensor.living_room_media_bitmask') | int(0) %}
+  #       {% set s = [] %}
+  #       {% if m | bitwise_and(1) %}{% set s = s + ['AVR'] %}{% endif %}
+  #       {% if m | bitwise_and(2) %}{% set s = s + ['TV'] %}{% endif %}
+  #       {% if m | bitwise_and(4) %}{% set s = s + ['ATV'] %}{% endif %}
+  #       {% if m | bitwise_and(8) %}{% set s = s + ['INT'] %}{% endif %}
+  #       {% if m | bitwise_and(64) %}{% set s = s + ['ART'] %}{% endif %}
+  #       {% if m | bitwise_and(128) %}{% set s = s + ['VID'] %}{% endif %}
+  #       {{ s | join('|') if s | count > 0 else 'OFF' }}
+
+  #     activity_metadata: |
+  #       {% set activities = {
+  #         'Plex':     {'bits': [1, 2, 4, 128], 'source': 'AppleTV', 'sound': 'ENTERTAINMENT SHOW', 'app': 'Plex'},
+  #         'YouTube':  {'bits': [1, 2, 4, 128], 'source': 'AppleTV', 'sound': 'ENTERTAINMENT SHOW', 'app': 'YouTube'},
+  #         'Netflix':  {'bits': [1, 2, 4, 128], 'source': 'AppleTV', 'sound': 'ENTERTAINMENT SHOW', 'app': 'Netflix'},
+  #         'Music':    {'bits': [1, 2, 64],     'source': 'AppleTV', 'sound': 'ALL CH STEREO',      'app': 'none'},
+  #         'Security': {'bits': [1, 2, 8, 128], 'source': 'VIDEO2',   'sound': 'STEREO',             'app': 'none'},
+  #         'Power Off':{'bits': [],             'source': 'none',     'sound': 'none',               'app': 'none'}
+  #       } %}
+  #       {% set current_act = states('input_select.living_room_media_activity') %}
+  #       {% set act = activities.get(current_act, activities['Power Off']) %}
+
+  #       {% set ns = namespace(m=0) %}
+  #       {% for b in act.bits %}{% set ns.m = ns.m + b %}{% endfor %}
+
+  #       {{ {'target_mask': ns.m, 'avr_source': act.source, 'sound_mode': act.sound, 'app_name': act.app} }}
+
+  #     target_mask: "{{ (this.attributes.activity_metadata).target_mask | int(0) }}"
+  #     target_sound_mode: "{{ (this.attributes.activity_metadata).sound_mode }}"
+  #     target_avr_source: "{{ (this.attributes.activity_metadata).avr_source }}"
+  #     target_app_name: "{{ (this.attributes.activity_metadata).app_name }}"
+
+  #     posture_ok: "{{ states('sensor.living_room_media_bitmask') | int == this.attributes.target_mask | int }}"
+
+  #     sound_mode_ok: |
+  #       {% set avr = label_entities('media_role_avr') | select('in', area_entities('living_room')) | first | default('none') %}
+  #       {% if avr != 'none' %}
+  #         {% set current = state_attr(avr, 'sound_mode') | string | lower %}
+  #         {% set target = this.attributes.target_sound_mode | string | lower %}
+  #         {{ current == target }}
+  #       {% else %}
+  #         {{ this.attributes.target_sound_mode == 'none' }}
+  #       {% endif %}
+
+  #     app_ok: |
+  #       {% set atv = label_entities('media_role_source_atv') | select('in', area_entities('living_room')) | first | default('none') %}
+  #       {% set target = this.attributes.target_app_name %}
+  #       {% if target == 'none' %} true
+  #       {% elif atv != 'none' %} {{ is_state_attr(atv, 'source', target) }}
+  #       {% else %} false
+  #       {% endif %}
+
+  #     in_sync: "{{ this.attributes.posture_ok and this.attributes.sound_mode_ok and this.attributes.app_ok }}"

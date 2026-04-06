@@ -1,10 +1,14 @@
 substitutions:
   name: powder-room
   friendly_name: Powder Room
+  area_key: powder_room
   event: nodered_automation
   button: button
   short_name: Speed
   board: esp01_1m
+  is_true: "true"
+  is_false: "false"
+
 
 esphome:
   project:
@@ -179,6 +183,18 @@ fan:
         - globals.set:
             id: glbl_relay_state
             value: "false"
+        - homeassistant.event:
+            event: esphome.lighting_registry_update
+            data:
+              action: add
+              area_key: ${area_key}
+              seconds: '5'
+              locked: "false"
+              skip_warning: "true"
+              timestamp: !lambda 'return str_sprintf("%.0f", id(esptime).now().timestamp);'
+        - delay: 500ms
+        - homeassistant.event:
+            event: esphome.start_registry_cleaner
         - if:
             condition:
               lambda: 'return id(_timer_tick).is_running();'

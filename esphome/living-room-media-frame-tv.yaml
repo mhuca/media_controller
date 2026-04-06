@@ -1,0 +1,181 @@
+substitutions:
+  name: "living-room-media-frame-tv"
+  friendly_name: "Living Room Media Frame TV"
+  project_version: "1.6.1-SAFE-MODE-FIX"
+  standby_threshold: "55.0"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  name_add_mac_suffix: false
+
+esp8266:
+  board: esp8285 
+
+packages:
+  wifi: !include common/wifi.yaml
+
+# New top-level safe_mode component (replaces old oa: safe_mode)
+safe_mode:
+  num_attempts: 10
+  reboot_timeout: 1min
+
+web_server:
+  port: 80
+
+captive_portal:
+
+api:
+  reboot_timeout: 0s
+  services:
+    # Service 1: The Instant Handshake (For transitions)
+    - service: predict_art_mode
+      then:
+        - globals.set:
+            id: last_art_transition_time
+            value: !lambda "return millis();"
+        - logger.log: "Predictive Handshake: Art Mode engaged by HA"
+
+    # Service 2: The Source of Truth (For continuous sync)
+    # Mode 0: OFF, Mode 1: ART, Mode 2: VIDEO
+    - service: set_target_mode
+      variables:
+        mode: int
+      then:
+        - globals.set:
+            id: target_matrix_mode
+            value: !lambda "return mode;"
+        - logger.log:
+            format: "Target Mode Sync: HA set hardware target to %d"
+            args: ["mode"]
+
+ota:
+  - platform: esphome
+
+logger:
+  level: DEBUG
+  baud_rate: 0 
+
+globals:
+  - id: pulse_count
+    type: int
+    restore_value: no
+    initial_value: "0"
+  - id: last_art_transition_time
+    type: uint32
+    restore_value: no
+    initial_value: "0"
+  - id: target_matrix_mode
+    type: int
+    restore_value: no
+    initial_value: "0" # 0=Unknown/Off, 1=Art, 2=Video
+
+sensor:
+  - platform: template
+    name: "TV Power Delta"
+    id: tv_power_delta
+    update_interval: 1s
+    unit_of_measurement: "W"
+    accuracy_decimals: 2
+    lambda: |-
+      static float last_read = -1.0;
+      float current_read = id(raw_power).state;
+      if (std::isnan(current_read) || last_read < 0) {
+        if (!std::isnan(current_read)) last_read = current_read;
+        return 0.0;
+      }
+      float delta = abs(current_read - last_read);
+      last_read = current_read;
+      
+      if (delta >= 1.0) {
+        id(last_art_transition_time) = millis();
+        ESP_LOGD("custom", "Hardware Pulse Detected");
+      }
+
+      if (delta >= 0.18 && delta < 0.6) {
+        id(pulse_count) += 1;
+      }
+      return delta;
+
+  - platform: template
+    name: "TV Stability Score"
+    id: tv_stability_score
+    update_interval: 20s 
+    unit_of_measurement: "pulses"
+    lambda: |-
+      int pulses = id(pulse_count);
+      id(pulse_count) = 0; 
+      return (float)pulses;
+
+  - platform: hlw8012
+    sel_pin: { number: GPIO12, inverted: true }
+    cf_pin: GPIO4
+    cf1_pin: GPIO5
+    voltage_divider: 780 
+    current_resistor: 0.001
+    change_mode_every: 1 
+    update_interval: 2s 
+    power:
+      id: raw_power
+      name: "Power"
+      unit_of_measurement: W
+      filters:
+        - sliding_window_moving_average:
+            window_size: 5
+            send_every: 1
+        - calibrate_linear:
+            - 0.0000 -> 0.5900
+            - 0.0000 -> 1.5600
+            - 198.5129 -> 87.8300
+            - 434.2469 -> 189.5000
+        - lambda: if (x < 1.5600) return 0; else return (x - 1.5600);
+
+binary_sensor:
+  - platform: template
+    name: "Confirmed Art Mode"
+    id: confirmed_art_mode
+    device_class: connectivity
+    lambda: |-
+      float p = id(raw_power).state;
+      float s = id(tv_stability_score).state;
+      int target = id(target_matrix_mode);
+      uint32_t now_ms = millis();
+      uint32_t last_pulse = id(last_art_transition_time);
+      
+      if (std::isnan(p) || p < ${standby_threshold}) return false;
+
+      // CLOSED LOOP OVERRIDE: If HA explicitly says we are in Video mode, 
+      // believe it immediately and ignore the pulse logic.
+      if (target == 2) return false; 
+      
+      // If HA says we are in Art mode, or we saw a pulse, lock it in.
+      if (target == 1) return true;
+      if ((now_ms - last_pulse) < 200000) return true;
+
+      // Fallback: No Apple TV jitters = Art Mode
+      return (s == 0);
+    filters:
+      - delayed_on: 5s 
+      - delayed_off: 10s
+
+text_sensor:
+  - platform: template
+    name: "Matrix Mode"
+    id: matrix_mode_sensor
+    lambda: |-
+      float p = id(raw_power).state;
+      if (std::isnan(p) || p < ${standby_threshold}) return {"OFF"};
+      if (id(confirmed_art_mode).state) return {"ART"};
+      return {"VIDEO"};
+
+switch:
+  - platform: gpio
+    name: "TV Power Relay"
+    pin: GPIO14
+    id: relay
+    restore_mode: ALWAYS_ON
+
+status_led:
+  pin:
+    number: GPIO13
+    inverted: true

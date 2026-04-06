@@ -1,0 +1,55 @@
+sensor:
+  - name: "Media Matrix Status"
+    unique_id: media_matrix_status_unified
+    icon: >
+      {% if is_state('sensor.media_matrix_sync_check', 'Synchronized') %}
+        mdi:matrix
+      {% else %}
+        mdi:matrix-wait
+      {% endif %}
+    state: >
+      {% set area = "living_room" %}
+      {{ states('select.media_matrix_select_' ~ area) | default('OFF') }}
+    attributes:
+      # 1. PHYSICAL BIT RECONSTRUCTION (The "Auditor" in Sensor form)
+      current_mask: >
+        {% set area = "living_room" %}
+        {% set avr = label_entities('media_role_avr') | select('in', area_entities(area)) | first | default('none') %}
+        {% set tv = label_entities('media_role_tv') | select('in', area_entities(area)) | first | default('none') %}
+        {% set src = label_entities('media_role_source_atv') | select('in', area_entities(area)) | first | default('none') %}
+
+        {% set bit_avr_pwr = 32768 if is_state(avr, 'on') else 0 %}
+        {% set bit_tv_pwr = 1024 if is_state(tv, 'on') else 0 %}
+        {% set bit_src_pwr = 2048 if is_state(src, 'on') else 0 %}
+
+        {# Source Index Calculation (Bits 12-14) #}
+        {% set source_list = state_attr(avr, 'source_list') | default([]) %}
+        {% set current_source = state_attr(avr, 'source') %}
+        {% set src_idx = source_list.index(current_source) if current_source in source_list else 0 %}
+        {% set bit_src_idx = (src_idx * 4096) %}
+
+        {{ (bit_avr_pwr + bit_tv_pwr + bit_src_pwr + bit_src_idx) | int }}
+
+      # 2. TARGET TRACKING (From the Listener's Last Command)
+      target_mask: "{{ state_attr('sensor.media_matrix_active_intent_' ~ 'living_room', 'target_mask') | default(0) }}"
+
+      # 3. DIAGNOSTIC CHECKLIST
+      alignment_report: >
+        {% set curr = self.attributes.current_mask | default(0) %}
+        {% set target = self.attributes.target_mask | default(0) %}
+        AVR: {{ 'OK' if (curr | bitwise_and(32768)) == (target | bitwise_and(32768)) else 'MISMATCH' }},
+        TV: {{ 'OK' if (curr | bitwise_and(1024)) == (target | bitwise_and(1024)) else 'MISMATCH' }},
+        SRC: {{ 'OK' if (curr | bitwise_and(2048)) == (target | bitwise_and(2048)) else 'MISMATCH' }}
+
+  - name: "Media Matrix Sync Check"
+    unique_id: media_matrix_sync_check
+    state: >
+      {% set curr = state_attr('sensor.media_matrix_status', 'current_mask') | int(0) %}
+      {% set target = state_attr('sensor.media_matrix_status', 'target_mask') | int(0) %}
+      {% if curr == target %}
+        Synchronized
+      {% elif target == 0 and curr != 0 %}
+        Shutting Down
+      {% else %}
+        Aligning
+      {% endif %}

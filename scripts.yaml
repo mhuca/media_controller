@@ -1848,7 +1848,8 @@ art_mode_toggle_controller:
 
       '
     target:
-      entity_id: input_boolean.art_mode_intent
+      entity_id: input_boolean.living_room_art_mode_intent
+    enabled: false
   - alias: Send Physical Command
     action: remote.send_command
     data:
@@ -1858,14 +1859,14 @@ art_mode_toggle_controller:
       delay_secs: 0.1
     target:
       entity_id: remote.samsung_the_frame_65
-  - alias: 4. Short Wait
-    delay: 1
+    enabled: false
   - alias: Log successful Art Mode Toggle
     data:
       name: Art Mode Controller
       message: Successfully toggled Art Mode for action '{{ action }}'.
       entity_id: media_player.samsung_the_frame_65_2
     action: logbook.log
+    enabled: false
   fields:
     action:
       name: Select Action
@@ -1878,6 +1879,7 @@ art_mode_toggle_controller:
             value: enable
           - label: Disable Art Mode
             value: disable
+  description: ''
 basement_stairs_80_entertain:
   sequence:
   - action: scene.turn_on
@@ -2042,3 +2044,746 @@ living_room_85_entertain_max:
           overrides: {}
   alias: Living Room 85. Entertain Max
   description: ''
+media_activity_snapshot:
+  alias: Media Activity Snapshot (v1.3)
+  description: "# MEDIA ACTIVITY SNAPSHOT (V1.3)\n## 1. OVERVIEW\nCaptures the current
+    physical state of a Media Area (AVR, Display, Source, Power) and broadcasts a
+    `capture_media_activity` event to the Node-RED Authoring Tool.\n## 2. DISCOVERY
+    LOGIC\nUses HA Labels to dynamically find hardware without hardcoding entity IDs:\n*
+    **media_role_avr**: Primary Audio Processor (Pioneer, DHC, etc.).  \n* **media_role_tv**:
+    Primary Screen/TV (The Frame, Projector).  \n* **media_role_source_atv**: Active
+    Playback Device (ATV, Shield, PS5).  \n* **media_power_sensor**: Hardware Validator
+    (Athom Plug / Power Sensor).\n## 3. RECENT UPDATES\n* **CEC Mitigation**: Added
+    explicit `source_on` state capture for environments where CEC is disabled.  \n*
+    **Registry Alignment**: Ensures the Authoring Tool receives literal power states
+    for all targeted silicon."
+  sequence:
+  - alias: 1. Resolve Entities and States
+    variables:
+      area_entities_list: '{{ area_entities(area_id) }}'
+      avr_id: '{{ label_entities(''media_role_avr'') | select(''in'', area_entities_list)
+        | first | default(''none'') }}
+
+        '
+      display_id: '{{ label_entities(''media_role_tv'') | select(''in'', area_entities_list)
+        | first | default(''none'') }}
+
+        '
+      source_id: '{{ label_entities(''media_role_source_atv'') | select(''in'', area_entities_list)
+        | first | default(''none'') }}
+
+        '
+      power_sensor_id: '{{ label_entities(''media_power_sensor'') | select(''in'',
+        area_entities_list) | first | default(''none'') }}
+
+        '
+      current_avr_source: '{{ state_attr(avr_id, ''source'') if avr_id != ''none''
+        else ''unknown'' }}'
+      current_avr_mode: '{{ state_attr(avr_id, ''sound_mode'') if avr_id != ''none''
+        else ''unknown'' }}'
+      current_avr_state: '{{ states(avr_id) if avr_id != ''none'' else ''off'' }}'
+      current_display_state: '{{ states(display_id) if display_id != ''none'' else
+        ''off'' }}'
+      current_source_state: '{{ states(source_id) if source_id != ''none'' else ''off''
+        }}'
+      current_power_watts: '{{ states(power_sensor_id) | float(0) if power_sensor_id
+        != ''none'' else 0 }}'
+      current_app_id: '{{ state_attr(source_id, ''app_id'') if source_id != ''none''
+        else ''none'' }}'
+      current_app_name: '{{ state_attr(source_id, ''app_name'') if source_id != ''none''
+        else ''none'' }}'
+  - alias: 2. Validate and Fire Event
+    if:
+    - condition: template
+      value_template: '{{ avr_id != ''none'' }}'
+    then:
+    - event: capture_media_activity
+      event_data:
+        area_id: '{{ area_id }}'
+        activity_name: '{{ activity_name | lower | replace('' '', ''_'') }}'
+        sequence_weight: '{{ sequence_weight | int(50) }}'
+        entities:
+          avr: '{{ avr_id }}'
+          display: '{{ display_id }}'
+          source: '{{ source_id }}'
+          power_sensor: '{{ power_sensor_id }}'
+        captured_states:
+          avr_on: '{{ 1 if current_avr_state == ''on'' else 0 }}'
+          avr_source: '{{ current_avr_source }}'
+          avr_sound_mode: '{{ current_avr_mode }}'
+          display_on: '{{ 1 if current_display_state == ''on'' else 0 }}'
+          source_on: '{{ 1 if current_source_state == ''on'' else 0 }}'
+          power_watts: '{{ current_power_watts }}'
+          app_id: '{{ current_app_id }}'
+          app_name: '{{ current_app_name }}'
+          target_command: '{{ target_command if target_command != ''none'' else none
+            }}'
+    - action: logbook.log
+      data:
+        name: Media Matrix
+        message: 'SNAPSHOT: [{{ area_id }}] - Source {{ ''ON'' if current_source_state
+          == ''on'' else ''OFF'' }} (CEC Disabled)'
+    else:
+    - action: logbook.log
+      data:
+        name: Media Matrix
+        message: 'SNAPSHOT FAILED: No entity with label ''media_role_avr'' found in
+          Area [{{ area_id }}].'
+  fields:
+    area_id:
+      name: Target Area
+      required: true
+      selector:
+        area:
+    activity_name:
+      name: Activity Name
+      required: true
+      selector:
+        text:
+    sequence_weight:
+      name: Sequence Weight
+      default: '50'
+      selector:
+        text:
+    target_command:
+      name: Target Command (Optional)
+      description: e.g., top_menu, home, menu. Sent to the source device.
+      required: false
+      default: none
+      selector:
+        text:
+media_registry_auditor:
+  alias: Media Registry Auditor (V1.2)
+  description: '# MEDIA REGISTRY AUDITOR (V1.2)
+
+    Maps AVR Sources to physical entities using Labels and Area context.
+
+
+    Logic:
+
+    1. Find the AVR in an Area.
+
+    2. Find the labeled Source Entity (media_role_source_atv) in that same Area.
+
+    3. Map that Entity to the AVR''s ''AppleTV'' source string.
+
+    '
+  sequence:
+  - alias: Iterate through all AVRs
+    repeat:
+      for_each: '{{ label_entities(''media_role_avr'') }}'
+      sequence:
+      - variables:
+          avr_entity: '{{ repeat.item }}'
+          area_name: '{{ area_id(avr_entity) }}'
+          source_list: '{{ state_attr(avr_entity, ''source_list'') | default([]) }}'
+          labeled_source_entity: '{% set area_devs = area_entities(area_name) %} {%
+            set global_atvs = label_entities(''media_role_source_atv'') %} {{ global_atvs
+            | select(''in'', area_devs) | first | default(''none'') }}
+
+            '
+          shadow_map: "{% set ns = namespace(matches={}) %} {% if labeled_source_entity
+            != 'none' %}\n  {% for src in source_list %}\n    {% if 'apple' in src
+            | lower or 'atv' in src | lower %}\n      {% set ns.matches = dict(ns.matches,
+            **{src: labeled_source_entity}) %}\n    {% endif %}\n  {% endfor %}\n{%
+            endif %} {{ ns.matches }}\n"
+      - event: sync_media_registry
+        event_data:
+          area_id: '{{ area_name }}'
+          avr_entity: '{{ avr_entity }}'
+          source_list: '{{ source_list }}'
+          shadow_map: '{{ shadow_map }}'
+  - action: logbook.log
+    data:
+      name: Media Matrix
+      message: Media Registry Audit Complete for {{ area_name }}.
+'1774881466555':
+  alias: Media Registry Auditor (V1.3)
+  description: "# MEDIA REGISTRY AUDITOR (V1.3)\n## 1. OVERVIEW\nDiscovers and maps
+    the physical relationship between AVRs, Displays, and Sources within an Area.
+    \n## 2. DISCOVERY LOGIC\n* **Primary Hook**: Finds all entities labeled `media_role_avr`.
+    \n* **Area Context**: Matches labeled sources (`media_role_source_atv`) and sensors
+    (`media_power_sensor`) within the same area. \n* **Registry Sync**: Broadcasts
+    a `sync_media_matrix` event for Node-RED ingestion.\n## 3. DATA STRUCTURE\nGenerates
+    a 0-based index for `source_list` and `sound_mode_list` to align with the 16-bit
+    Codebook."
+  sequence:
+  - repeat:
+      for_each: '{{ label_entities(''media_role_avr'') }}'
+      sequence:
+      - variables:
+          avr: '{{ repeat.item }}'
+          area: '{{ area_id(avr) }}'
+          sources: "{% set ns = namespace(items={}) %} {% for src in state_attr(avr,
+            'source_list') | default([]) %}\n  {% set ns.items = dict(ns.items, **{src:
+            loop.index0}) %}\n{% endfor %} {{ ns.items }}"
+          modes: "{% set ns = namespace(items={}) %} {% for mode in state_attr(avr,
+            'sound_mode_list') | default([]) %}\n  {% set ns.items = dict(ns.items,
+            **{mode: loop.index0}) %}\n{% endfor %} {{ ns.items }}"
+          source_entity: '{{ label_entities(''media_role_source_atv'') | select(''in'',
+            area_entities(area)) | first | default(''none'') }}
+
+            '
+          power_sensor: '{{ label_entities(''media_power_sensor'') | select(''in'',
+            area_entities(area)) | first | default(''none'') }}
+
+            '
+      - event: sync_media_matrix
+        event_data:
+          area_id: '{{ area }}'
+          avr_registry:
+            source: '{{ sources }}'
+            sound_mode: '{{ modes }}'
+          shadow_registry:
+            AppleTV: '{{ source_entity }}'
+          hardware_map:
+            avr: '{{ avr }}'
+            source: '{{ source_entity }}'
+            power_sensor: '{{ power_sensor }}'
+  - action: logbook.log
+    data:
+      name: Matrix Auditor
+      message: Registry sync event broadcast for all areas.
+media_registry_auditor_v1_3_1:
+  alias: Media Registry Auditor (V1.3.1)
+  description: "# MEDIA REGISTRY AUDITOR (V1.3.1)\n## 1. OVERVIEW Discovers and maps
+    the physical relationship between AVRs, Displays, and Sources within an Area.
+    \n## 2. DISCOVERY LOGIC\n* **Primary Hook**: Finds all entities labeled `media_role_avr`.\n*
+    **Area Context**: Matches labeled sources (`media_role_source_atv`) and sensors
+    (`media_power_sensor`) within the same area.\n* **Registry Sync**: Broadcasts
+    a `sync_media_matrix` event for Node-RED ingestion.\n## 3. DATA STRUCTURE Generates
+    a 0-based index for `source_list` and `sound_mode_list` to align with the 16-bit
+    Codebook."
+  sequence:
+  - variables:
+      avr_list: '{{ label_entities(''media_role_avr'') | list | default([]) }}'
+  - repeat:
+      for_each: '{{ avr_list }}'
+      sequence:
+      - variables:
+          avr: '{{ repeat.item }}'
+          area: '{{ area_id(avr) }}'
+          sources: "{% set ns = namespace(items={}) %}\n{% set source_list = state_attr(avr,
+            'source_list') %}\n{% if source_list is not none %}\n  {% for src in source_list
+            %}\n    {% set ns.items = dict(ns.items, **{src: loop.index0}) %}\n  {%
+            endfor %}\n{% endif %}\n{{ ns.items }}\n"
+          modes: "{% set ns = namespace(items={}) %}\n{% set mode_list = state_attr(avr,
+            'sound_mode_list') %}\n{% if mode_list is not none %}\n  {% for mode in
+            mode_list %}\n    {% set ns.items = dict(ns.items, **{mode: loop.index0})
+            %}\n  {% endfor %}\n{% endif %}\n{{ ns.items }}\n"
+          source_entity: '{{ label_entities(''media_role_source_atv'') | select(''in'',
+            area_entities(area)) | first | default(''none'') }}
+
+            '
+          power_sensor: '{{ label_entities(''media_power_sensor'') | select(''in'',
+            area_entities(area)) | first | default(''none'') }}
+
+            '
+      - event: sync_media_matrix
+        event_data:
+          area_id: '{{ area }}'
+          avr_registry:
+            source: '{{ sources }}'
+            sound_mode: '{{ modes }}'
+          shadow_registry:
+            AppleTV: '{{ source_entity }}'
+          hardware_map:
+            avr: '{{ avr }}'
+            source: '{{ source_entity }}'
+            power_sensor: '{{ power_sensor_id }}'
+  - action: logbook.log
+    data:
+      name: Matrix Auditor
+      message: Registry sync event broadcast completed for all discovered areas.
+media_activity_snapshot_v1_4:
+  alias: Media Activity Snapshot (V1.4)
+  description: "# MEDIA ACTIVITY SNAPSHOT (V1.4) - METADATA SANITIZED\n## 1. OVERVIEW\nCaptures
+    the current physical state of a Media Area (AVR, Display, Source, Power) and broadcasts
+    a `capture_media_activity` event to the Node-RED Authoring Tool.\n## 2. DISCOVERY
+    LOGIC\nUses HA Labels to dynamically find hardware without hardcoding entity IDs:\n*
+    **media_role_avr**: Primary Audio Processor (Pioneer, DHC, etc.).  \n* **media_role_tv**:
+    Primary Screen/TV (The Frame, Projector).  \n* **media_role_source_atv**: Active
+    Playback Device (ATV, Shield, PS5).  \n* **media_power_sensor**: Hardware Validator
+    (Athom Plug / Power Sensor).\n## 3. USAGE INSTRUCTIONS (IMPORTANT)\n* **App ID
+    Capture**: If you intend to \"bake\" a specific application (e.g., Plex, Netflix)
+    into a Codebook activity, **media must be actively playing or paused** within
+    that app during the snapshot.\n* **Launcher State**: If the source device is on
+    the Home Screen/Launcher (Idle), the script will intentionally set the `app_id`
+    to `none` to prevent stale metadata from contaminating the registry.\n## 4. RECENT
+    UPDATES\n* **CEC Mitigation**: Added explicit `source_on` state capture for environments
+    where CEC is disabled.  \n* **Registry Alignment**: Ensures the Authoring Tool
+    receives literal power states for all targeted silicon.\n* **Apple TV App Alignment**:
+    Now includes \"Focus Validation\" for Apple TV to prevent capturing stale App
+    IDs when the device is on the Launcher."
+  sequence:
+  - alias: 1. Resolve Entities and States
+    variables:
+      area_entities_list: '{{ area_entities(area_id) }}'
+      avr_id: '{{ label_entities(''media_role_avr'') | select(''in'', area_entities_list)
+        | first | default(''none'') }}
+
+        '
+      display_id: '{{ label_entities(''media_role_tv'') | select(''in'', area_entities_list)
+        | first | default(''none'') }}
+
+        '
+      source_id: '{{ label_entities(''media_role_source_atv'') | select(''in'', area_entities_list)
+        | first | default(''none'') }}
+
+        '
+      power_sensor_id: '{{ label_entities(''media_power_sensor'') | select(''in'',
+        area_entities_list) | first | default(''none'') }}
+
+        '
+      current_avr_source: '{{ state_attr(avr_id, ''source'') if avr_id != ''none''
+        else ''unknown'' }}'
+      current_avr_mode: '{{ state_attr(avr_id, ''sound_mode'') if avr_id != ''none''
+        else ''unknown'' }}'
+      current_avr_state: '{{ states(avr_id) if avr_id != ''none'' else ''off'' }}'
+      current_display_state: '{{ states(display_id) if display_id != ''none'' else
+        ''off'' }}'
+      current_source_state: '{{ states(source_id) if source_id != ''none'' else ''off''
+        }}'
+      current_power_watts: '{{ states(power_sensor_id) | float(0) if power_sensor_id
+        != ''none'' else 0 }}'
+      current_app_id: "{% if current_source_state in ['playing', 'paused'] %}\n  {{
+        state_attr(source_id, 'app_id') | default('none') }}\n{% else %}\n  none\n{%
+        endif %}\n"
+      current_app_name: "{% if current_source_state in ['playing', 'paused'] %}\n
+        \ {{ state_attr(source_id, 'app_name') | default('none') }}\n{% else %}\n
+        \ none\n{% endif %}\n"
+  - alias: 2. Validate and Fire Event
+    if:
+    - condition: template
+      value_template: '{{ avr_id != ''none'' }}'
+    then:
+    - event: capture_media_activity
+      event_data:
+        area_id: '{{ area_id }}'
+        activity_name: '{{ activity_name | lower | replace('' '', ''_'') }}'
+        sequence_weight: '{{ sequence_weight | int(50) }}'
+        entities:
+          avr: '{{ avr_id }}'
+          display: '{{ display_id }}'
+          source: '{{ source_id }}'
+          power_sensor: '{{ power_sensor_id }}'
+        captured_states:
+          avr_on: '{{ 1 if current_avr_state == ''on'' else 0 }}'
+          avr_source: '{{ current_avr_source }}'
+          avr_sound_mode: '{{ current_avr_sound_mode }}'
+          display_on: '{{ 1 if current_display_state == ''on'' else 0 }}'
+          source_on: '{{ 1 if current_source_state == ''on'' else 0 }}'
+          power_watts: '{{ current_power_watts }}'
+          app_id: '{{ current_app_id }}'
+          app_name: '{{ current_app_name }}'
+          target_command: '{{ target_command if target_command != ''none'' else none
+            }}'
+    - action: logbook.log
+      data:
+        name: Media Matrix
+        message: 'SNAPSHOT: [{{ area_id }}] - App Filtered: {{ current_app_id }}'
+    else:
+    - action: logbook.log
+      data:
+        name: Media Matrix
+        message: 'SNAPSHOT FAILED: No entity with label ''media_role_avr'' found in
+          Area [{{ area_id }}].'
+  fields:
+    area_id:
+      name: Target Area
+      required: true
+      selector:
+        area:
+    activity_name:
+      name: Activity Name
+      required: true
+      selector:
+        text:
+    sequence_weight:
+      name: Sequence Weight
+      default: '50'
+      selector:
+        text:
+    target_command:
+      name: Target Command (Optional)
+      description: e.g., top_menu, home, menu. Sent to the source device.
+      required: false
+      default: none
+      selector:
+        text:
+media_activity_snapshot_v1_5:
+  alias: Media Activity Snapshot (v1.5)
+  description: "# MEDIA ACTIVITY SNAPSHOT (V1.5)\n\n## 1. OVERVIEW\n\nCaptures the
+    current physical state of a Media Area (`avr`, `display`, `source`, `power`) and
+    broadcasts a `capture_media_activity` event to the Node-RED Authoring Tool.\n\n##
+    2. DISCOVERY LOGIC\n\nUses Home Assistant Labels to dynamically find hardware
+    without hardcoding entity IDs:\n\n* **media_role_avr**: Primary Audio Processor
+    (Pioneer, DHC, etc.).  \n\n* **media_role_tv**: Primary Screen/TV (The Frame,
+    Projector).  \n\n* **media_role_source_atv**: Active Playback Device (`atv`, `shield`,
+    `ps5`).  \n\n* **media_power_sensor**: Hardware Validator (Athom Plug / Power
+    Sensor).\n\n## 3. USAGE INSTRUCTIONS\n\n* **App ID Capture**: If you intend to
+    \"bake\" a specific application (e.g., Plex, Netflix) into a Codebook activity,
+    **media must be actively playing or paused** within that app during the snapshot.\n\n*
+    **Launcher State**: If the source device is on the Home Screen/Launcher (`idle`),
+    the script will intentionally set the `app_id` to `none` to prevent stale metadata
+    from contaminating the registry.\n\n## 4. RECENT UPDATES\n\n* **Focus Validation**:
+    Added for Apple TV to prevent capturing stale `app_id` strings when the device
+    is on the Launcher.\n\n* **CEC Mitigation**: Added explicit `source_on` state
+    capture for environments where CEC is disabled.  \n\n* **Registry Alignment**:
+    Ensures the Authoring Tool receives literal power states for all targeted silicon."
+  sequence:
+  - alias: 1. Resolve Entities and States
+    variables:
+      area_entities_list: '{{ area_entities(area_id) }}'
+      avr_id: '{{ label_entities(''media_role_avr'') | select(''in'', area_entities_list)
+        | first | default(''none'') }}
+
+        '
+      display_id: '{{ label_entities(''media_role_tv'') | select(''in'', area_entities_list)
+        | first | default(''none'') }}
+
+        '
+      source_id: '{{ label_entities(''media_role_source_atv'') | select(''in'', area_entities_list)
+        | first | default(''none'') }}
+
+        '
+      power_sensor_id: '{{ label_entities(''media_power_sensor'') | select(''in'',
+        area_entities_list) | first | default(''none'') }}
+
+        '
+      current_avr_source: '{{ state_attr(avr_id, ''source'') if avr_id != ''none''
+        else ''unknown'' }}'
+      current_avr_sound_mode: '{{ state_attr(avr_id, ''sound_mode'') if avr_id !=
+        ''none'' else ''unknown'' }}'
+      current_avr_state: '{{ states(avr_id) if avr_id != ''none'' else ''off'' }}'
+      current_display_state: '{{ states(display_id) if display_id != ''none'' else
+        ''off'' }}'
+      current_source_state: '{{ states(source_id) if source_id != ''none'' else ''off''
+        }}'
+      current_power_watts: '{{ states(power_sensor_id) | float(0) if power_sensor_id
+        != ''none'' else 0 }}'
+      current_app_id: "{% if current_source_state in ['playing', 'paused'] %}\n  {{
+        state_attr(source_id, 'app_id') | default('none') }}\n{% else %}\n  none\n{%
+        endif %}\n"
+      current_app_name: "{% if current_source_state in ['playing', 'paused'] %}\n
+        \ {{ state_attr(source_id, 'app_name') | default('none') }}\n{% else %}\n
+        \ none\n{% endif %}\n"
+  - alias: 2. Validate and Fire Event
+    if:
+    - condition: template
+      value_template: '{{ avr_id != ''none'' }}'
+    then:
+    - event: capture_media_activity
+      event_data:
+        area_id: '{{ area_id }}'
+        activity_name: '{{ activity_name | lower | replace('' '', ''_'') }}'
+        sequence_weight: '{{ sequence_weight | int(50) }}'
+        entities:
+          avr: '{{ avr_id }}'
+          display: '{{ display_id }}'
+          source: '{{ source_id }}'
+          power_sensor: '{{ power_sensor_id }}'
+        captured_states:
+          avr_on: '{{ 1 if current_avr_state == ''on'' else 0 }}'
+          avr_source: '{{ current_avr_source }}'
+          avr_sound_mode: '{{ current_avr_sound_mode }}'
+          display_on: '{{ 1 if current_display_state == ''on'' else 0 }}'
+          source_on: '{{ 1 if current_source_state == ''on'' else 0 }}'
+          power_watts: '{{ current_power_watts }}'
+          app_id: '{{ current_app_id }}'
+          app_name: '{{ current_app_name }}'
+          target_command: '{{ target_command if target_command != ''none'' else none
+            }}'
+    - action: logbook.log
+      data:
+        name: Media Matrix
+        message: 'SNAPSHOT: [{{ area_id }}] - App Filtered: {{ current_app_id }}'
+    else:
+    - action: logbook.log
+      data:
+        name: Media Matrix
+        message: 'SNAPSHOT FAILED: No entity with label ''media_role_avr'' found in
+          Area [{{ area_id }}].'
+  fields:
+    area_id:
+      name: Target Area
+      required: true
+      selector:
+        area:
+    activity_name:
+      name: Activity Name
+      required: true
+      selector:
+        text:
+    sequence_weight:
+      name: Sequence Number
+      default: '50'
+      selector:
+        text:
+      required: true
+      description: UID
+    target_command:
+      name: Target Command (Optional)
+      description: e.g., top_menu, home, menu. Sent to the source device.
+      required: false
+      default: none
+      selector:
+        text:
+media_registry_auditor_v1_3_3:
+  alias: Media Registry Auditor (V1.3.3)
+  description: "# MEDIA REGISTRY AUDITOR (V1.3.3)\n\n## 1. OVERVIEW\n\nDiscovers and
+    maps the physical relationship between AVRs, Displays, and Sources within an Area.
+    \n\n## 2. DISCOVERY LOGIC\n\n* **Primary Hook**: Finds all entities labeled `media_role_avr`.\n\n*
+    **Area Context**: Matches labeled sources (`media_role_source_atv`) and sensors
+    (`media_power_sensor`) within the same `area_id`.\n\n* **Registry Sync**: Broadcasts
+    a `sync_media_matrix` event for Node-RED ingestion.\n\n## 3. DATA STRUCTURE\n\n**0-based
+    Indexing**: Generates a zero-based index for `source_list` and `sound_mode_list`
+    to align with the 16-bit Codebook requirements."
+  sequence:
+  - repeat:
+      for_each: '{{ label_entities(''media_role_avr'') }}'
+      sequence:
+      - variables:
+          avr: '{{ repeat.item }}'
+          area_key: '{{ area_id(avr) }}'
+          area_name: '{{ area_name(area_key) }}'
+          sources: "{% set ns = namespace(items={}) %} {% set source_list = state_attr(avr,
+            'source_list') %} {% if source_list is not none %}\n  {% for src in source_list
+            %}\n    {% set ns.items = dict(ns.items, **{src: loop.index0}) %}\n  {%
+            endfor %}\n{% endif %} {{ ns.items }}"
+          modes: "{% set ns = namespace(items={}) %} {% set mode_list = state_attr(avr,
+            'sound_mode_list') %} {% if mode_list is not none %}\n  {% for mode in
+            mode_list %}\n    {% set ns.items = dict(ns.items, **{mode: loop.index0})
+            %}\n  {% endfor %}\n{% endif %} {{ ns.items }}"
+          source_entity: '{{ label_entities(''media_role_source_atv'') | select(''in'',
+            area_entities(area_key)) | first | default(''none'') }}
+
+            '
+          power_sensor: '{{ label_entities(''media_power_sensor'') | select(''in'',
+            area_entities(area_key)) | first | default(''none'') }}
+
+            '
+      - event: sync_media_matrix
+        event_data:
+          area_id: '{{ area_key }}'
+          area_name: '{{ area_name }}'
+          avr_registry:
+            source: '{{ sources }}'
+            sound_mode: '{{ modes }}'
+          shadow_registry:
+            AppleTV: '{{ source_entity }}'
+          hardware_map:
+            avr: '{{ avr }}'
+            source: '{{ source_entity }}'
+            power_sensor: '{{ power_sensor }}'
+  - action: logbook.log
+    data:
+      name: Matrix Auditor
+      message: Registry sync event broadcast completed for all discovered areas.
+media_activity_snapshot_v2_0:
+  sequence:
+  - alias: 1. Resolve Entities and States
+    variables:
+      area_key: '{{ area_key | default(''living_room'') }}'
+      avr: '{{ (label_entities(''media_role_avr'') | select(''in'', area_entities(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      tv_dev: '{{ (label_devices(''media_role_tv'') | select(''in'', area_devices(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      tv: '{{ (device_entities(tv_dev) | select(''match'', ''media_player\.'') | first
+        | default(''none'')) | replace(''"'', '''') | trim }}'
+      tv_remote: '{{ (device_entities(tv_dev) | select(''match'', ''remote\\.'') |
+        first | default(''none'')) | replace(''"'', '''') | trim }}'
+      atv_dev: '{{ (label_devices(''media_role_source_atv'') | select(''in'', area_devices(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      atv: '{{ (device_entities(atv_dev) | select(''match'', ''media_player\.'') |
+        first | default(''none'')) | replace(''"'', '''') | trim }}'
+      atv_remote: '{{ (device_entities(atv_dev) | select(''match'', ''remote\\.'')
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      home_music: '{{ (label_entities(''home_music'') | select(''match'', ''media_player.'')
+        | first | default(atv)) | replace(''"'', '''') | trim }}'
+      interconnect: '{{ (label_entities(''media_role_interconnect'') | select(''in'',
+        area_entities(area_key)) | first | default(''none'')) | replace(''"'', '''')
+        | trim }}'
+      art: '{{ (label_entities(''media_role_art_sensor'') | select(''in'', area_entities(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      current_avr_source: '{{ state_attr(avr_id, ''source'') if avr_id != ''none''
+        else ''unknown'' }}'
+      current_avr_sound_mode: '{{ state_attr(avr_id, ''sound_mode'') if avr_id !=
+        ''none'' else ''unknown'' }}'
+      current_avr_state: '{{ states(avr_id) if avr_id != ''none'' else ''off'' }}'
+      current_display_state: '{{ states(display_id) if display_id != ''none'' else
+        ''off'' }}'
+      current_source_state: '{{ states(source_id) if source_id != ''none'' else ''off''
+        }}'
+      current_power_watts: '{{ states(power_sensor_id) | float(0) if power_sensor_id
+        != ''none'' else 0 }}'
+      current_app_id: "{% if current_source_state in ['playing', 'paused'] %}\n  {{
+        state_attr(source_id, 'app_id') | default('none') }}\n{% else %}\n  none\n{%
+        endif %}\n"
+      current_app_name: "{% if current_source_state in ['playing', 'paused'] %}\n
+        \ {{ state_attr(source_id, 'app_name') | default('none') }}\n{% else %}\n
+        \ none\n{% endif %}\n"
+  - alias: 2. Validate and Fire Event
+    if:
+    - condition: template
+      value_template: '{{ avr_id != ''none'' }}'
+    then:
+    - event: capture_media_activity
+      event_data:
+        area_id: '{{ area_id }}'
+        activity_name: '{{ activity_name | lower | replace('' '', ''_'') }}'
+        sequence_weight: '{{ sequence_weight | int(50) }}'
+        entities:
+          avr: '{{ avr_id }}'
+          display: '{{ display_id }}'
+          source: '{{ source_id }}'
+          power_sensor: '{{ power_sensor_id }}'
+        captured_states:
+          avr_on: '{{ 1 if current_avr_state == ''on'' else 0 }}'
+          avr_source: '{{ current_avr_source }}'
+          avr_sound_mode: '{{ current_avr_sound_mode }}'
+          display_on: '{{ 1 if current_display_state == ''on'' else 0 }}'
+          source_on: '{{ 1 if current_source_state == ''on'' else 0 }}'
+          power_watts: '{{ current_power_watts }}'
+          app_id: '{{ current_app_id }}'
+          app_name: '{{ current_app_name }}'
+          target_command: '{{ target_command if target_command != ''none'' else none
+            }}'
+    - action: logbook.log
+      data:
+        name: Media Matrix
+        message: 'SNAPSHOT: [{{ area_id }}] - App Filtered: {{ current_app_id }}'
+    else:
+    - action: logbook.log
+      data:
+        name: Media Matrix
+        message: 'SNAPSHOT FAILED: No entity with label ''media_role_avr'' found in
+          Area [{{ area_id }}].'
+  alias: Media Activity Snapshot (v2.0)
+  description: "# MEDIA ACTIVITY SNAPSHOT (V2.0)\n\n## 1. OVERVIEW\n\nCaptures the
+    current physical state of a Media Area (`avr`, `display`, `source`, `power`) and
+    broadcasts a `capture_media_activity` event to the Node-RED Authoring Tool.\n\n##
+    2. DISCOVERY LOGIC\n\nUses Home Assistant Labels to dynamically find hardware
+    without hardcoding entity IDs:\n\n* **media_role_avr**: Primary Audio Processor
+    (Pioneer, DHC, etc.).  \n\n* **media_role_tv**: Primary Screen/TV (The Frame,
+    Projector).  \n\n* **media_role_source_atv**: Active Playback Device (`atv`, `shield`,
+    `ps5`).  \n\n* **media_power_sensor**: Hardware Validator (Athom Plug / Power
+    Sensor).\n\n## 3. USAGE INSTRUCTIONS\n\n* **App ID Capture**: If you intend to
+    \"bake\" a specific application (e.g., Plex, Netflix) into a Codebook activity,
+    **media must be actively playing or paused** within that app during the snapshot.\n\n*
+    **Launcher State**: If the source device is on the Home Screen/Launcher (`idle`),
+    the script will intentionally set the `app_id` to `none` to prevent stale metadata
+    from contaminating the registry.\n\n## 4. RECENT UPDATES\n\n* **Focus Validation**:
+    Added for Apple TV to prevent capturing stale `app_id` strings when the device
+    is on the Launcher.\n\n* **CEC Mitigation**: Added explicit `source_on` state
+    capture for environments where CEC is disabled.  \n\n* **Registry Alignment**:
+    Ensures the Authoring Tool receives literal power states for all targeted silicon."
+  fields:
+    area_key:
+      name: Target Area
+      required: true
+      selector:
+        area:
+    activity_name:
+      name: Activity Name
+      required: true
+      selector:
+        text:
+    target_mask:
+      selector:
+        object: {}
+      default:
+      - 1
+      - 2
+      - 4
+      - 8
+      - 16
+      - 32
+      - 64
+      - 128
+    remote_cmd:
+      name: Remote Command
+      description: e.g., top_menu, home, menu. Sent to the source device.
+      required: false
+      default: none
+      selector:
+        text:
+    app:
+      selector:
+        text:
+      name: app
+media_activity_snapshot_v4_0:
+  alias: Media Activity Snapshot (v4.0)
+  description: Captures current hardware states using definitive label discovery.
+    Includes Art/Video bitmask logic (1, 2, 4, 8, 64, 128).
+  fields:
+    area_key:
+      name: Target Area
+      required: true
+      default: living_room
+      selector:
+        area:
+    activity_name:
+      name: Activity Name
+      description: e.g., 'Netflix', 'PS5', 'Music'
+      required: true
+      selector:
+        text:
+    remote_cmd:
+      name: Final Remote Command
+      description: 'Optional: Command to send after switching (e.g. ''home'').'
+      required: false
+      default: none
+      selector:
+        text:
+  sequence:
+  - alias: 1. Hardware Discovery & State Analysis
+    variables:
+      avr: '{{ (label_entities(''media_role_avr'') | select(''in'', area_entities(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      tv_dev: '{{ (label_devices(''media_role_tv'') | select(''in'', area_devices(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      tv: '{{ (device_entities(tv_dev) | select(''match'', ''media_player\.'') | first
+        | default(''none'')) | replace(''"'', '''') | trim }}'
+      atv_dev: '{{ (label_devices(''media_role_source_atv'') | select(''in'', area_devices(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      atv: '{{ (device_entities(atv_dev) | select(''match'', ''media_player\.'') |
+        first | default(''none'')) | replace(''"'', '''') | trim }}'
+      interconnect: '{{ (label_entities(''media_role_interconnect'') | select(''in'',
+        area_entities(area_key)) | first | default(''none'')) | replace(''"'', '''')
+        | trim }}'
+      art: '{{ (label_entities(''media_role_art_sensor'') | select(''in'', area_entities(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      calculated_bits: '{% set avr_on = 1 if is_state(avr, ''on'') else 0 %} {% set
+        tv_on = 2 if is_state(tv, ''on'') else 0 %} {% set atv_on = 4 if (atv != ''none''
+        and not is_state(atv, ''off'') and not is_state(atv, ''unavailable'')) else
+        0 %} {% set int_on = 8 if is_state(interconnect, ''on'') else 0 %} {% set
+        art_active = is_state(art, ''on'') if art != ''none'' else false %} {% set
+        art_on = 64 if (is_state(tv, ''on'') and art_active) else 0 %} {% set vid_on
+        = 128 if (is_state(tv, ''on'') and not art_active) else 0 %} {{ (avr_on +
+        tv_on + atv_on + int_on + art_on + vid_on) | int }}'
+      atv_active: '{{ calculated_bits | int | bitwise_and(4) }}'
+      activity_id: "{{ { activity_name | lower | replace(' ', '_') : {\n    'bits':
+        calculated_bits,\n    'source': state_attr(avr, 'source') | default('none'),\n
+        \   'sound':  state_attr(avr, 'sound_mode') | default('none'),\n    'app_id':
+        state_attr(atv, 'app_id') if calculated_bits | bitwise_and(4) == 4 else 'none',\n
+        \   'app':  state_attr(atv, 'app_name') if calculated_bits | bitwise_and(4)
+        == 4 else 'none' ,\n    'remote_cmd': remote_cmd \n    }  \n  }\n}}\n"
+  - alias: 2. Transmit Snapshot to UCC
+    if:
+    - condition: template
+      value_template: '{{ calculated_bits > 0 }}'
+    then:
+    - event: capture_media_activity
+      event_data:
+        area_key: '{{ area_key }}'
+        activity: '{{ activity_id }}'
+        debug_info:
+          tv: '{{ tv }}'
+          art_sensor: '{{ art }}'
+          area_name: '{{ area_name(area_key) }}'
+    - action: logbook.log
+      data:
+        name: UCC Snapshot
+        message: 'Saved ''{{ activity_name }}'' for {{ area_key }} (Bits: {{ calculated_bits
+          }})'

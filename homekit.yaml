@@ -8,7 +8,7 @@
       - light.front_porch_front_porch
       - camera.front_porch_fluent
       - camera.doorbell_fluent
-      - lock.lock_mechanism
+      - lock.front_porch_door_lock
       - binary_sensor.front_porch_door
   entity_config:
     camera.doorbell_fluent:
@@ -18,8 +18,8 @@
     camera.front_porch_fluent:
       name: Front Porch
       support_audio: true
-    lock.lock_mechanism:
-      name: Front Porch Lock
+    lock.front_porch_door_lock:
+      name: Front Porch Door Lock
     binary_sensor.front_porch_door:
       name: Front Door
       linked_battery_sensor: sensor.front_porch_battery

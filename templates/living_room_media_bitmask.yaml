@@ -1,0 +1,85 @@
+# ==========================================
+# 2. ACTUAL SENSOR: What the room IS
+# ==========================================
+trigger:
+  - trigger: state
+    entity_id:
+      - media_player.vsx_933
+      - binary_sensor.living_room_media_frame_tv_confirmed_art_mode
+      - sensor.living_room_media_intent # Trigger when target changes
+  - trigger: homeassistant
+    event: start
+variables:
+  area_id: "living_room"
+  intent_id: "sensor.living_room_media_intent"
+
+  # Pull targets from Intent Sensor (The single source of truth)
+  # We use state_attr directly to ensure we get the latest processed map
+  t_mask: "{{ state_attr(intent_id, 'target_mask') | int(0) }}"
+  t_sound: "{{ state_attr(intent_id, 'target_sound_mode') | default('none', true) }}"
+  t_source: "{{ state_attr(intent_id, 'target_avr_source') | default('none', true) }}"
+  t_app: "{{ state_attr(intent_id, 'target_app_name') | default('none', true) }}"
+  t_cmd: "{{ state_attr(intent_id, 'target_remote_cmd') | default('none', true) }}"
+
+  # Resolve Physical Entities
+  tv: |
+    {{ device_entities(label_devices('media_role_tv') | select('in', area_devices(area_id)) | first | default('none')) | select('match', 'media_player\.') | first | default('none') }}
+  atv: |
+    {{ device_entities(label_devices('media_role_source_atv') | select('in', area_devices(area_id)) | first | default('none')) | select('match', 'media_player\.') | first | default('none') }}
+  avr: "{{ label_entities('media_role_avr') | select('in', area_entities(area_id)) | first | default('none') }}"
+  art: "{{ label_entities('media_role_art_sensor') | select('in', area_entities(area_id)) | first | default('none') }}"
+  interconnect: "{{ label_entities('media_role_interconnect') | select('in', area_entities(area_id)) | first | default('none') }}"
+
+sensor:
+  - name: "Living Room Media Bitmask"
+    unique_id: "living_room_media_bitmask"
+    icon: "mdi:binary"
+    state: |
+      {% set avr_on = 1 if is_state(avr, 'on') else 0 %}
+      {% set tv_on = 2 if is_state(tv, 'on') else 0 %}
+      {% set atv_on = 4 if is_state(atv, 'on') else 0 %}
+      {% set int_on = 8 if is_state(interconnect, 'on') else 0 %}
+      {% set art_active = is_state(art, 'on') if art != 'none' else false %}
+      {% set art_on = 64 if (is_state(tv, 'on') and art_active) else 0 %}
+      {% set vid_on = 128 if (is_state(tv, 'on') and not art_active) else 0 %}
+      {{ (avr_on + tv_on + atv_on + int_on + art_on + vid_on) | int }}
+
+    attributes:
+      # Mirror the targets from variables for UI visibility
+      target_mask: "{{ t_mask }}"
+      target_sound_mode: "{{ t_sound }}"
+      target_avr_source: "{{ t_source }}"
+      target_app_name: "{{ t_app }}"
+      target_remote_cmd: "{{ t_cmd }}"
+
+      posture_ok: "{{ (this.state | int(-1)) == t_mask }}"
+
+      sound_mode_ok: |
+        {% if avr != 'none' and t_sound != 'none' %}
+          {{ state_attr(avr, 'sound_mode') | string | lower == t_sound | string | lower }}
+        {% else %}
+          {{ t_sound == 'none' }}
+        {% endif %}
+
+      app_ok: |
+        {% if t_app == 'none' %} true
+        {% elif atv != 'none' %} {{ is_state_attr(atv, 'source', t_app) }}
+        {% else %} false
+        {% endif %}
+
+      in_sync: >
+        {% set p = (this.state | int(-1)) == t_mask %}
+        {% set s = (state_attr(avr, 'sound_mode') | string | lower == t_sound | string | lower) if (avr != 'none' and t_sound != 'none') else (t_sound == 'none') %}
+        {% set a = is_state_attr(atv, 'source', t_app) if (atv != 'none' and t_app != 'none') else (t_app == 'none') %}
+        {{ p and s and a }}
+
+      current_snapshot: |
+        {% set m = this.state | int(0) %}
+        {% set s = [] %}
+        {% if m | bitwise_and(1) %}{% set s = s + ['AVR'] %}{% endif %}
+        {% if m | bitwise_and(2) %}{% set s = s + ['TV'] %}{% endif %}
+        {% if m | bitwise_and(4) %}{% set s = s + ['ATV'] %}{% endif %}
+        {% if m | bitwise_and(8) %}{% set s = s + ['INT'] %}{% endif %}
+        {% if m | bitwise_and(64) %}{% set s = s + ['ART'] %}{% endif %}
+        {% if m | bitwise_and(128) %}{% set s = s + ['VID'] %}{% endif %}
+        {{ s | join('|') if s | count > 0 else 'OFF' }}
