@@ -1,0 +1,12 @@
+binary_sensor:
+  - name: "Living Room Presence Master"
+    unique_id: living_room_presence_master_001
+    device_class: presence
+    # The sensor is 'on' if physical motion is detected
+    # OR if the trigger was a remote event.
+    state: >
+      {{ is_state('binary_sensor.living_room_presence_occupancy', 'on') }}
+
+    # delay_off ensures the sensor only turns 'off'
+    # after 2 minutes of TOTAL silence (no motion AND no events).
+    delay_off: "00:02:00"

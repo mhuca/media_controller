@@ -16,7 +16,6 @@ packages:   # as a list
   
 api:
 
-
 switch:
   - platform: gpio
     name: Relay
@@ -24,3 +23,19 @@ switch:
     id: relay
      # Resume last state on boot if possible. Else, off
     restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      then:
+        - homeassistant.service:
+            service: logbook.log
+            data:
+              name: "Soundtown Amp"
+              message: "HTTP Link: Trigger Received - Powering ON"
+              entity_id: "switch.soundtown_amp_relay"
+    on_turn_off:
+      then:
+        - homeassistant.service:
+            service: logbook.log
+            data:
+              name: "Soundtown Amp"
+              message: "HTTP Link: Trigger Received - Powering OFF"
+              entity_id: "switch.soundtown_amp_relay"

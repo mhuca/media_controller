@@ -1,0 +1,13 @@
+switch:
+  - name: "Living Room Presence Intent"
+    optimistic: true
+    turn_on:
+      - delay:
+          hours: 0
+          minutes: 0
+          seconds: 5
+      - action: switch.turn_off
+        target:
+          entity_id: switch.living_room_presence_intent
+        data: {}
+    turn_off: []

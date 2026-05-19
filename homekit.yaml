@@ -24,3 +24,17 @@
       name: Front Door
       linked_battery_sensor: sensor.front_porch_battery
       low_battery_threshold: 25
+
+- name: "Music Assistant Bridge"
+  port: 51830
+  mode: accessory
+  filter:
+    include_entities:
+      - media_player.smsl_ps100_analog_stereo
+  entity_config:
+    media_player.smsl_ps100_analog_stereo:
+      feature_list:
+        - feature: on_off
+        - feature: play_pause
+        - feature: play_stop
+        - feature: toggle_mute

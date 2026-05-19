@@ -137,6 +137,7 @@ binary_sensor:
     pin:
       number: GPIO3
       inverted: true
+      mode: INPUT_PULLUP
     name: "Physical Button"
     on_press:
       - switch.toggle: relay_output

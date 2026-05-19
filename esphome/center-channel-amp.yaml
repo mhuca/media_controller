@@ -1,0 +1,419 @@
+substitutions:
+  name: center-channel-amp #change
+  friendly_name: Center Channel Amp #change
+  icon: "mdi:light-switch"
+  event: nodered_automation
+  button: button
+  board: esp01_1m
+
+esphome:
+  name: ${name}
+  name_add_mac_suffix: false
+  friendly_name: ${friendly_name}
+  # Registry-First: The custom eISCP logic
+  project:
+    name: Teckin.SP10 
+    version: "1.0"
+  includes:
+    - integra_pwr/integra_pwr.h # This pulls in our C++ "Spy"
+
+packages:   # as a list
+#  - !include wifi.yaml
+  - !include common/trusted.yaml
+#  - !include formatted_uptime_sensor.yaml
+#  - !include sensor_base.yaml
+
+
+  
+esp8266:
+  board: ${board}
+  restore_from_flash: true
+
+preferences:
+  flash_write_interval: 30s
+
+# Enable logging
+logger:
+  level: DEBUG
+
+ota:
+  - platform: esphome
+
+# interval:
+#   - interval: 1s
+#     then:
+#       - lambda: |-
+#           static auto *integra = new esphome::integra::IntegraPwrListener();
+#           if (!integra->is_failed()) {
+#             static bool registered = false;
+#             if (!registered) {
+#               App.register_component_(integra);
+#               registered = true;
+#               ESP_LOGI("main", "UCC: Native registration confirmed.");
+#             }
+#           }
+
+# -----------------------------------------------------------------------------
+# Core Components for Communication (Essential for Safety & HA)
+# -----------------------------------------------------------------------------
+# API for Home Assistant communication (mandatory for lights/sensors)
+api:
+
+# Use the time component to track the current time, often useful for automations
+# The server is defaulted to pool.ntp.org
+time:
+  - platform: sntp
+    id: esptime
+    timezone: "America/Toronto" # Your preferred timezone
+    
+# Enable web server for easy configuration access over the network
+web_server:
+  port: 80
+
+# The ultimate safety net for Wi-Fi issues
+captive_portal:
+  # This creates a fallback access point if Wi-Fi connection fails
+   
+binary_sensor:
+  - id: button_1
+    name: ${friendly_name} Button
+    platform: gpio
+    internal: true
+    entity_category: "diagnostic"
+    pin:
+      number: GPIO13
+      inverted: true
+
+
+output:
+  # https://esphome.io/components/output/esp8266_pwm.html
+  - platform: esp8266_pwm
+    id: blue_led_output
+    pin:
+      number: GPIO2
+      inverted: True
+
+light:
+  # https://esphome.io/components/light/monochromatic.html
+  - platform: monochromatic
+    name: SP10 Blue LED
+    output: blue_led_output
+    id: blue_led
+    default_transition_length: 1ms # default 1s
+    internal: True
+
+switch:
+  - platform: gpio
+    # https://esphome.io/components/switch/gpio
+    pin: GPIO15
+    id: physical_relay
+    internal: True
+
+  # tie the led & relay operation together and report status based on relay state
+  # - platform: template
+  #   # https://esphome.io/components/switch/template.html
+  #   name: SP10
+  #   id: relay_template
+  #   lambda: |-
+  #     if (id(relay).state) {
+  #       return true;
+  #     } else {
+  #       return false;
+  #     }
+  #   turn_on_action:
+  #     - light.turn_on: blue_led
+  #     - switch.turn_on: relay
+  #   turn_off_action:
+  #     - light.turn_off: blue_led
+  #     - switch.turn_off: relay
+
+  - platform: template
+    name: "Relay"
+    id: relay_template
+    optimistic: true
+    # This ensures the physical relay follows the logic state
+    on_turn_on:
+      - switch.turn_on: physical_relay
+      - homeassistant.service:
+          service: logbook.log
+          data:
+            name: "Center Channel Amp"
+            message: "eISCP Link: 12V Trigger A HIGH - Powering ON"
+            entity_id: "switch.center_channel_amp_relay"
+    on_turn_off:
+      - switch.turn_off: physical_relay
+      - homeassistant.service:
+          service: logbook.log
+          data:
+            name: "Center Channel Amp"
+            message: "eISCP Link: 12V Trigger A LOW - Powering OFF"
+            entity_id: "switch.center_channel_amp_relay"
+    # on_turn_on:
+    #   - lambda: |-
+    #       static bool is_registered = false;
+    #       if (!is_registered) {
+    #         App.register_component_(esphome::integra::integra_global);
+    #         is_registered = true;
+    #         ESP_LOGI("main", "UCC: Anchor Triggered. Component Registered.");
+    #       }
+
+# Use a one-time interval to kickstart the Sovereign logic
+interval:
+  - interval: 200ms
+    then:
+      - lambda: |-
+          static bool first_run = true;
+          if (first_run) {
+            esphome::integra::integra_global->setup();
+            first_run = false;
+            ESP_LOGI("main", "UCC: Sovereign Loop Jumpstarted.");
+          }
+          // Explicitly calling the loop since the engine is being stubborn
+          esphome::integra::integra_global->loop();
+
+# This creates a text input box in Home Assistant
+text:
+  - platform: template
+    name: "Integra Target IP"
+    id: integra_ip_addr
+    initial_value: "10.0.168.212"
+    restore_value: true
+    mode: text
+    # Required for template text components:
+    set_action:
+      then:
+        - lambda: 'id(integra_ip_addr).publish_state(x);'
+
+# Number works as previously discussed
+number:
+  - platform: template
+    name: "Integra Target Port"
+    id: integra_port_num
+    initial_value: 60128
+    min_value: 1
+    max_value: 65535
+    step: 1
+    restore_value: true
+    optimistic: true
+    set_action:
+      then:
+        - lambda: 'id(integra_port_num).publish_state(x);'
+
+  - platform: template
+    name: "Amp Cool Down"
+    id: amp_sustain_minutes
+    icon: "mdi:timer-sand"
+    initial_value: 2
+    min_value: 1
+    max_value: 15
+    step: 1
+    unit_of_measurement: "min"
+    restore_value: true
+    optimistic: true
+    set_action:
+      then:
+        - lambda: 'id(amp_sustain_minutes).publish_state(x);'
+
+
+  # on_boot:
+  #   priority: 600.0
+  #   then:
+  #     - lambda: |-
+  #         static auto *integra = new esphome::integra::IntegraPwrListener();
+  #         if (!integra->is_failed()) {
+  #           static bool registered = false;
+  #           if (!registered) {
+  #             App.register_component_(integra);
+  #             registered = true;
+  #             ESP_LOGI("main", "UCC: Native registration confirmed.");
+  #           }
+  #         }
+
+
+#          App.register_component_(esphome::integra::integra_spy);
+
+
+#          auto *integra = new esphome::integra::IntegraPwrListener();
+#          App.register_component_(integra);
+
+
+  # on_boot:
+  #   priority: 600.0 # Starts after WiFi is up
+  #   then:
+  #     - lambda: |-
+  #         static auto *listener = new esphome::integra::IntegraPwrListener();
+  #         App.register_component(listener);
+
+# We define the TCP client as a global object
+# globals:
+#   - id: integra_client
+#     type: WiFiClient
+#     restore_value: no
+
+# interval:
+#   - interval: 100ms
+#     then:
+#       - lambda: |-
+#           if (!id(integra_client).connected()) {
+#             static uint32_t last_conn = 0;
+#             if (millis() - last_conn > 10000) {
+#               last_conn = millis();
+#               id(integra_client).connect("10.0.168.212", 60128);
+#             }
+#           } else {
+#             while (id(integra_client).available()) {
+#               char c = id(integra_client).read();
+#               static String buffer = "";
+#               buffer += c;
+#               if (buffer.length() > 20) buffer = buffer.substring(1); 
+              
+#               // ONLY Trigger A Logic - No more Power Fallback
+#               if (buffer.indexOf("!1TGA01") != -1) {
+#                 id(relay_template).turn_on();
+#                 ESP_LOGI("integra", "UCC MATCH: Trigger A HIGH (ON)");
+#                 buffer = ""; 
+#               } 
+#               else if (buffer.indexOf("!1TGA00") != -1) {
+#                 id(relay_template).turn_off();
+#                 ESP_LOGI("integra", "UCC MATCH: Trigger A LOW (OFF)");
+#                 buffer = "";
+#               }
+#             }
+#           }
+
+# interval:
+#   - interval: 100ms
+#     then:
+#       - lambda: |-
+#           // 1. Check if we are still connected to the Integra
+#           if (!id(integra_client).connected()) {
+#             static uint32_t last_conn = 0;
+#             if (millis() - last_conn > 10000) {
+#               last_conn = millis();
+#               id(integra_client).connect("10.0.168.212", 60128);
+#             }
+#           } else {
+#             // 2. Read the incoming bytes
+#             while (id(integra_client).available()) {
+#               char c = id(integra_client).read();
+              
+#               // Sliding window buffer (keeps the last 20 characters)
+#               static String buffer = "";
+#               buffer += c;
+#               if (buffer.length() > 20) buffer = buffer.substring(1); 
+              
+#               // 3. Logic: Check for Trigger A or Main Power
+#               if (buffer.indexOf("!1TGA01") != -1) {
+#                 id(relay_template).turn_on();
+#                 ESP_LOGI("integra", "MATCH: Trigger A ON");
+#                 buffer = ""; 
+#               } 
+#               else if (buffer.indexOf("!1TGA00") != -1) {
+#                 id(relay_template).turn_off();
+#                 ESP_LOGI("integra", "MATCH: Trigger A OFF");
+#                 buffer = "";
+#               }
+#               else if (buffer.indexOf("!1PWR01") != -1) {
+#                 id(relay_template).turn_on();
+#                 ESP_LOGI("integra", "MATCH: System Power ON");
+#                 buffer = "";
+#               }
+#               else if (buffer.indexOf("!1PWR00") != -1) {
+#                 id(relay_template).turn_off();
+#                 ESP_LOGI("integra", "MATCH: System Power OFF");
+#                 buffer = "";
+#               }
+#             }
+#           }
+
+
+# interval:
+#   - interval: 100ms
+#     then:
+#       - lambda: |-
+#           const char* integra_ip = "10.0.168.212";
+#           const uint16_t port = 60128;
+          
+#           if (!id(integra_client).connected()) {
+#             static uint32_t last_conn = 0;
+#             if (millis() - last_conn > 10000) {
+#               last_conn = millis();
+#               ESP_LOGI("integra", "Attempting Peer Link to %s", integra_ip);
+#               id(integra_client).connect(integra_ip, port);
+#             }
+#           } else {
+#             // RAW WIRETAP MODE
+#             while (id(integra_client).available()) {
+#               char c = id(integra_client).read();
+#               // Print every character to the log so we can see the "Conversation"
+#               ESP_LOGD("integra_raw", "Received: %c (Hex: %02X)", c, c);
+              
+#               // We'll also keep a small buffer to catch our triggers
+#               static String buffer = "";
+#               buffer += c;
+#               if (buffer.length() > 50) buffer = buffer.substring(1); // Keep it lean
+              
+#               // Trigger A: !1TGA01 (Trigger A ON)
+#               if (buffer.indexOf("!1TGA01") != -1) {
+#                 id(relay_template).turn_on();
+#                 ESP_LOGI("integra", "MATCH: Trigger A ON - Powering Amp");
+#                 buffer = ""; 
+#               }
+#               // Trigger A: !1TGA00 (Trigger A OFF)
+#               else if (buffer.indexOf("!1TGA00") != -1) {
+#                 id(relay_template).turn_off();
+#                 ESP_LOGI("integra", "MATCH: Trigger A OFF - Stopping Amp");
+#                 buffer = "";
+#               }
+#               // Power Fallback: !1PWR01
+#               else if (buffer.indexOf("!1PWR01") != -1) {
+#                 id(relay_template).turn_on();
+#                 buffer = "";
+#               }
+#             }
+#           }
+
+# This runs the "Listener" logic every 100ms
+# interval:
+#   - interval: 100ms
+#     then:
+#       - lambda: |-
+#           const char* integra_ip = "10.0.168.212";
+#           const uint16_t port = 60128;
+          
+#           if (!id(integra_client).connected()) {
+#             static uint32_t last_conn = 0;
+#             if (millis() - last_conn > 10000) {
+#               last_conn = millis();
+#               ESP_LOGI("integra", "Attempting Peer Link to %s", integra_ip);
+#               id(integra_client).connect(integra_ip, port);
+#             }
+#           } else {
+#             while (id(integra_client).available()) {
+#               String msg = id(integra_client).readStringUntil('\n');
+#               if (msg.indexOf("!1PWR01") != -1) {
+#                 id(relay_template).turn_on();
+#                 ESP_LOGD("integra", "MATCH: Power ON");
+#               } else if (msg.indexOf("!1PWR00") != -1) {
+#                 id(relay_template).turn_off();
+#                 ESP_LOGD("integra", "MATCH: Power OFF");
+#               }
+#             }
+#           }
+          
+
+
+    
+
+
+# # Instead of custom_component, we'll initialize in setup
+# interval:
+#   - interval: 1s
+#     then:
+#       - lambda: |-
+#           static auto *listener = new esphome::integra::IntegraPwrListener();
+#           static bool initialized = false;
+#           if (!initialized) {
+#             App.register_component(listener);
+#             initialized = true;
+#           }

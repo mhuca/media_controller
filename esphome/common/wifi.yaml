@@ -10,3 +10,17 @@ wifi:
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
     ssid: "Sonoff-4Ch-Pro Fallback Hotspot"
+
+sensor: 
+  - platform: wifi_signal
+    name: WiFi Signal
+    update_interval: 60s
+    entity_category: "diagnostic"
+    disabled_by_default: true
+
+  # - platform: wifi_info
+  #   ip_address:
+  #     name: "ESP IP Address"
+  #     entity_category: "diagnostic"
+  #     disabled_by_default: true
+      

@@ -1,0 +1,116 @@
+substitutions:
+  name: "family-room-booth-power"
+  friendly_name: "Family Room Booth Power"
+  board: esp8285
+  project_version: "1.0"
+  standby_threshold: "5.0"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  name_add_mac_suffix: false
+
+esp8266:
+  board: ${board}
+  restore_from_flash: true
+
+
+packages:
+  wifi: !include common/wifi.yaml
+
+# New top-level safe_mode component (replaces old oa: safe_mode)
+safe_mode:
+  num_attempts: 10
+  reboot_timeout: 1min
+
+web_server:
+  port: 80
+
+captive_portal:
+
+api:
+  
+ota:
+  - platform: esphome
+
+logger:
+  level: DEBUG
+  baud_rate: 0 
+
+# 1. Register the component so the 'post' action becomes available
+http_request:
+  id: http_request_id
+  verify_ssl: false
+
+sensor:
+  - platform: hlw8012
+    sel_pin: { number: GPIO12, inverted: true }
+    cf_pin: GPIO4
+    cf1_pin: GPIO5
+    voltage_divider: 780 
+    current_resistor: 0.001
+    change_mode_every: 1 
+    update_interval: 2s 
+    power:
+      id: raw_power
+      name: "Power"
+      unit_of_measurement: W
+      filters:
+        - sliding_window_moving_average:
+            window_size: 5
+            send_every: 1
+        - calibrate_linear:
+            - 0.0000 -> 0.5900
+            - 0.0000 -> 1.5600
+            - 198.5129 -> 87.8300
+            - 434.2469 -> 189.5000
+        - lambda: if (x < 1.5600) return 0; else return (x - 1.5600);
+
+binary_sensor:
+  - platform: template
+    name: "In Use"
+    id: leader_in_use
+    # Logic: Returns true if power is above 5.0W
+    lambda: |-
+      return (id(raw_power).state > 3.0);
+    
+    filters:
+      - delayed_off: 30s # The 2:00 AM Rule / Sustain logic
+    
+    # The Edge-to-Edge Bridge
+    on_press:
+      then:
+        # - lambda: |-
+        #     auto res = id(http_request_id).get("http://soundtown-amp.local/switch/Relay/turn_on");
+        - http_request.post: "http://soundtown-amp.local/switch/Relay/turn_on"
+        - logger.log: "UCC BRIDGE: Power Bar ACTIVE. Signaling Amp ON."
+        - homeassistant.service:
+            service: logbook.log
+            data:
+              name: "Soundtown Amp"
+              message: "HTTP Link: Trigger Sent - Powering ON"
+              entity_id: "switch.family_room_booth_power_relay"
+    on_release:
+      then:
+        # - lambda: |-
+        #     auto res = id(http_request_id).get("http://soundtown-amp.local/switch/Relay/turn_off");
+        - http_request.post: "http://soundtown-amp.local/switch/Relay/turn_off"
+        - logger.log: "UCC BRIDGE: Power Bar ACTIVE. Signaling Amp OFF."
+        - homeassistant.service:
+            service: logbook.log
+            data:
+              name: "Soundtown Amp"
+              message: "HTTP Link: Trigger Sent - Powering OFF"
+              entity_id: "switch.family_room_booth_power_relay"
+
+switch:
+  - platform: gpio
+    name: "Relay"
+    pin: GPIO14
+    id: relay
+    restore_mode: ALWAYS_ON
+
+status_led:
+  pin:
+    number: GPIO13
+    inverted: true

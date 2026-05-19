@@ -1,0 +1,676 @@
+- id: '1775218841393'
+  alias: 'Media: Living Room Art Mode Handshake'
+  description: "# ART MODE HANDSHAKE (V1.0) \nThe ONLY place allowed to send KEY_POWER
+    commands to the Frame TV. Ensures the ESPHome sensor is notified immediately (predictive
+    logic)."
+  triggers:
+  - trigger: event
+    event_type: frame_art_mode
+  actions:
+  - variables:
+      area_key: '{{ trigger.event.data.area_key | default(''living_room'') }}'
+      tv_dev: '{{ (label_devices(''media_role_tv'') | select(''in'', area_devices(area_key))
+        | first | default(''none'')) }}'
+      tv: '{{ (device_entities(tv_dev) | select(''match'', ''media_player\.'') | first
+        | default(''none'')) | replace(''"'', '''') | trim }}'
+      tv_remote: '{{ (device_entities(tv_dev) | select(''match'', ''remote\.'') |
+        first | default(''none'')) | replace(''"'', '''') | trim }}'
+      art_sensor_service: esphome.living_room_media_frame_tv_predict_art_mode
+      is_confirmed_art: '{{ is_state(''binary_sensor.living_room_media_frame_tv_confirmed_art_mode'',
+        ''on'')}}'
+      action: '{{ trigger.event.data.action | bool | default(is_confirmed_art) }}'
+      mode: '{{ 1 if action else 2 }}'
+  - action: '{{ art_sensor_service }}'
+  - action: esphome.living_room_media_frame_tv_set_target_mode
+    data:
+      mode: '{{ mode }}'
+  - action: logbook.log
+    data:
+      name: Art Handshake
+      message: Sent Double-Power to TV and triggered predictive sensor logic.
+  - if:
+    - alias: Abort if Reality already matches Action
+      condition: template
+      value_template: '{{ not (action and is_confirmed_art) }}
+
+        '
+    then:
+    - alias: Send Physical IR/CEC Command
+      action: remote.send_command
+      target:
+        entity_id: '{{ tv_remote }}'
+      data:
+        command:
+        - KEY_POWER
+        - KEY_POWER
+        delay_secs: 0.1
+  mode: queued
+
+- id: '1775419805298'
+  alias: 'Media: Sofabaton Command Handler'
+  description: ''
+  triggers:
+  - trigger: webhook
+    allowed_methods:
+    - POST
+    - PUT
+    local_only: true
+    webhook_id: sb01
+  conditions: []
+  actions:
+  - variables:
+      last_finished: '{{ as_timestamp(this.attributes.last_triggered) }}'
+      command_rate: '{{ as_timestamp(now()) - last_finished }}'
+      delta: '{{ (as_timestamp(now()) - last_finished) | float | default(0) }}'
+      is_double_tap: '{{ 0.15 < delta < 0.40 }}'
+      payload: '{{ trigger.query | default({}) }}'
+      incoming_payload: '{{ trigger.json | default({}) }}'
+      key: '{{ trigger.query.key | lower | default(''none'') }}'
+      area_key: '{{ payload.area_key | default(''living_room'') }}'
+      registry_id: sensor.{{ area_key }}_sofabaton_registry
+      keymap: '{{ (state_attr(registry_id, ''keymap'')).get(key, {}) | default({})
+        }}'
+      domain: '{{ keymap.get(''domain'', ''none'') }}'
+      service: '{{ keymap.get(''service'', ''none'') }}'
+      is_audio: '{{ keymap.get(''is_audio'', false ) }}'
+      is_remote: '{{ keymap.get(''domain'', ''none'' ) == ''remote''  }}'
+  - variables:
+      avr: '{{ (label_entities(''media_role_avr'') | select(''in'', area_entities(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      tv_dev: '{{ (label_devices(''media_role_tv'') | select(''in'', area_devices(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      tv: '{{ (device_entities(tv_dev) | select(''match'', ''media_player\.'') | first
+        | default(''none'')) | replace(''"'', '''') | trim }}'
+      tv_remote: '{{ (device_entities(tv_dev) | select(''match'', ''remote\\.'') |
+        first | default(''none'')) | replace(''"'', '''') | trim }}'
+      atv_dev: '{{ (label_devices(''media_role_source_atv'') | select(''in'', area_devices(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      atv: '{{ (device_entities(atv_dev) | select(''match'', ''media_player\.'') |
+        first | default(''none'')) | replace(''"'', '''') | trim }}'
+      atv_remote: '{{ (device_entities(atv_dev) | select(''match'', ''remote\\.'')
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      home_music: '{{ (label_entities(''home_music'') | select(''match'', ''media_player.'')
+        | first | default(atv)) | replace(''"'', '''') | trim }}'
+      interconnect: '{{ (label_entities(''media_role_interconnect'') | select(''in'',
+        area_entities(area_key)) | first | default(''none'')) | replace(''"'', '''')
+        | trim }}'
+      art: '{{ (label_entities(''media_role_art_sensor'') | select(''in'', area_entities(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      atv_state: '{{ states[atv].state }}'
+      is_atv_on: '{{ atv != ''none'' and not is_state(atv, ''off'') and not is_state(atv,
+        ''unavailable'') }}'
+  - variables:
+      final_target: "{% if is_remote %}\n  {{ atv_remote }}\n{% elif is_audio %}\n
+        \ {% if atv != 'none' and state_attr(atv, 'volume_level') is not none %}\n
+        \   {{ atv }}\n  {% else %}\n    {{ avr if avr != 'none' else atv }}\n  {%
+        endif %}\n{% elif is_state(atv, 'off') or is_state(atv, 'unavailable') %}\n
+        \ {{ home_music }}\n{% else %}\n  {{ atv if atv != 'none' else avr }}\n{%
+        endif %}\n"
+      t_service: '{{ domain ~ ''.'' ~ service if domain != ''none'' and service !=
+        ''none'' else ''none'' }}
+
+        '
+      t_data: '{{ keymap.get(''data'', {}) }}'
+      double_data_map:
+        volume_up:
+          volume_level: '{% set curr = state_attr(final_target, ''volume_level'')
+            | default(0, true) | float %} {% set start, step = 0.05, 0.20 %} {% set
+            addition = (start - curr) if curr < start else 0 %} {% set current_idx
+            = ((addition + curr - start) / step) %} {% set target_idx = (current_idx
+            | round(0) | int) + 1 %} {% set final_idx = [[target_idx, 0] | max, 4]
+            | min %} {{ (start + (final_idx * step)) | round(2) }}'
+        volume_down:
+          volume_level: '{% set curr = state_attr(final_target, ''volume_level'')
+            | default(0, true) | float %} {% set start, step = 0.05, 0.20 %} {% set
+            addition = (start - curr) if curr < start else 0 %} {% set current_idx
+            = ((addition + curr - start) / step) %} {% set target_idx = (current_idx
+            | round(0) | int) - 1 %} {% set final_idx = [[target_idx, 0] | max, 4]
+            | min %} {{ (start + (final_idx * step)) | round(2) }}'
+      dynamic_map:
+        mute:
+          is_volume_muted: '{{ not state_attr(final_target, ''is_volume_muted'') |
+            default(false) }}'
+      render: "{% set key_id = keymap.get('key_id', 'none') | lower %}\n{% if is_double_tap
+        and key_id in ['volume_up', 'volume_down'] %}\n  {{ double_data_map.get(key_id)
+        }}\n{% elif keymap.get('is_dynamic', false) %}\n  {{ dynamic_map.get(key_id,
+        {}) }}\n{% else %}\n  {{ keymap.get('data', {}) }}\n{% endif %}"
+      final_service: "{% if is_double_tap and keymap.get('key_id') in ['volume_up',
+        'volume_down'] %}\n  media_player.volume_set\n{% else %}\n  {{ t_service }}\n{%
+        endif %}"
+      target:
+        entity_id: '{{ final_target }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ domain == ''remote'' }}'
+      sequence:
+      - action: remote.send_command
+        target: '{{ target }}'
+        data:
+          command: '{{ t_data.command }}'
+          num_repeats: 1
+          delay_secs: 0
+          hold_secs: '{{ keymap.get(''data'', {}).get(''hold_secs'', 0) }}'
+    - conditions:
+      - condition: template
+        value_template: '{{ domain == ''media_player'' }}'
+      sequence:
+      - action: '{{ final_service }}'
+        target: '{{ target }}'
+        data: '{{ render }}'
+    - conditions:
+      - condition: template
+        value_template: '{{ domain == ''event'' }}'
+      sequence:
+      - variables:
+          action_type: '{{ keymap.get(''data'', {}).get(''action_type'', ''none'')
+            }}'
+          action_value: '{{ keymap.get(''data'', {}).get(''action_value'', ''none'')
+            }}'
+          command_input: '{{ keymap.get(''data'', {}).get(''command_input'', '''')
+            }}'
+      - event: universal_controller_command
+        event_data:
+          area_key: '{{ area_key }}'
+          action_type: '{{ action_type}}'
+          action_value: '{{ action_value }}'
+          command_input: '{{ command_input | default(none) }}'
+          source_device: sofabaton
+  mode: queued
+  max: 20
+- id: '1775344888794'
+  alias: 'Media: Living Room Sync Engine V6.2 (Unified)'
+  description: "# UNIFIED SYNC ENGINE (V6.1) \nMonolithic execution. Handles Activity
+    (Macro), Media (Surgical), and Remote (Surgical). Integrates Gain Sensing, CD
+    Fallback, and Repeat Logic."
+  triggers:
+  - trigger: event
+    event_type: media_sync_event
+  actions:
+  - alias: 1. Ingest Contract and Resolve Context
+    variables:
+      payload: '{{ trigger.event.data }}'
+      area_key: '{{ payload.area_key | default(''living_room'') }}'
+      t_mask: '{{ payload.get(''target_mask'', 0) }}'
+      c_mask: '{{ payload.get(''current_mask'', 0) }}'
+      t_source: '{{ payload.get(''target_avr_source'', ''none'') }}'
+      t_sound: '{{ payload.get(''target_sound_mode'', ''none'') }}'
+      t_app: '{{ payload.get(''target_app_name'', ''none'') }}'
+      t_service: '{{ payload.get(''target_service'', ''none'') }}'
+      t_data: '{{ payload.get(''target_data'', {}) }}'
+      t_remote: '{{ payload.get(''target_remote_cmd'', ''none'') }}'
+      is_audio: '{{ ''volume_'' in t_service }}'
+      is_remote: '{{ t_remote != ''none'' }}'
+      avr: '{{ (label_entities(''media_role_avr'') | select(''in'', area_entities(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      tv_dev: '{{ (label_devices(''media_role_tv'') | select(''in'', area_devices(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      tv: '{{ (device_entities(tv_dev) | select(''match'', ''media_player\.'') | first
+        | default(''none'')) | replace(''"'', '''') | trim }}'
+      tv_remote: '{{ (device_entities(tv_dev) | select(''match'', ''remote\\.'') |
+        first | default(''none'')) | replace(''"'', '''') | trim }}'
+      atv_dev: '{{ (label_devices(''media_role_source_atv'') | select(''in'', area_devices(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      atv: '{{ (device_entities(atv_dev) | select(''match'', ''media_player\.'') |
+        first | default(''none'')) | replace(''"'', '''') | trim }}'
+      atv_remote: '{{ (device_entities(atv_dev) | select(''match'', ''remote\\.'')
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      home_music: '{{ (label_entities(''home_music'') | select(''match'', ''media_player.'')
+        | first | default(atv)) | replace(''"'', '''') | trim }}'
+      interconnect: '{{ (label_entities(''media_role_interconnect'') | select(''in'',
+        area_entities(area_key)) | first | default(''none'')) | replace(''"'', '''')
+        | trim }}'
+      art: '{{ (label_entities(''media_role_art_sensor'') | select(''in'', area_entities(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+  - alias: 2. Physical Power Sync
+    if:
+    - condition: template
+      value_template: '{{ t_mask != c_mask and t_mask != 0 }}'
+    then:
+    - parallel:
+      - sequence:
+        - if:
+          - condition: template
+            value_template: '{{ (t_mask | bitwise_and(1)) != (c_mask | bitwise_and(1))
+              and avr
+
+              != ''none'' }}
+
+              '
+          then:
+          - action: media_player.turn_{{ 'on' if t_mask | bitwise_and(1) else 'off'
+              }}
+            target:
+              entity_id: '{{ avr }}'
+          alias: Sync AVR Power
+        - alias: AVR Routing
+          if:
+          - condition: template
+            value_template: '{{ (t_source != ''none'' or t_sound != ''none'') and
+              avr != ''none'' }}'
+          then:
+          - wait_template: '{{ is_state(avr, ''on'') }}'
+            timeout: 00:00:05
+          - if:
+            - condition: template
+              value_template: '{{ t_source != ''none'' and state_attr(avr, ''source'')
+                != t_source }}'
+            then:
+            - action: media_player.select_source
+              target:
+                entity_id: '{{ avr }}'
+              data:
+                source: '{{ t_source }}'
+          - if:
+            - condition: template
+              value_template: '{{ t_sound != ''none'' and state_attr(avr, ''sound_mode'')
+                != t_sound }}'
+            then:
+            - action: media_player.select_sound_mode
+              target:
+                entity_id: '{{ avr }}'
+              data:
+                sound_mode: '{{ t_sound }}'
+        alias: AVR Sync Pipeline
+      - alias: Apple TV Pipeline
+        sequence:
+        - alias: Sync Apple TV Power
+          if:
+          - condition: template
+            value_template: '{{ (t_mask | bitwise_and(4)) != (c_mask | bitwise_and(4))
+              and atv
+
+              != ''none'' }}
+
+              '
+          then:
+          - action: media_player.turn_{{ 'on' if t_mask | bitwise_and(4) else 'off'
+              }}
+            target:
+              entity_id: '{{ atv }}'
+        - variables:
+            atv_state: '{{ states[atv].state }}'
+            is_atv_on: '{{ atv != ''none'' and not is_state(atv, ''off'') and not
+              is_state(atv, ''unavailable'') }}'
+            final_target: "{% if is_remote %}\n  {{ atv_remote }}\n{% elif is_audio
+              %}\n  {% if atv != 'none' and state_attr(atv, 'volume_level') is not
+              none %}\n    {{ atv }}\n  {% else %}\n    {{ avr if avr != 'none' else
+              atv }}\n  {% endif %}\n{% elif is_state(atv, 'off') or is_state(atv,
+              'unavailable') %}\n  {{ home_music }}\n{% else %}\n  {{ atv if atv !=
+              'none' else avr }}\n{% endif %}\n"
+        - alias: App Sync (Wait Only)
+          if:
+          - condition: template
+            value_template: "{{ (is_remote or t_service not in ['release', 'none'])
+              \n   and final_target not in ['none', 'unknown', ''] }}\n"
+          then:
+          - wait_template: '{{ not is_state(atv, ''off'') }}'
+            timeout: 00:00:10
+            continue_on_timeout: true
+      - alias: TV Pipeline
+        sequence:
+        - if:
+          - condition: template
+            value_template: '{{ (t_mask | bitwise_and(2)) != (c_mask | bitwise_and(2))
+              and tv
+
+              != ''none'' }}
+
+              '
+          then:
+          - action: media_player.turn_{{ 'on' if t_mask | bitwise_and(2) else 'off'
+              }}
+            target:
+              entity_id: '{{ tv }}'
+          alias: Sync TV Power
+        - variables:
+            power_in_sync: '{{ c_mask == t_mask }}'
+            tv_mode_mismatch: "{{ (c_mask | bitwise_and(2) > 0) and (\n  ((t_mask
+              | bitwise_and(64) > 0) and (c_mask | bitwise_and(128) > 0)) or \n  ((t_mask
+              | bitwise_and(128) > 0) and (c_mask | bitwise_and(64) > 0))\n) }}"
+        - alias: 3. Art Mode Handshake
+          if:
+          - condition: template
+            value_template: '{{ not power_in_sync and tv_mode_mismatch }}
+
+              '
+          then:
+          - event: frame_art_mode
+            event_data:
+              area_key: '{{ area_key }}'
+              action: '{{ (t_mask | bitwise_and(64) > 0) }}'
+  - alias: 3. Routing Sync
+    if:
+    - condition: template
+      value_template: '{{ t_mask != c_mask and t_mask != 0 }}'
+    then:
+    - alias: 4. Content & Routing Sync
+      parallel: []
+    enabled: false
+  - variables:
+      atv_state: '{{ states[atv].state }}'
+      is_atv_on: '{{ atv != ''none'' and not is_state(atv, ''off'') and not is_state(atv,
+        ''unavailable'') }}'
+      final_target: "{% if is_remote %}\n  {{ atv_remote }}\n{% elif is_audio %}\n
+        \ {% if atv != 'none' and state_attr(atv, 'volume_level') is not none %}\n
+        \   {{ atv }}\n  {% else %}\n    {{ avr if avr != 'none' else atv }}\n  {%
+        endif %}\n{% elif is_state(atv, 'off') or is_state(atv, 'unavailable') %}\n
+        \ {{ home_music }}\n{% else %}\n  {{ atv if atv != 'none' else avr }}\n{%
+        endif %}\n"
+  - alias: 5. Execute Surgical Command
+    if:
+    - condition: template
+      value_template: "{{ (is_remote or t_service not in ['release', 'none']) \n   and
+        final_target not in ['none', 'unknown', ''] }}\n"
+    then:
+    - action: '{{ ''remote.send_command'' if is_remote else ''media_player.'' ~ t_service
+        }}'
+      target:
+        entity_id: '{{ final_target }}'
+      data: '{{ t_remote if is_remote else t_data }}'
+  - alias: 6. Loop Closure
+    sequence:
+    - delay:
+        seconds: 1
+    - action: homeassistant.update_entity
+      target:
+        entity_id: '{{ atv }}'
+      data: {}
+  mode: restart
+- id: '1775343775931'
+  alias: 'Media: Global Scrubber & Automation Translator V1.0'
+  description: "# THE TRANSLATOR (V1.0) \nConsolidated Logic for UCC Events: Activity,
+    Media, and Remote Send."
+  triggers:
+  - id: activity
+    trigger: event
+    event_type: universal_controller_command
+    event_data:
+      action_type: activity_call
+  - id: media
+    trigger: event
+    event_type: universal_controller_command
+    event_data:
+      action_type: media_call
+  - id: remote_send
+    trigger: event
+    event_type: universal_controller_command
+    event_data:
+      action_type: remote_send
+  actions:
+  - alias: Global Context Acquisition
+    variables:
+      payload: '{{ trigger.event.data }}'
+      area_key: '{{ payload.area_key | default(''living_room'') }}'
+      avr: '{{ (label_entities(''media_role_avr'') | select(''in'', area_entities(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      tv_dev: '{{ (label_devices(''media_role_tv'') | select(''in'', area_devices(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      tv: '{{ (device_entities(tv_dev) | select(''match'', ''media_player\.'') | first
+        | default(''none'')) | replace(''"'', '''') | trim }}'
+      tv_remote: '{{ (device_entities(tv_dev) | select(''match'', ''remote\\.'') |
+        first | default(''none'')) | replace(''"'', '''') | trim }}'
+      atv_dev: '{{ (label_devices(''media_role_source_atv'') | select(''in'', area_devices(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      atv: '{{ (device_entities(atv_dev) | select(''match'', ''media_player\.'') |
+        first | default(''none'')) | replace(''"'', '''') | trim }}'
+      atv_remote: '{{ (device_entities(atv_dev) | select(''match'', ''remote\\.'')
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      home_music: '{{ (label_entities(''home_music'') | select(''match'', ''media_player.'')
+        | first | default(atv)) | replace(''"'', '''') | trim }}'
+      interconnect: '{{ (label_entities(''media_role_interconnect'') | select(''in'',
+        area_entities(area_key)) | first | default(''none'')) | replace(''"'', '''')
+        | trim }}'
+      art: '{{ (label_entities(''media_role_art_sensor'') | select(''in'', area_entities(area_key))
+        | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      atv_active: '{{ not is_state(atv, ''off'') and not is_state(atv, ''unavailable'')
+        }}'
+      tv_active: '{{ is_state(tv, ''on'') }}'
+      avr_active: '{{ is_state(avr, ''on'') }}'
+      art_active: '{{ is_state(art, ''on'') if art != ''none'' else false }}'
+      int_active: '{{ is_state(interconnect, ''on'') if interconnect != ''none'' else
+        false }}'
+      current_mask: '{% set avr_on = 1 if avr_active else 0 %}
+
+        {% set tv_on = 2 if tv_active else 0 %}
+
+        {% set atv_on = 4 if atv_active else 0 %}
+
+        {% set int_on = 8 if int_active else 0 %}
+
+        {% set art_on = 64 if art_active else 0 %}
+
+        {% set vid_on = 128 if (tv_active and not art_active) else 0 %}
+
+        {{ (avr_on + tv_on + atv_on + int_on + art_on + vid_on) | int }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.id == ''activity'' }}'
+      sequence:
+      - variables:
+          input_text: '{{ payload.action_value | lower | replace(''_'', '' '') | trim
+            }}'
+          noise_words:
+          - watch
+          - show
+          - play
+          - open
+          - listen to
+          - start
+          - turn on
+          - switch to
+          - go to
+          - the
+          - to
+          - me
+          - home
+          alias_map:
+            'off': Power Off
+            stop: Power Off
+            power off: Power Off
+            music: Music
+            plex: Plex
+            yt: YouTube
+            youtube: YouTube
+            netflix: Netflix
+            cams: Security
+            security: Security
+            cameras: Security
+            nvr: Security
+          scrubbed_call: "{% set ns = namespace(text=input_text) %} \n{% for word
+            in noise_words %}\n  {% set pattern = '\\\\b' ~ word ~ '\\\\b' %}\n  {%
+            set ns.text = ns.text | regex_replace(pattern, '') | replace('  ', ' ')
+            | trim | lower %}\n{% endfor %} \n{{ ns.text }}"
+          resolved_activity: '{{ alias_map.get(scrubbed_call, scrubbed_call ) | lower
+            }}'
+          intent_id: sensor.{{ area_key }}_activity_intent
+          valid_activities: '{{ state_attr(intent_id, ''options'') | default({}) }}'
+          valid_activities_old: '{{ state_attr(''input_select.'' ~ area_key ~ ''_media_activity'',
+            ''options'') | default([]) }}'
+      - variables:
+          activity_map: '{{ state_attr(intent_id, ''activity_map'') | default({})
+            }}'
+          active_config: '{{ activity_map.get(resolved_activity, {}) }}'
+          target_mask: '{{ active_config.get(''bits'', 0 ) | int }}'
+          target_sound_mode: '{{ active_config.get(''sound'', ''none'') }}'
+          target_avr_source: '{{ active_config.get(''source'', ''none'') }}'
+          target_app_name: '{{ active_config.get(''app'', ''none'') }}'
+          target_remote_cmd: '{{ active_config.get(''remote_cmd'', ''none'') }}'
+          target_service: '{{ ''select_source'' if active_config.get(''app'', ''none'')
+            != ''none'' else ''none'' }}'
+          target_data: '{{ { ''source'': active_config.get(''app'', ''none'') } if
+            active_config.get(''app'', ''none'') != ''none'' else {} }}'
+          posture_ok: '{{ (current_mask | int) == (target_mask | int) }}'
+          sound_mode_ok: "{% if avr != 'none' and target_sound_mode != 'none' %}\n
+            \ {{ state_attr(avr, 'sound_mode') | string | lower == target_sound_mode
+            | string | lower }}\n{% else %} true {% endif %}"
+          app_ok: "{% if atv != 'none' and target_app_name != 'none' %}\n  {{ state_attr(atv,
+            'source') | string | lower == target_app_name | string | lower }}\n{%
+            else %} true {% endif %}"
+          in_sync: '{{ posture_ok and sound_mode_ok and app_ok }}'
+      - if:
+        - condition: template
+          value_template: '{{ resolved_activity in valid_activities }}'
+        then:
+        - event: media_sync_event
+          event_data:
+            activity: '{{ resolved_activity }}'
+            current_mask: '{{ current_mask }}'
+            target_mask: '{{ target_mask }}'
+            target_sound_mode: '{{ target_sound_mode }}'
+            target_app_name: '{{ target_app_name }}'
+            target_service: '{{ target_service }}'
+            target_data: '{{ target_data }}'
+            target_remote_cmd: '{{ target_remote_cmd }}'
+            target_avr_source: '{{ target_avr_source }}'
+            posture_ok: '{{ posture_ok }}'
+            sound_mode_ok: '{{ sound_mode_ok }}'
+            app_ok: '{{ app_ok }}'
+            in_sync: '{{ in_sync }}'
+            area_key: '{{ area_key }}'
+        - action: input_select.select_option
+          target:
+            entity_id: input_select.{{ area_key }}_media_activity
+          data:
+            option: '{{ resolved_activity }}'
+          enabled: false
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.id == ''media'' }}'
+      sequence:
+      - variables:
+          command: '{{ payload.command | default(''none'') }}'
+          command_input: '{{ payload.command_input | default(''none'') }}'
+          action_val: '{{ payload.action_value }}'
+          is_audio: '{{ ''volume_'' in action_val }}'
+          final_target: "{% if is_audio %}\n  {% if atv != 'none' and state_attr(atv,
+            'volume_level') is not none %}\n    {{ atv }}\n  {% else %}\n    {{ avr
+            if avr != 'none' else atv }}\n  {% endif %}\n{% elif is_state(atv, 'off')
+            %}\n  {{ home_music }}\n{% else %}\n  {{ atv if atv != 'none' else avr
+            }}\n{% endif %}\n"
+          num_repeats: '{{ 2 if is_audio and command == ''hold'' and action_val !=
+            ''volume_mute'' else 1 }}'
+          double_data_map:
+            volume_up:
+              volume_level: "{% set curr = state_attr(final_target, 'volume_level')
+                | default(0, true) | float %}  \n{% set start = 0.05 %}  {% set step
+                = 0.20 %}  \n{% set addition = (start - curr) if curr < start else
+                0 %} \n{% set current_idx = ((addition + curr - start) / step) %}
+                \n{% set target_idx = (current_idx | round(0) | int) + 1 %} \n{% set
+                final_idx = [[target_idx, 0] | max, 4] | min %} \n{{ (start + (final_idx
+                * step)) | round(2) }}"
+            volume_down:
+              volume_level: "{% set curr = state_attr(final_target, 'volume_level')
+                | default(0, true) | float %} \n{% set start = 0.05 %} \n{% set step
+                = 0.20 %} \n{% set addition = (start - curr) if curr < start else
+                0 %} \n{% set current_idx = ((addition + curr - start) / step) %}
+                \n{% set target_idx = (current_idx | round(0) | int) - 1 %} \n{% set
+                final_idx = [[target_idx, 0] | max, 4] | min %} \n{{ (start + (final_idx
+                * step)) | round(2) }}"
+          double_action_map:
+            volume_up: volume_set
+            volume_down: volume_set
+          target_data: "{% if action_val == 'volume_mute' %}\n  {{ { \"is_volume_muted\":
+            not (state_attr(final_target, 'is_volume_muted') | default(false)) } }}\n{%
+            elif command == 'double' and is_audio %}\n  {{ double_data_map.get(action_val,
+            {}) }}\n{% elif action_val == 'select_source' %}\n  {{ { \"source\": command_input
+            } }}\n{% else %}\n  {{ {} }}\n{% endif %}\n"
+          target_service: '{{ double_action_map.get(action_val, action_val) if (command
+            == ''double'' and is_audio) else action_val }}
+
+            '
+      - repeat:
+          count: '{{ num_repeats }}'
+          sequence:
+          - event: media_sync_event
+            event_data:
+              current_mask: '{{ current_mask }}'
+              target_service: '{{ target_service }}'
+              target_data: '{{ target_data }}'
+              target_remote_cmd: none
+              area_key: '{{ area_key }}'
+          - if:
+            - condition: template
+              value_template: '{{ repeat.index < (num_repeats | int) }}'
+            then:
+            - delay:
+                milliseconds: 125
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.id == ''remote_send'' }}'
+      sequence:
+      - variables:
+          action_val: '{{ payload.action_value }}'
+      - if:
+        - condition: template
+          value_template: '{{ atv_remote != ''none'' }}'
+        then:
+        - event: media_sync_event
+          event_data:
+            current_mask: '{{ current_mask }}'
+            target_remote_cmd: '{{ { ''command'': action_val } }}'
+            area_key: '{{ area_key }}'
+- id: '1765921434471'
+  alias: 'Media: Apple TV Sticky State Fixer'
+  description: Reloads ATV config if it is stuck in idle/paused for too long.
+  triggers:
+  - entity_id:
+    - media_player.living_room_atv
+    to:
+    - idle
+    - paused
+    for:
+      hours: 0
+      minutes: 4
+      seconds: 55
+    id: atv_stuck_paused
+    trigger: state
+  conditions: []
+  actions:
+  - wait_for_trigger:
+    - trigger: state
+      entity_id:
+      - media_player.living_room_atv
+      to:
+      - 'off'
+      - standby
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 20
+  - variables:
+      is_sleep: '{{ wait.completed | default(false) }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ is_sleep }}'
+      sequence:
+      - event: universal_controller_command
+        event_data:
+          source_device: Apple TV Sleep
+          action_type: activity_call
+          action_value: Home_Music
+          target_label: []
+          command: press
+          command_input: ''
+          area_key: living_room
+      alias: Sleep - Off After 5 mins
+    - conditions:
+      - condition: template
+        value_template: '{{ not is_sleep }}'
+      sequence:
+      - alias: Log ATV Config Reload
+        data:
+          message: '{{ trigger.to_state.state }} for over 5m15s. Reloading config
+            entry.'
+          name: ATV stuck in
+          entity_id: media_player.living_room_atv
+        action: logbook.log
+      - alias: Reload Apple TV Configuration Entry
+        target:
+          device_id: 5dcaf3f145bf2751f65c27aab9d7b165
+        action: homeassistant.reload_config_entry
+        data: {}
+      alias: Apple TV Reload Required
+  mode: single

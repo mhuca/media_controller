@@ -391,7 +391,7 @@ switch:
     platform: template
     device_class: "switch"
     entity_category: "config"
-    restore_mode: RESTORE_DEFAULT_ON
+    restore_mode: RESTORE_DEFAULT_OFF
     optimistic: true
     lambda: |-
       if (id(glbl_ha_timer_enabled)) {
@@ -412,12 +412,6 @@ debug:
   update_interval: 60s
 
 sensor:
-  - platform: wifi_signal
-    name: WiFi Signal
-    update_interval: 60s
-    entity_category: "diagnostic"
-    disabled_by_default: true
-
 # --- Diagnostic Sensors (Disabled by Default) ---
   - platform: debug
     free:
@@ -441,12 +435,6 @@ text_sensor:
       disabled_by_default: true
     #Hidden unless explicitly enabled in HA UI
 
-  - platform: wifi_info
-    ip_address:
-      name: "ESP IP Address"
-      entity_category: "diagnostic"
-      disabled_by_default: true
-      
 # --- End Diagnostic Sensors ---
 # Give the user a graphical control over the timeout
 # See: https://esphome.io/components/number/template.html

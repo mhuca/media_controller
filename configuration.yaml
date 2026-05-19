@@ -31,13 +31,16 @@ logger:
 homeassistant:
   allowlist_external_dirs:
     - /config/www
+  customize:
+    media_player.smsl_ps100_analog_stereo:
+      device_class: tv
 recorder:
-  purge_keep_days: 7       # Keeps 7 days of history instead of 10
-  auto_purge: true        # Cleans up every night at 4:12 AM
-  auto_repack: true       # Compresses the database twice a month
+  purge_keep_days: 7 # Keeps 7 days of history instead of 10
+  auto_purge: true # Cleans up every night at 4:12 AM
+  auto_repack: true # Compresses the database twice a month
   exclude:
     domains:
-      - automation         # Do you really need to see when every automation ran?
+      - automation # Do you really need to see when every automation ran?
       - updater
       - scene
     entity_globs:
@@ -45,5 +48,5 @@ recorder:
       - sensor.load_*
       - sensor.memory_*
     entities:
-      - sensor.date        # Updates every second/minute but never useful
+      - sensor.date # Updates every second/minute but never useful
       - sensor.time

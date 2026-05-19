@@ -1,0 +1,1939 @@
+- id: "1684099581009"
+  alias: Pet Feeder Schedule
+  description: Feed Cat at fixed schedule
+  triggers:
+    - at: 05:00:00
+      enabled: true
+      trigger: time
+    - at: 08:30:00
+      trigger: time
+    - at: "12:00:00"
+      trigger: time
+    - at: "16:30:00"
+      trigger: time
+    - at: "19:30:00"
+      trigger: time
+    - at: "22:30:00"
+      trigger: time
+    - at: 00:00:00
+      trigger: time
+  conditions: []
+  actions:
+    - action: select.select_first
+      metadata: {}
+      target:
+        entity_id: select.hallway_cat_feeder_feed
+      data: {}
+  mode: single
+- id: "1721740868779"
+  alias: Set Todays Sunset and Sunrise
+  description: ""
+  trigger:
+    - platform: state
+      entity_id:
+        - sensor.sun_next_midnight
+      from:
+      to:
+  condition: []
+  action:
+    - service: input_datetime.set_datetime
+      metadata: {}
+      data:
+        datetime:
+          "{{ as_timestamp(states('sensor.sun_next_rising')) | timestamp_local
+          }}"
+      target:
+        entity_id: input_datetime.sun_rise_today
+    - service: input_datetime.set_datetime
+      metadata: {}
+      data:
+        datetime:
+          "{{ as_timestamp(states('sensor.sun_next_setting')) | timestamp_local
+          }}"
+      target:
+        entity_id: input_datetime.sun_set_today
+  mode: single
+- id: "1723319352877"
+  alias: Calc Energy
+  description: ""
+  trigger:
+    - platform: time
+      at: 07:00:00
+      id: 7am
+    - platform: time
+      at: "11:00:00"
+      id: 11am
+    - platform: time
+      at: "17:00:00"
+      id: 5pm
+    - platform: time
+      at: "19:00:00"
+      id: 7pm
+  condition: []
+  action:
+    - choose:
+        - conditions:
+            - condition: trigger
+              id:
+                - 7am
+          sequence:
+            - action: input_number.set_value
+              metadata: {}
+              data:
+                value: "{{states.sensor.main_service_123_1d.state }}"
+              target:
+                entity_id: input_number.energy_7am
+        - conditions:
+            - condition: trigger
+              id:
+                - 11am
+          sequence:
+            - action: input_number.set_value
+              metadata: {}
+              data:
+                value: "{{states.sensor.main_service_123_1d.state | float}}"
+              target:
+                entity_id:
+                  - input_number.energy_11am
+        - conditions:
+            - condition: trigger
+              id:
+                - 5pm
+          sequence:
+            - action: input_number.set_value
+              metadata: {}
+              data:
+                value: "{{states.sensor.main_service_123_1d.state | float }}"
+              target:
+                entity_id:
+                  - input_number.energy_5pm
+        - conditions:
+            - condition: trigger
+              id:
+                - 7pm
+          sequence:
+            - action: input_number.set_value
+              metadata: {}
+              data:
+                value: "{{states.sensor.main_service_123_1d.state | float }}"
+              target:
+                entity_id:
+                  - input_number.energy_7pm
+  mode: single
+- id: "1723357232867"
+  alias: Set Tarrif through out year
+  description: ""
+  trigger:
+    - platform: time
+      at: 07:00:00
+      variables:
+        tariff: peak
+      id: 7am
+    - platform: time
+      at: "11:00:00"
+      variables:
+        tariff: peak
+      id: 11am
+    - platform: time
+      at: "17:00:00"
+      variables:
+        tariff: peak
+      id: 5pm
+    - platform: time
+      at: "19:00:00"
+      variables:
+        tariff: offpeak
+      id: 7pm
+  condition: []
+  action:
+    - if:
+        - condition: template
+          value_template: '{{ is_state("binary_sensor.workday_sensor", "off") }}'
+          alias: Is Not Working Day
+      then:
+        - action: select.select_option
+          target:
+            entity_id: select.alectra
+          data:
+            option: Off-Peak
+          alias: Set Alectra to Off Peak
+      else:
+        - if:
+            - condition: trigger
+              id:
+                - 7pm
+          then:
+            - action: select.select_option
+              target:
+                entity_id: select.alectra
+              data:
+                option: Off-Peak
+              alias: Set Alectra to Off Peak
+          else:
+            - if:
+                - condition: template
+                  value_template: "{% set currentMonth = now().month | int %}
+
+                    {{ (currentMonth > 4) and (currentMonth < 11) }}"
+                  alias: Test if month is May to October
+              then:
+                - choose:
+                    - conditions:
+                        - condition: trigger
+                          id:
+                            - 7am
+                            - 5pm
+                      sequence:
+                        - alias: Set Alectra to Mid Peak
+                          action: select.select_option
+                          target:
+                            entity_id: select.alectra
+                          data:
+                            option: Mid-Peak
+                    - conditions:
+                        - condition: trigger
+                          id:
+                            - 11am
+                      sequence:
+                        - alias: Set Alectra to Peak
+                          action: select.select_option
+                          target:
+                            entity_id: select.alectra
+                          data:
+                            option: Peak
+              else:
+                - choose:
+                    - conditions:
+                        - condition: trigger
+                          id:
+                            - 7am
+                            - 5pm
+                      sequence:
+                        - alias: Set Alectra to Peak
+                          action: select.select_option
+                          target:
+                            entity_id: select.alectra
+                          data:
+                            option: Peak
+                    - conditions:
+                        - condition: trigger
+                          id:
+                            - 11am
+                      sequence:
+                        - alias: Set Alectra to Mid Peak
+                          action: select.select_option
+                          target:
+                            entity_id: select.alectra
+                          data:
+                            option: Mid-Peak
+  mode: single
+- id: "1728182156139"
+  alias: Car unplugged after 9:30 while home
+  description: Car unplugged after 9:30 while home
+  triggers:
+    - trigger: state
+      entity_id:
+        - binary_sensor.kitchen_movement_sensor_occupancy
+      to: "on"
+  conditions:
+    - condition: time
+      after: "21:30:00"
+      weekday:
+        - sun
+        - mon
+        - tue
+        - wed
+        - thu
+        - fri
+        - sat
+    - condition: state
+      entity_id: binary_sensor.lady_grace_humphrey_charger
+      state: "off"
+    - condition: state
+      entity_id: device_tracker.lady_grace_humphrey_location_tracker
+      state: home
+  actions:
+    - action: tts.google_translate_say
+      metadata: {}
+      data:
+        entity_id: media_player.vsx_933
+        message:
+          The car battery is currently at {{ states.sensor.lady_grace_humphrey_battery.state
+          }}% and is {{ state_translated("binary_sensor.lady_grace_humphrey_charger")
+          }}
+    - action: tts.speak
+      target:
+        entity_id: tts.google_ai_tts
+      data:
+        cache: true
+        media_player_entity_id: media_player.wiim_pro_a60c
+        message:
+          Mi reach back a mi yaad, but mi neva get plug in.. mi deh pan 80 percent
+          chaarge.
+  mode: single
+- id: "1729057264977"
+  alias: Wake Up William
+  description: ""
+  triggers:
+    - trigger: time
+      at: 07:51:00
+    - trigger: time
+      at: 08:00:00
+    - trigger: time
+      at: 08:09:00
+    - trigger: time
+      at: 08:18:00
+    - trigger: time
+      at: 08:27:00
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.is_school_day
+      state: "on"
+  actions:
+    - if:
+        - condition: state
+          entity_id: input_boolean.skip_william_wake_up
+          state: "on"
+      then:
+        - action: input_boolean.turn_off
+          metadata: {}
+          data: {}
+          target:
+            entity_id: input_boolean.skip_william_wake_up
+      else:
+        - if:
+            - condition: state
+              entity_id: binary_sensor.olimex_ea_ld2410_radar_target
+              state: "on"
+          then:
+            - action: light.turn_on
+              metadata: {}
+              data:
+                transition: 120
+                brightness_pct: 75
+                color_temp_kelvin: 3200
+              target:
+                area_id:
+                  - family_room
+                  - basement_kitchen
+              enabled: true
+          else:
+            - wait_for_trigger:
+                - trigger: state
+                  entity_id:
+                    - binary_sensor.olimex_ea_ld2410_radar_target
+                  to: "on"
+              timeout:
+                hours: 0
+                minutes: 5
+                seconds: 0
+                milliseconds: 0
+            - if:
+                - condition: template
+                  value_template: "{{ wait.completed }}"
+              then:
+                - action: light.turn_on
+                  metadata: {}
+                  data: {}
+                  target:
+                    entity_id: light.williams_bedroom_main_light
+                  enabled: true
+              else:
+                - action: light.turn_on
+                  metadata: {}
+                  data:
+                    transition: 60
+                    brightness_pct: 75
+                    color_temp_kelvin: 3200
+                  target:
+                    entity_id:
+                      - light.family_room_decks_dimmer
+                      - light.family_room_front_dimmer
+                      - light.family_room_picture
+                      - light.family_room_main
+                      - light.family_room_table
+                      - light.family_room_fireplace
+                  enabled: true
+  mode: single
+- id: "1737538581785"
+  alias: Car not fully charged at 6:00
+  description: "If the automatic charging fails to complete turn on charging "
+  triggers:
+    - trigger: state
+      entity_id:
+        - binary_sensor.lady_grace_humphrey_charging
+      to: "off"
+  conditions:
+    - condition: numeric_state
+      entity_id: sensor.lady_grace_humphrey_battery
+      below: number.lady_grace_humphrey_charge_limit
+    - condition: state
+      entity_id: binary_sensor.lady_grace_humphrey_charger
+      state: "on"
+    - condition: state
+      entity_id: switch.lady_grace_humphrey_charger
+      state: "off"
+    - condition: time
+      before: 07:00:00
+    - condition: state
+      entity_id: binary_sensor.workday_sensor
+      state: "on"
+  actions:
+    - action: button.press
+      metadata: {}
+      data: {}
+      target:
+        entity_id: button.lady_grace_humphrey_wake_up
+    - wait_template:
+        "{{ states.binary_sensor.lady_grace_humphrey_online.state == 'on'
+        }}"
+      continue_on_timeout: false
+      timeout: 00:02:00
+      alias: Wait for Car to be online
+    - action: switch.turn_on
+      metadata: {}
+      data: {}
+      target:
+        entity_id: switch.lady_grace_humphrey_charger
+    - delay:
+        hours: 0
+        minutes: 50
+        seconds: 0
+    - action: switch.turn_off
+      metadata: {}
+      data: {}
+      target:
+        entity_id: switch.lady_grace_humphrey_charger
+  mode: single
+- id: "1741305971177"
+  alias: Powder Room Fan Running
+  description: ""
+  triggers:
+    - trigger: state
+      entity_id:
+        - switch.powder_room_fan
+      to: "on"
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+      id: fan_running_for_5
+    - trigger: state
+      entity_id:
+        - light.powder_room_lights
+      to: "on"
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+      id: light_on_for_5
+  conditions: []
+  actions:
+    - if:
+        - condition: trigger
+          id:
+            - fan_running_for_5
+      then:
+        - action: timer.start
+          metadata: {}
+          data: {}
+          target:
+            entity_id: timer.powder_room_fan_timer
+    - if:
+        - condition: trigger
+          id:
+            - light_on_for_5
+      then:
+        - action: timer.start
+          metadata: {}
+          data: {}
+          target:
+            entity_id:
+              - timer.powder_room_light_timer
+  mode: single
+- id: "1745606768722"
+  alias: Memory Above 40%
+  description: ""
+  triggers:
+    - trigger: numeric_state
+      entity_id:
+        - sensor.lxc_docker_ct_300_memory_used_percentage
+      above: 40
+  conditions: []
+  actions:
+    - action: notify.mobile_app_work_iphone
+      metadata: {}
+      data:
+        message: above 40%
+        title: "Docker Memory Usage "
+  mode: single
+- id: "1762467666648"
+  alias: "Media Player DHC 60.7 Main Change State "
+  description: ""
+  triggers:
+    - trigger: state
+      entity_id:
+        - media_player.dhc_60_7
+      id: main_off
+      from:
+        - "on"
+      to:
+        - "off"
+    - trigger: state
+      entity_id:
+        - media_player.dhc_60_7
+      from:
+        - "off"
+      id: main_on
+      to:
+        - "on"
+  conditions: []
+  actions:
+    - choose:
+        - conditions:
+            - condition: trigger
+              id:
+                - main_off
+          sequence:
+            - action: switch.turn_off
+              metadata: {}
+              data: {}
+              target:
+                entity_id: switch.center_channel_amp
+        - conditions:
+            - condition: trigger
+              id:
+                - main_on
+          sequence:
+            - action: switch.turn_on
+              metadata: {}
+              data: {}
+              target:
+                entity_id: switch.center_channel_amp
+  mode: single
+- id: "1764547983660"
+  alias: Watchdog - Reconnect Client WiFi (MAC)
+  description: ""
+  triggers:
+    - trigger: event
+      event_type: omada_reconnect_mac
+  conditions: []
+  actions:
+    - action: tplink_omada.reconnect_client
+      metadata: {}
+      data:
+        mac: "{{ trigger.event.data.mac }}"
+  mode: single
+- id: "22223334445"
+  alias: Watchdog - Unified MAC Lookup and Reconnect
+  description:
+    Triggers self-healing reconnection for devices that are unavailable/unreachable
+    after a sustained period.
+  triggers:
+    - entity_id: sensor.watchdog_failed_device_count
+      above: 0
+      for:
+        minutes: 2
+      trigger: numeric_state
+    - minutes: /15
+      trigger: time_pattern
+  actions:
+    - action: logbook.log
+      data:
+        message:
+          "WATCHDOG Fired! Mode: {% if trigger.platform == 'numeric_state'
+          %}Reactive (Count: {{ trigger.to_state.state }}) {% else %}Proactive (Scheduled){%
+          endif %}. Processing {{ states('sensor.watchdog_failed_device_count') }}
+          failed devices."
+        name: Watchdog Fired
+    - if:
+        - condition: numeric_state
+          entity_id: sensor.watchdog_failed_device_count
+          above: 0
+      then:
+        - action: homeassistant.reload_config_entry
+          data:
+            entry_id: 01KB5B9CHPZJKAZW2GBN5YYGSW
+        - action: homeassistant.reload_config_entry
+          data:
+            entry_id: 01KBKT9X9HPMZ4WH8KJEPK0H4W
+        - action: homeassistant.reload_config_entry
+          data:
+            entry_id: 01KB3263WAPBCQ0R12Y0QAM2H8
+        - delay:
+            hours: 0
+            minutes: 0
+            seconds: 20
+            milliseconds: 0
+    - condition: numeric_state
+      entity_id: sensor.watchdog_failed_device_count
+      above: 0
+    - repeat:
+        for_each:
+          "{{ states('sensor.watchdog_unavailable_device_list') | from_json
+          }}"
+        sequence:
+          - condition: template
+            value_template:
+              "{% set mac = repeat.item.mac %} \n{{ mac is not none and
+              mac is not in [\"\", \"00:00:00:00:00:00\", \"unavailable\", \"unknown\",
+              \"null\"] }}\n"
+          - event: omada_reconnect_mac
+            event_data:
+              mac: "{{ repeat.item.mac }}"
+              entity_id: "{{ repeat.item.entity_id }}"
+          - action: logbook.log
+            data:
+              message:
+                "RECONNECT SUCCESS for: {{ repeat.item.entity_id }} (MAC: {{ repeat.item.mac
+                }})"
+              name: Watchdog Reconnect Generated
+  mode: parallel
+- id: "1765010749347"
+  alias: Command - Sofabaton Dispatcher
+  description:
+    Triggers actions based on URL query parameters and passes control to
+    the Command Router.
+  triggers:
+    - webhook_id: sofabaton01
+      allowed_methods:
+        - GET
+        - POST
+      local_only: true
+      trigger: webhook
+  conditions: []
+  actions:
+    - variables:
+        last_run:
+          "{{ as_timestamp(this.attributes.last_triggered) | float | default(now())
+          }}"
+        now_ms: "{{ as_timestamp(now()) | float }}"
+        time_delta: "{{ (now_ms - last_run) * 1000 if last_run < now_ms else -1 }}"
+        is_hold: "{{ time_delta < 110 }}"
+    - variables:
+        incoming_payload: "{{ trigger.json | default({'hold_secs': 0}) }}"
+        value_map:
+          VUP: volume_up
+          VDN: volume_down
+          MUT: volume_mute
+          PLY: media_play_pause
+          NXT: media_next_track
+          PRV: media_previous_track
+          PWR: turn_off
+          ONN: turn_on
+          TGL: toggle
+          STP: media_stop
+          PLA: media_play
+          PSE: media_pause
+          VST: volume_set
+          JUN: join
+          UJN: unjoin
+          SRC: select_source
+          SND: select_sound_mode
+          SHF: shuffle_set
+          RPT: repeat_set
+          MED: play_media
+          SEK: media_seek
+          CLR: clear_playlist
+        remote_value_map:
+          UPP: up
+          DWN: down
+          LFT: left
+          RGT: right
+          SEL: select
+          LSL: select_hold
+          MNU: menu
+          TMN: top_menu
+          HOM: home
+          LHM: home_hold
+          PLA: play
+          PSE: pause
+          PLY: play_pause
+          STP: stop
+          NXT: next
+          PRV: previous
+          SKF: skip_forward
+          SKB: skip_backward
+          WKE: wakeup
+          SPD: suspend
+          VUP: volume_up
+          VDN: volume_down
+        type_map:
+          MED: media_call
+          LIT: light_call
+          SCN: scene_cycle
+          REM: remote_send
+          PET: pet_feeder
+          ARC: area_command
+        final_type:
+          "{{ type_map.get(trigger.query.action, trigger.query.action | default('media_call'))
+          }}"
+        final_value:
+          "{{ value_map.get(trigger.query.value | upper, trigger.query.value)
+          }}"
+        area_key: "{{ trigger.query.area_key | default('living_room') }}"
+        command_input:
+          "{{ 'broadcast' if final_type in ['scene_cycle','light_call']
+          else '' }}"
+    - delay:
+        hours: 0
+        minutes: 0
+        seconds: 0
+        milliseconds: 20
+    - wait_for_trigger:
+        - webhook_id: sofabaton01
+          allowed_methods:
+            - GET
+            - POST
+          local_only: true
+          trigger: webhook
+      timeout:
+        hours: 0
+        minutes: 0
+        seconds: 0
+        milliseconds: 140
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ wait.trigger is not none }}"
+          sequence:
+            - repeat:
+                while:
+                  - condition: template
+                    value_template: "{{ wait.trigger is not none }}"
+                sequence:
+                  - event: universal_controller_command
+                    event_data:
+                      source_device: sofabaton
+                      action_type: "{{ final_type }}"
+                      action_value: "{{ final_value }}"
+                      target_label: []
+                      command: hold
+                      command_input: "{{ command_input }}"
+                      area_key: "{{ area_key }}"
+                      data_payload: "{{ incoming_payload }}"
+                      overrides: {}
+                  - wait_for_trigger:
+                      - trigger: webhook
+                        webhook_id: sofabaton01
+                        allowed_methods:
+                          - POST
+                          - PUT
+                        local_only: true
+                    timeout: "00:00:00.150"
+                    continue_on_timeout: true
+        - conditions:
+            - condition: template
+              value_template: "{{ wait.trigger is none }}"
+          sequence:
+            - wait_for_trigger:
+                - trigger: webhook
+                  webhook_id: sofabaton01
+                  allowed_methods:
+                    - POST
+                    - PUT
+                  local_only: true
+              timeout:
+                hours: 0
+                minutes: 0
+                seconds: 0
+                milliseconds: 250
+              continue_on_timeout: true
+            - if:
+                - condition: template
+                  value_template: "{{ wait.trigger is not none }}"
+              then:
+                - variables:
+                    command: double
+              else:
+                - variables:
+                    command: press
+            - event: universal_controller_command
+              event_data:
+                source_device: sofabaton
+                action_type: "{{ final_type }}"
+                action_value: "{{ final_value }}"
+                target_label: []
+                command: "{{ command }}"
+                command_input: "{{ command_input }}"
+                area_key: "{{ area_key }}"
+                data_payload: "{{ incoming_payload }}"
+                overrides: {}
+  mode: single
+- &id001
+  id: "1765852842316"
+  alias: Command - Pico Dispatcher - New DELETE
+  description: Single, double, and long press detection
+  triggers:
+    - trigger: event
+      event_type: lutron_caseta_button_event
+      event_data:
+        action: press
+  conditions: []
+  actions:
+    - wait_for_trigger:
+        - event_type: lutron_caseta_button_event
+          event_data:
+            serial: "{{ serial }}"
+            button_number: "{{ button_number }}"
+            action: release
+          id: release_event
+          trigger: event
+      timeout:
+        milliseconds: 450
+      continue_on_timeout: true
+    - variables:
+        area_key: "{{ area_id(trigger.event.data.device_id) }}"
+        data_override:
+          "{% set all_overrides = label_entities('override') \n  | select('match',
+          'sensor.')\n  | list\n%}\n{% set overrides = \n  device_entities(trigger.event.data.device_id)
+          \n  | select('match','sensor.')\n  | select('in', all_overrides )\n  | list\n%}\n{%
+          if overrides | length > 0 %}\n  {{ states(overrides[0]) | default('') }}\n{%
+          endif%}\n"
+        command_input: "{{ 'turn_off' if trigger.event.data.button_type == 'off'
+          else 'turn_on' }}"
+        target_device_name:
+          "{{ trigger.event.data.device_name \n  | lower \n  | replace('
+          ','_') \n  | regex_replace(find='\\\\d+', replace='')\n}}\n"
+        target_lights:
+          "{% set all_lights = label_entities(target_device_name) \n  |
+          select('match', 'light.')\n  | list\n%}    \n{{\n  area_entities(area_key)
+          \n  | select('match','light.')\n  | select('in', all_lights )\n  | list\n}}\n"
+        target:
+          "{% set target = {} %}\n{% if trigger.event.data.device_name != 'Remote'
+          %} \n  {% set target = target \n    | combine({'target':{'entity_id': target_lights
+          }}) \n  %}\n{% endif %}\n{% if data_override | length > 0 %}\n  {% set target
+          = target \n    | combine(data_override) \n  %}\n{% endif %}\n{{ target }}\n"
+        action_type:
+          "{{ 'media_call' if trigger.event.data.device_name == 'Media' else
+          'light_call' }} \n"
+        device_prefix:
+          "{{ 'media_' if trigger.event.data.device_name == 'Media' else
+          '' }} \n"
+    - if:
+        - condition: template
+          value_template: "{{ wait.completed }}"
+      then:
+        - wait_for_trigger:
+            - event_type: lutron_caseta_button_event
+              event_data:
+                serial: "{{ serial }}"
+                button_number: "{{ button_number }}"
+                action: press
+              id: press_event
+              trigger: event
+          timeout:
+            milliseconds: 250
+          continue_on_timeout: true
+        - if:
+            - condition: template
+              value_template: "{{ wait.completed }}"
+          then:
+            - variables:
+                command: double
+                action_value:
+                  "{% set command_map = {\n    'on': 'max',\n    'raise': '',\n
+                  \   'stop': '',\n    'lower': '',\n    'off': 'min',\n    'media_on':
+                  '',\n    'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n
+                  \   'media_stop': 'play.toggle',\n    'media_off': ''\n} %}\n{{ command_map[device_prefix
+                  ~ trigger.event.data.button_type] }}\n"
+                command_input: turn_on
+            - alias: Double Event
+              event: universal_controller_command
+              event_data:
+                source_device: pico
+                action_type: "{{ action_type }}"
+                action_value: "{{ action_value }}"
+                command_input: "{{ command_input }}"
+                area_key: "{{ area_id(trigger.event.data.device_id) }}"
+                data_payload: "{{ trigger.event.data }}"
+                overrides: "{{ target }}"
+                command: "{{ command }}"
+                command_type:
+                  "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
+                  ', '') \n  | replace('_', '') }}_{{ command }}\n"
+          else:
+            - variables:
+                command: press
+                action_value:
+                  "{% set command_map = {\n    'on': '',\n    'raise': 'raise',\n
+                  \   'stop': '',\n    'lower': 'lower',\n    'off': '',\n    'media_on':
+                  '',\n    'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n
+                  \   'media_stop': 'play.toggle',\n    'media_off': ''\n} %}\n{{ command_map[device_prefix
+                  ~ trigger.event.data.button_type] }}\n"
+            - alias: Press Event
+              event: universal_controller_command
+              event_data:
+                source_device: pico
+                action_type: "{{ action_type }}"
+                action_value: "{{ action_value }}"
+                command_input: "{{ command_input }}"
+                area_key: "{{ area_id(trigger.event.data.device_id) }}"
+                data_payload: "{{ trigger.event.data }}"
+                overrides: "{{ target }}"
+                command: "{{ command }}"
+                command_type:
+                  "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
+                  ', '') \n  | replace('_', '') }}_{{ command }}\n"
+      else:
+        - variables:
+            command: hold
+            action_value:
+              "{% set command_map = {\n    'on': 'raise',\n    'raise': 'raise',\n
+              \   'stop': '',\n    'lower': 'lower',\n    'off': 'lower',\n    'media_on':
+              '',\n    'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n
+              \   'media_stop': 'play.toggle',\n    'media_off': ''\n} %}\n{{ command_map[device_prefix
+              ~ trigger.event.data.button_type] }}\n"
+            command_input: turn_on
+        - alias: Hold Event
+          event: universal_controller_command
+          event_data:
+            source_device: pico
+            action_type: "{{ action_type }}"
+            action_value: "{{ action_value }}"
+            command_input: "{{ command_input }}"
+            area_key: "{{ area_id(trigger.event.data.device_id) }}"
+            data_payload: "{{ trigger.event.data }}"
+            overrides: "{{ target }}"
+            command: "{{ command }}"
+            command_type:
+              "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
+              ', '') \n  | replace('_', '') }}_{{ command }}\n"
+        - repeat:
+            while:
+              - condition: template
+                value_template: "{{ not wait.completed }}"
+            sequence:
+              - alias: Hold Event Repeat
+                event: universal_controller_command
+                event_data:
+                  source_device: pico
+                  action_type: "{{ action_type }}"
+                  action_value: "{{ action_value }}"
+                  command_input: "{{ command_input }}"
+                  area_key: "{{ area_id(trigger.event.data.device_id) }}"
+                  data_payload: "{{ trigger.event.data }}"
+                  overrides: "{{ target }}"
+                  command: "{{ command }}"
+                  command_type:
+                    "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
+                    ', '') \n  | replace('_', '') }}_{{ command }}\n"
+              - wait_for_trigger:
+                  - event_type: lutron_caseta_button_event
+                    event_data:
+                      serial: "{{ serial }}"
+                      button_number: "{{ button_number }}"
+                      action: release
+                    trigger: event
+                timeout:
+                  hours: 0
+                  minutes: 0
+                  seconds: 0
+                  milliseconds: 450
+                continue_on_timeout: true
+        - variables:
+            command: release
+            action_value:
+              "{% set command_map = {\n    'on': 'max',\n    'raise': '',\n
+              \   'stop': '',\n    'lower': '',\n    'off': 'min',\n    'media_on': '',\n
+              \   'media_raise': 'volume.up',\n    'media_lower': 'volume.down',\n    'media_stop':
+              'play.toggle',\n    'media_off': ''\n} %}\n{{ command_map[device_prefix
+              ~ trigger.event.data.button_type] }}\n"
+            command_input: ""
+        - alias: Release Event
+          event: universal_controller_command
+          event_data:
+            source_device: pico
+            action_type: "{{ action_type }}"
+            action_value: "{{ action_value }}"
+            command_input: "{{ command_input }}"
+            area_key: "{{ area_id(trigger.event.data.device_id) }}"
+            data_payload: "{{ trigger.event.data }}"
+            overrides: "{{ target }}"
+            command: "{{ command }}"
+            command_type:
+              "{{ trigger.event.data.button_type  \n  | lower \n  | replace('
+              ', '') \n  | replace('_', '') }}_{{ command }}\n"
+          enabled: false
+  mode: queued
+  max: 5
+  variables:
+    serial: "{{ trigger.event.data.serial }}"
+    button_number: "{{ trigger.event.data.button_number }}"
+- *id001
+- id: "1766081428098"
+  alias: DJ Booth Power Telemetry
+  description: ""
+  triggers:
+    - type: connected
+      device_id: bbf4ac04fb0d63d25ac5b2206fbd3074
+      entity_id: 48c3a4b95007b39b444c3271342d8c46
+      domain: binary_sensor
+      metadata:
+        secondary: true
+      trigger: device
+      id: power_on
+    - type: not_connected
+      device_id: bbf4ac04fb0d63d25ac5b2206fbd3074
+      entity_id: 48c3a4b95007b39b444c3271342d8c46
+      domain: binary_sensor
+      trigger: device
+      id: power_off
+  conditions: []
+  actions:
+    - choose:
+        - conditions:
+            - condition: trigger
+              id:
+                - power_on
+          sequence:
+            - action: switch.turn_on
+              metadata: {}
+              target:
+                entity_id: switch.soundtown_amp_relay
+              data: {}
+        - conditions:
+            - condition: trigger
+              id:
+                - power_off
+          sequence:
+            - action: switch.turn_off
+              metadata: {}
+              target:
+                entity_id: switch.soundtown_amp_relay
+              data: {}
+  mode: single
+- id: "1769529750050"
+  alias: "Watchdog - Boiling Water Extended Heating "
+  description: ""
+  triggers:
+    - entity_id:
+        - sensor.boiling_water_kitchen_boiling_water_watchdog_power
+      above: 1000
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+        milliseconds: 0
+      id: warning
+      trigger: numeric_state
+    - entity_id: sensor.boiling_water_kitchen_boiling_water_watchdog_power
+      above: 1000
+      for: 00:10:00
+      id: kill_switch
+      trigger: numeric_state
+    - type: power
+      device_id: f4da7490d47fc43437fa315573dbab8b
+      entity_id: a3491093e83a603288c2eb072e81c8e6
+      domain: sensor
+      metadata:
+        secondary: false
+      trigger: device
+      above: 1000
+      for:
+        hours: 0
+        minutes: 10
+        seconds: 0
+      id: kill_switch
+    - type: current
+      device_id: 91c3753a18068bf4c9c9dbfe6d355620
+      entity_id: 2585cd1fa10f67c05d1169d2023777ea
+      domain: sensor
+      trigger: device
+      above: 8
+      for:
+        hours: 0
+        minutes: 10
+        seconds: 0
+      id: kill_switch
+    - type: turned_off
+      device_id: 91c3753a18068bf4c9c9dbfe6d355620
+      entity_id: 026c85c714f63e5268617f8b9542d16c
+      domain: switch
+      trigger: device
+      id: local_trip
+  conditions: []
+  actions:
+    - choose:
+        - conditions:
+            - condition: trigger
+              id: warning
+          sequence:
+            - action: notify.mobile_app_work_iphone
+              data:
+                title: ⚠️ Water Heater Warning
+                message:
+                  The Kitchen Boiling Water has been heating for 5 minutes. Investigating
+                  status...
+        - conditions:
+            - condition: trigger
+              id: kill_switch
+          sequence:
+            - action: switch.turn_off
+              metadata: {}
+              data: {}
+              target:
+                device_id: 91c3753a18068bf4c9c9dbfe6d355620
+            - action: notify.mobile_app_work_iphone
+              data:
+                title: "\U0001F6D1 EMERGENCY SHUTDOWN"
+                message: HotMaster killed by HA after 10 min continuous draw.
+        - conditions:
+            - condition: trigger
+              id: local_trip
+          sequence:
+            - action: notify.mobile_app_work_iphone
+              data:
+                title: "\U0001F6E1️ Local Safety Trip"
+                message:
+                  The Athom plug locally killed the HotMaster power due to prolonged
+                  heating.
+  mode: single
+- id: "1770589510327"
+  alias: Override - Pet Feeder (Subscriber)
+  description: Subscriber and Responder for Pet Feeder Pico logic
+  triggers:
+    - trigger: event
+      id: redirected_event
+      event_type: universal_controller_command
+      event_data:
+        action_type: pet_feeder
+    - trigger: mqtt
+      id: MQTT_Message
+      options:
+        topic: home/universal/bus
+        payload: pet_feeder
+        value_template: "{{ value_json.action_type }}"
+  conditions: []
+  actions:
+    - action: select.select_first
+      metadata: {}
+      target:
+        entity_id: select.hallway_cat_feeder_feed
+      data: {}
+  mode: single
+- id: "1771459894450"
+  alias: "Bridge Export: Universal Controller Command"
+  description: ""
+  triggers:
+    - event_type: universal_controller_command
+      trigger: event
+      event_data:
+        command_input: broadcast
+  conditions:
+    - condition: template
+      value_template: "{{ trigger.event.data.controller_id is not defined }}"
+  actions:
+    - variables:
+        payload:
+          "{{ dict(trigger.event.data, controller_id = 'media_primary') | to_json
+          }}"
+    - data:
+        topic: home/universal/bus
+        payload: "{{ payload }}"
+      action: mqtt.publish
+- id: "1774963501651"
+  alias: Media Matrix - Pre warm and Auto Power Off on No Presence
+  description: Uses mmWave sensor to turn off Art Mode screen when room is empty.
+  triggers:
+    - entity_id:
+        - binary_sensor.living_room_presence_occupancy
+      to:
+        - "off"
+      for:
+        minutes: 5
+      trigger: state
+      id: Occupancy_Clear
+    - entity_id:
+        - binary_sensor.living_room_presence_occupancy
+      to:
+        - "on"
+      trigger: state
+      id: Occupancy_Detected
+  conditions: []
+  actions:
+    - if:
+        - condition: trigger
+          id:
+            - Occupancy_Detected
+      then:
+        - action: homeassistant.update_entity
+          metadata: {}
+          data:
+            entity_id:
+              - media_player.living_room_atv
+          enabled: true
+        - event: universal_controller_command
+          event_data:
+            source_device: ATV_Off
+            action_type: activity_call
+            action_value: music
+            area_key: living_room
+      else:
+        - event: universal_controller_command
+          event_data:
+            source_device: No_presence_Off
+            action_type: activity_call
+            action_value: "off"
+            area_key: living_room
+  mode: single
+- id: "1775218841393"
+  alias: "Media: Living Room Art Mode Handshake"
+  description:
+    "# ART MODE HANDSHAKE (V1.0) \nThe ONLY place allowed to send KEY_POWER
+    commands to the Frame TV. Ensures the ESPHome sensor is notified immediately (predictive
+    logic)."
+  triggers:
+    - trigger: event
+      event_type: frame_art_mode
+  actions:
+    - variables:
+        area_key: "{{ trigger.event.data.area_key | default('living_room') }}"
+        tv_dev:
+          "{{ (label_devices('media_role_tv') | select('in', area_devices(area_key))
+          | first | default('none')) }}"
+        tv:
+          '{{ (device_entities(tv_dev) | select(''match'', ''media_player\.'') | first
+          | default(''none'')) | replace(''"'', '''') | trim }}'
+        tv_remote:
+          '{{ (device_entities(tv_dev) | select(''match'', ''remote\.'') |
+          first | default(''none'')) | replace(''"'', '''') | trim }}'
+        art_sensor_service: esphome.living_room_media_frame_tv_predict_art_mode
+        is_confirmed_art:
+          "{{ is_state('binary_sensor.living_room_media_frame_tv_confirmed_art_mode',
+          'on')}}"
+        action: "{{ trigger.event.data.action | bool | default(is_confirmed_art) }}"
+        mode: "{{ 1 if action else 2 }}"
+    - action: "{{ art_sensor_service }}"
+    - action: esphome.living_room_media_frame_tv_set_target_mode
+      data:
+        mode: "{{ mode }}"
+    - action: logbook.log
+      data:
+        name: Art Handshake
+        message: Sent Double-Power to TV and triggered predictive sensor logic.
+    - if:
+        - alias: Abort if Reality already matches Action
+          condition: template
+          value_template: "{{ not (action and is_confirmed_art) }}
+
+            "
+      then:
+        - alias: Send Physical IR/CEC Command
+          action: remote.send_command
+          target:
+            entity_id: "{{ tv_remote }}"
+          data:
+            command:
+              - KEY_POWER
+              - KEY_POWER
+            delay_secs: 0.1
+  mode: queued
+
+- id: "1775419805298"
+  alias: "Media: Sofabaton Command Handler"
+  description: ""
+  triggers:
+    - trigger: webhook
+      allowed_methods:
+        - POST
+        - PUT
+      local_only: true
+      webhook_id: sb01
+  conditions: []
+  actions:
+    - variables:
+        last_finished: "{{ as_timestamp(this.attributes.last_triggered) }}"
+        command_rate: "{{ as_timestamp(now()) - last_finished }}"
+        delta: "{{ (as_timestamp(now()) - last_finished) | float | default(0) }}"
+        is_double_tap: "{{ 0.15 < delta < 0.40 }}"
+        payload: "{{ trigger.query | default({}) }}"
+        incoming_payload: "{{ trigger.json | default({}) }}"
+        key: "{{ trigger.query.key | lower | default('none') }}"
+        area_key: "{{ payload.area_key | default('living_room') }}"
+        registry_id: sensor.{{ area_key }}_sofabaton_registry
+        keymap:
+          "{{ (state_attr(registry_id, 'keymap')).get(key, {}) | default({})
+          }}"
+        domain: "{{ keymap.get('domain', 'none') }}"
+        service: "{{ keymap.get('service', 'none') }}"
+        is_audio: "{{ keymap.get('is_audio', false ) }}"
+        is_remote: "{{ keymap.get('domain', 'none' ) == 'remote'  }}"
+    - variables:
+        avr:
+          '{{ (label_entities(''media_role_avr'') | select(''in'', area_entities(area_key))
+          | first | default(''none'')) | replace(''"'', '''') | trim }}'
+        tv_dev:
+          '{{ (label_devices(''media_role_tv'') | select(''in'', area_devices(area_key))
+          | first | default(''none'')) | replace(''"'', '''') | trim }}'
+        tv:
+          '{{ (device_entities(tv_dev) | select(''match'', ''media_player\.'') | first
+          | default(''none'')) | replace(''"'', '''') | trim }}'
+        tv_remote:
+          '{{ (device_entities(tv_dev) | select(''match'', ''remote\\.'') |
+          first | default(''none'')) | replace(''"'', '''') | trim }}'
+        atv_dev:
+          '{{ (label_devices(''media_role_source_atv'') | select(''in'', area_devices(area_key))
+          | first | default(''none'')) | replace(''"'', '''') | trim }}'
+        atv:
+          '{{ (device_entities(atv_dev) | select(''match'', ''media_player\.'') |
+          first | default(''none'')) | replace(''"'', '''') | trim }}'
+        atv_remote:
+          '{{ (device_entities(atv_dev) | select(''match'', ''remote\\.'')
+          | first | default(''none'')) | replace(''"'', '''') | trim }}'
+        home_music:
+          '{{ (label_entities(''home_music'') | select(''match'', ''media_player.'')
+          | first | default(atv)) | replace(''"'', '''') | trim }}'
+        interconnect:
+          '{{ (label_entities(''media_role_interconnect'') | select(''in'',
+          area_entities(area_key)) | first | default(''none'')) | replace(''"'', '''')
+          | trim }}'
+        art:
+          '{{ (label_entities(''media_role_art_sensor'') | select(''in'', area_entities(area_key))
+          | first | default(''none'')) | replace(''"'', '''') | trim }}'
+        atv_state: "{{ states[atv].state }}"
+        is_atv_on:
+          "{{ atv != 'none' and not is_state(atv, 'off') and not is_state(atv,
+          'unavailable') }}"
+    - variables:
+        final_target:
+          "{% if is_remote %}\n  {{ atv_remote }}\n{% elif is_audio %}\n
+          \ {% if atv != 'none' and state_attr(atv, 'volume_level') is not none %}\n
+          \   {{ atv }}\n  {% else %}\n    {{ avr if avr != 'none' else atv }}\n  {%
+          endif %}\n{% elif is_state(atv, 'off') or is_state(atv, 'unavailable') %}\n
+          \ {{ home_music }}\n{% else %}\n  {{ atv if atv != 'none' else avr }}\n{%
+          endif %}\n"
+        t_service: "{{ domain ~ '.' ~ service if domain != 'none' and service !=
+          'none' else 'none' }}
+
+          "
+        t_data: "{{ keymap.get('data', {}) }}"
+        double_data_map:
+          volume_up:
+            volume_level:
+              "{% set curr = state_attr(final_target, 'volume_level')
+              | default(0, true) | float %} {% set start, step = 0.05, 0.20 %} {% set
+              addition = (start - curr) if curr < start else 0 %} {% set current_idx
+              = ((addition + curr - start) / step) %} {% set target_idx = (current_idx
+              | round(0) | int) + 1 %} {% set final_idx = [[target_idx, 0] | max, 4]
+              | min %} {{ (start + (final_idx * step)) | round(2) }}"
+          volume_down:
+            volume_level:
+              "{% set curr = state_attr(final_target, 'volume_level')
+              | default(0, true) | float %} {% set start, step = 0.05, 0.20 %} {% set
+              addition = (start - curr) if curr < start else 0 %} {% set current_idx
+              = ((addition + curr - start) / step) %} {% set target_idx = (current_idx
+              | round(0) | int) - 1 %} {% set final_idx = [[target_idx, 0] | max, 4]
+              | min %} {{ (start + (final_idx * step)) | round(2) }}"
+        dynamic_map:
+          mute:
+            is_volume_muted:
+              "{{ not state_attr(final_target, 'is_volume_muted') |
+              default(false) }}"
+        render:
+          "{% set key_id = keymap.get('key_id', 'none') | lower %}\n{% if is_double_tap
+          and key_id in ['volume_up', 'volume_down'] %}\n  {{ double_data_map.get(key_id)
+          }}\n{% elif keymap.get('is_dynamic', false) %}\n  {{ dynamic_map.get(key_id,
+          {}) }}\n{% else %}\n  {{ keymap.get('data', {}) }}\n{% endif %}"
+        final_service:
+          "{% if is_double_tap and keymap.get('key_id') in ['volume_up',
+          'volume_down'] %}\n  media_player.volume_set\n{% else %}\n  {{ t_service }}\n{%
+          endif %}"
+        target:
+          entity_id: "{{ final_target }}"
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ domain == 'remote' }}"
+          sequence:
+            - action: remote.send_command
+              target: "{{ target }}"
+              data:
+                command: "{{ t_data.command }}"
+                num_repeats: 1
+                delay_secs: 0
+                hold_secs: "{{ keymap.get('data', {}).get('hold_secs', 0) }}"
+        - conditions:
+            - condition: template
+              value_template: "{{ domain == 'media_player' }}"
+          sequence:
+            - action: "{{ final_service }}"
+              target: "{{ target }}"
+              data: "{{ render }}"
+        - conditions:
+            - condition: template
+              value_template: "{{ domain == 'event' }}"
+          sequence:
+            - variables:
+                action_type:
+                  "{{ keymap.get('data', {}).get('action_type', 'none')
+                  }}"
+                action_value:
+                  "{{ keymap.get('data', {}).get('action_value', 'none')
+                  }}"
+                command_input:
+                  "{{ keymap.get('data', {}).get('command_input', '')
+                  }}"
+            - event: universal_controller_command
+              event_data:
+                area_key: "{{ area_key }}"
+                action_type: "{{ action_type}}"
+                action_value: "{{ action_value }}"
+                command_input: "{{ command_input | default(none) }}"
+                source_device: sofabaton
+  mode: queued
+  max: 20
+- id: "1775344888794"
+  alias: "Media: Living Room Sync Engine V6.2 (Unified)"
+  description:
+    "# UNIFIED SYNC ENGINE (V6.1) \nMonolithic execution. Handles Activity
+    (Macro), Media (Surgical), and Remote (Surgical). Integrates Gain Sensing, CD
+    Fallback, and Repeat Logic."
+  triggers:
+    - trigger: event
+      event_type: media_sync_event
+  actions:
+    - alias: 1. Ingest Contract and Resolve Context
+      variables:
+        payload: "{{ trigger.event.data }}"
+        area_key: "{{ payload.area_key | default('living_room') }}"
+        t_mask: "{{ payload.get('target_mask', 0) }}"
+        c_mask: "{{ payload.get('current_mask', 0) }}"
+        t_source: "{{ payload.get('target_avr_source', 'none') }}"
+        t_sound: "{{ payload.get('target_sound_mode', 'none') }}"
+        t_app: "{{ payload.get('target_app_name', 'none') }}"
+        t_service: "{{ payload.get('target_service', 'none') }}"
+        t_data: "{{ payload.get('target_data', {}) }}"
+        t_remote: "{{ payload.get('target_remote_cmd', 'none') }}"
+        is_audio: "{{ 'volume_' in t_service }}"
+        is_remote: "{{ t_remote != 'none' }}"
+        avr:
+          '{{ (label_entities(''media_role_avr'') | select(''in'', area_entities(area_key))
+          | first | default(''none'')) | replace(''"'', '''') | trim }}'
+        tv_dev:
+          '{{ (label_devices(''media_role_tv'') | select(''in'', area_devices(area_key))
+          | first | default(''none'')) | replace(''"'', '''') | trim }}'
+        tv:
+          '{{ (device_entities(tv_dev) | select(''match'', ''media_player\.'') | first
+          | default(''none'')) | replace(''"'', '''') | trim }}'
+        tv_remote:
+          '{{ (device_entities(tv_dev) | select(''match'', ''remote\\.'') |
+          first | default(''none'')) | replace(''"'', '''') | trim }}'
+        atv_dev:
+          '{{ (label_devices(''media_role_source_atv'') | select(''in'', area_devices(area_key))
+          | first | default(''none'')) | replace(''"'', '''') | trim }}'
+        atv:
+          '{{ (device_entities(atv_dev) | select(''match'', ''media_player\.'') |
+          first | default(''none'')) | replace(''"'', '''') | trim }}'
+        atv_remote:
+          '{{ (device_entities(atv_dev) | select(''match'', ''remote\\.'')
+          | first | default(''none'')) | replace(''"'', '''') | trim }}'
+        home_music:
+          '{{ (label_entities(''home_music'') | select(''match'', ''media_player.'')
+          | first | default(atv)) | replace(''"'', '''') | trim }}'
+        interconnect:
+          '{{ (label_entities(''media_role_interconnect'') | select(''in'',
+          area_entities(area_key)) | first | default(''none'')) | replace(''"'', '''')
+          | trim }}'
+        art:
+          '{{ (label_entities(''media_role_art_sensor'') | select(''in'', area_entities(area_key))
+          | first | default(''none'')) | replace(''"'', '''') | trim }}'
+    - alias: 2. Physical Power Sync
+      if:
+        - condition: template
+          value_template: "{{ t_mask != c_mask and t_mask != 0 }}"
+      then:
+        - parallel:
+            - sequence:
+                - if:
+                    - condition: template
+                      value_template:
+                        "{{ (t_mask | bitwise_and(1)) != (c_mask | bitwise_and(1))
+                        and avr
+
+                        != 'none' }}
+
+                        "
+                  then:
+                    - action:
+                        media_player.turn_{{ 'on' if t_mask | bitwise_and(1) else 'off'
+                        }}
+                      target:
+                        entity_id: "{{ avr }}"
+                  alias: Sync AVR Power
+                - alias: AVR Routing
+                  if:
+                    - condition: template
+                      value_template:
+                        "{{ (t_source != 'none' or t_sound != 'none') and
+                        avr != 'none' }}"
+                  then:
+                    - wait_template: "{{ is_state(avr, 'on') }}"
+                      timeout: 00:00:05
+                    - if:
+                        - condition: template
+                          value_template:
+                            "{{ t_source != 'none' and state_attr(avr, 'source')
+                            != t_source }}"
+                      then:
+                        - action: media_player.select_source
+                          target:
+                            entity_id: "{{ avr }}"
+                          data:
+                            source: "{{ t_source }}"
+                    - if:
+                        - condition: template
+                          value_template:
+                            "{{ t_sound != 'none' and state_attr(avr, 'sound_mode')
+                            != t_sound }}"
+                      then:
+                        - action: media_player.select_sound_mode
+                          target:
+                            entity_id: "{{ avr }}"
+                          data:
+                            sound_mode: "{{ t_sound }}"
+              alias: AVR Sync Pipeline
+            - alias: Apple TV Pipeline
+              sequence:
+                - alias: Sync Apple TV Power
+                  if:
+                    - condition: template
+                      value_template:
+                        "{{ (t_mask | bitwise_and(4)) != (c_mask | bitwise_and(4))
+                        and atv
+
+                        != 'none' }}
+
+                        "
+                  then:
+                    - action:
+                        media_player.turn_{{ 'on' if t_mask | bitwise_and(4) else 'off'
+                        }}
+                      target:
+                        entity_id: "{{ atv }}"
+                - variables:
+                    atv_state: "{{ states[atv].state }}"
+                    is_atv_on:
+                      "{{ atv != 'none' and not is_state(atv, 'off') and not
+                      is_state(atv, 'unavailable') }}"
+                    final_target:
+                      "{% if is_remote %}\n  {{ atv_remote }}\n{% elif is_audio
+                      %}\n  {% if atv != 'none' and state_attr(atv, 'volume_level') is not
+                      none %}\n    {{ atv }}\n  {% else %}\n    {{ avr if avr != 'none' else
+                      atv }}\n  {% endif %}\n{% elif is_state(atv, 'off') or is_state(atv,
+                      'unavailable') %}\n  {{ home_music }}\n{% else %}\n  {{ atv if atv !=
+                      'none' else avr }}\n{% endif %}\n"
+                - alias: App Sync (Wait Only)
+                  if:
+                    - condition: template
+                      value_template:
+                        "{{ (is_remote or t_service not in ['release', 'none'])
+                        \n   and final_target not in ['none', 'unknown', ''] }}\n"
+                  then:
+                    - wait_template: "{{ not is_state(atv, 'off') }}"
+                      timeout: 00:00:10
+                      continue_on_timeout: true
+            - alias: TV Pipeline
+              sequence:
+                - if:
+                    - condition: template
+                      value_template:
+                        "{{ (t_mask | bitwise_and(2)) != (c_mask | bitwise_and(2))
+                        and tv
+
+                        != 'none' }}
+
+                        "
+                  then:
+                    - action:
+                        media_player.turn_{{ 'on' if t_mask | bitwise_and(2) else 'off'
+                        }}
+                      target:
+                        entity_id: "{{ tv }}"
+                  alias: Sync TV Power
+                - variables:
+                    power_in_sync: "{{ c_mask == t_mask }}"
+                    tv_mode_mismatch:
+                      "{{ (c_mask | bitwise_and(2) > 0) and (\n  ((t_mask
+                      | bitwise_and(64) > 0) and (c_mask | bitwise_and(128) > 0)) or \n  ((t_mask
+                      | bitwise_and(128) > 0) and (c_mask | bitwise_and(64) > 0))\n) }}"
+                - alias: 3. Art Mode Handshake
+                  if:
+                    - condition: template
+                      value_template:
+                        "{{ not power_in_sync and tv_mode_mismatch }}
+
+                        "
+                  then:
+                    - event: frame_art_mode
+                      event_data:
+                        area_key: "{{ area_key }}"
+                        action: "{{ (t_mask | bitwise_and(64) > 0) }}"
+    - alias: 3. Routing Sync
+      if:
+        - condition: template
+          value_template: "{{ t_mask != c_mask and t_mask != 0 }}"
+      then:
+        - alias: 4. Content & Routing Sync
+          parallel: []
+      enabled: false
+    - variables:
+        atv_state: "{{ states[atv].state }}"
+        is_atv_on:
+          "{{ atv != 'none' and not is_state(atv, 'off') and not is_state(atv,
+          'unavailable') }}"
+        final_target:
+          "{% if is_remote %}\n  {{ atv_remote }}\n{% elif is_audio %}\n
+          \ {% if atv != 'none' and state_attr(atv, 'volume_level') is not none %}\n
+          \   {{ atv }}\n  {% else %}\n    {{ avr if avr != 'none' else atv }}\n  {%
+          endif %}\n{% elif is_state(atv, 'off') or is_state(atv, 'unavailable') %}\n
+          \ {{ home_music }}\n{% else %}\n  {{ atv if atv != 'none' else avr }}\n{%
+          endif %}\n"
+    - alias: 5. Execute Surgical Command
+      if:
+        - condition: template
+          value_template:
+            "{{ (is_remote or t_service not in ['release', 'none']) \n   and
+            final_target not in ['none', 'unknown', ''] }}\n"
+      then:
+        - action:
+            "{{ 'remote.send_command' if is_remote else 'media_player.' ~ t_service
+            }}"
+          target:
+            entity_id: "{{ final_target }}"
+          data: "{{ t_remote if is_remote else t_data }}"
+    - alias: 6. Loop Closure
+      sequence:
+        - delay:
+            seconds: 1
+        - action: homeassistant.update_entity
+          target:
+            entity_id: "{{ atv }}"
+          data: {}
+  mode: restart
+- id: "1775343775931"
+  alias: "Media: Global Scrubber & Automation Translator V1.0"
+  description:
+    "# THE TRANSLATOR (V1.0) \nConsolidated Logic for UCC Events: Activity,
+    Media, and Remote Send."
+  triggers:
+    - id: activity
+      trigger: event
+      event_type: universal_controller_command
+      event_data:
+        action_type: activity_call
+    - id: media
+      trigger: event
+      event_type: universal_controller_command
+      event_data:
+        action_type: media_call
+    - id: remote_send
+      trigger: event
+      event_type: universal_controller_command
+      event_data:
+        action_type: remote_send
+  actions:
+    - alias: Global Context Acquisition
+      variables:
+        payload: "{{ trigger.event.data }}"
+        area_key: "{{ payload.area_key | default('living_room') }}"
+        avr:
+          '{{ (label_entities(''media_role_avr'') | select(''in'', area_entities(area_key))
+          | first | default(''none'')) | replace(''"'', '''') | trim }}'
+        tv_dev:
+          '{{ (label_devices(''media_role_tv'') | select(''in'', area_devices(area_key))
+          | first | default(''none'')) | replace(''"'', '''') | trim }}'
+        tv:
+          '{{ (device_entities(tv_dev) | select(''match'', ''media_player\.'') | first
+          | default(''none'')) | replace(''"'', '''') | trim }}'
+        tv_remote:
+          '{{ (device_entities(tv_dev) | select(''match'', ''remote\\.'') |
+          first | default(''none'')) | replace(''"'', '''') | trim }}'
+        atv_dev:
+          '{{ (label_devices(''media_role_source_atv'') | select(''in'', area_devices(area_key))
+          | first | default(''none'')) | replace(''"'', '''') | trim }}'
+        atv:
+          '{{ (device_entities(atv_dev) | select(''match'', ''media_player\.'') |
+          first | default(''none'')) | replace(''"'', '''') | trim }}'
+        atv_remote:
+          '{{ (device_entities(atv_dev) | select(''match'', ''remote\\.'')
+          | first | default(''none'')) | replace(''"'', '''') | trim }}'
+        home_music:
+          '{{ (label_entities(''home_music'') | select(''match'', ''media_player.'')
+          | first | default(atv)) | replace(''"'', '''') | trim }}'
+        interconnect:
+          '{{ (label_entities(''media_role_interconnect'') | select(''in'',
+          area_entities(area_key)) | first | default(''none'')) | replace(''"'', '''')
+          | trim }}'
+        art:
+          '{{ (label_entities(''media_role_art_sensor'') | select(''in'', area_entities(area_key))
+          | first | default(''none'')) | replace(''"'', '''') | trim }}'
+        atv_active:
+          "{{ not is_state(atv, 'off') and not is_state(atv, 'unavailable')
+          }}"
+        tv_active: "{{ is_state(tv, 'on') }}"
+        avr_active: "{{ is_state(avr, 'on') }}"
+        art_active: "{{ is_state(art, 'on') if art != 'none' else false }}"
+        int_active:
+          "{{ is_state(interconnect, 'on') if interconnect != 'none' else
+          false }}"
+        current_mask: "{% set avr_on = 1 if avr_active else 0 %}
+
+          {% set tv_on = 2 if tv_active else 0 %}
+
+          {% set atv_on = 4 if atv_active else 0 %}
+
+          {% set int_on = 8 if int_active else 0 %}
+
+          {% set art_on = 64 if art_active else 0 %}
+
+          {% set vid_on = 128 if (tv_active and not art_active) else 0 %}
+
+          {{ (avr_on + tv_on + atv_on + int_on + art_on + vid_on) | int }}"
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.id == 'activity' }}"
+          sequence:
+            - variables:
+                input_text:
+                  "{{ payload.action_value | lower | replace('_', ' ') | trim
+                  }}"
+                noise_words:
+                  - watch
+                  - show
+                  - play
+                  - open
+                  - listen to
+                  - start
+                  - turn on
+                  - switch to
+                  - go to
+                  - the
+                  - to
+                  - me
+                  - home
+                alias_map:
+                  "off": Power Off
+                  stop: Power Off
+                  power off: Power Off
+                  music: Music
+                  plex: Plex
+                  yt: YouTube
+                  youtube: YouTube
+                  netflix: Netflix
+                  cams: Security
+                  security: Security
+                  cameras: Security
+                  nvr: Security
+                scrubbed_call:
+                  "{% set ns = namespace(text=input_text) %} \n{% for word
+                  in noise_words %}\n  {% set pattern = '\\\\b' ~ word ~ '\\\\b' %}\n  {%
+                  set ns.text = ns.text | regex_replace(pattern, '') | replace('  ', ' ')
+                  | trim | lower %}\n{% endfor %} \n{{ ns.text }}"
+                resolved_activity:
+                  "{{ alias_map.get(scrubbed_call, scrubbed_call ) | lower
+                  }}"
+                intent_id: sensor.{{ area_key }}_activity_intent
+                valid_activities: "{{ state_attr(intent_id, 'options') | default({}) }}"
+                valid_activities_old:
+                  "{{ state_attr('input_select.' ~ area_key ~ '_media_activity',
+                  'options') | default([]) }}"
+            - variables:
+                activity_map:
+                  "{{ state_attr(intent_id, 'activity_map') | default({})
+                  }}"
+                active_config: "{{ activity_map.get(resolved_activity, {}) }}"
+                target_mask: "{{ active_config.get('bits', 0 ) | int }}"
+                target_sound_mode: "{{ active_config.get('sound', 'none') }}"
+                target_avr_source: "{{ active_config.get('source', 'none') }}"
+                target_app_name: "{{ active_config.get('app', 'none') }}"
+                target_remote_cmd: "{{ active_config.get('remote_cmd', 'none') }}"
+                target_service:
+                  "{{ 'select_source' if active_config.get('app', 'none')
+                  != 'none' else 'none' }}"
+                target_data:
+                  "{{ { 'source': active_config.get('app', 'none') } if
+                  active_config.get('app', 'none') != 'none' else {} }}"
+                posture_ok: "{{ (current_mask | int) == (target_mask | int) }}"
+                sound_mode_ok:
+                  "{% if avr != 'none' and target_sound_mode != 'none' %}\n
+                  \ {{ state_attr(avr, 'sound_mode') | string | lower == target_sound_mode
+                  | string | lower }}\n{% else %} true {% endif %}"
+                app_ok:
+                  "{% if atv != 'none' and target_app_name != 'none' %}\n  {{ state_attr(atv,
+                  'source') | string | lower == target_app_name | string | lower }}\n{%
+                  else %} true {% endif %}"
+                in_sync: "{{ posture_ok and sound_mode_ok and app_ok }}"
+            - if:
+                - condition: template
+                  value_template: "{{ resolved_activity in valid_activities }}"
+              then:
+                - event: media_sync_event
+                  event_data:
+                    activity: "{{ resolved_activity }}"
+                    current_mask: "{{ current_mask }}"
+                    target_mask: "{{ target_mask }}"
+                    target_sound_mode: "{{ target_sound_mode }}"
+                    target_app_name: "{{ target_app_name }}"
+                    target_service: "{{ target_service }}"
+                    target_data: "{{ target_data }}"
+                    target_remote_cmd: "{{ target_remote_cmd }}"
+                    target_avr_source: "{{ target_avr_source }}"
+                    posture_ok: "{{ posture_ok }}"
+                    sound_mode_ok: "{{ sound_mode_ok }}"
+                    app_ok: "{{ app_ok }}"
+                    in_sync: "{{ in_sync }}"
+                    area_key: "{{ area_key }}"
+                - action: input_select.select_option
+                  target:
+                    entity_id: input_select.{{ area_key }}_media_activity
+                  data:
+                    option: "{{ resolved_activity }}"
+                  enabled: false
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.id == 'media' }}"
+          sequence:
+            - variables:
+                command: "{{ payload.command | default('none') }}"
+                command_input: "{{ payload.command_input | default('none') }}"
+                action_val: "{{ payload.action_value }}"
+                is_audio: "{{ 'volume_' in action_val }}"
+                final_target:
+                  "{% if is_audio %}\n  {% if atv != 'none' and state_attr(atv,
+                  'volume_level') is not none %}\n    {{ atv }}\n  {% else %}\n    {{ avr
+                  if avr != 'none' else atv }}\n  {% endif %}\n{% elif is_state(atv, 'off')
+                  %}\n  {{ home_music }}\n{% else %}\n  {{ atv if atv != 'none' else avr
+                  }}\n{% endif %}\n"
+                num_repeats:
+                  "{{ 2 if is_audio and command == 'hold' and action_val !=
+                  'volume_mute' else 1 }}"
+                double_data_map:
+                  volume_up:
+                    volume_level:
+                      "{% set curr = state_attr(final_target, 'volume_level')
+                      | default(0, true) | float %}  \n{% set start = 0.05 %}  {% set step
+                      = 0.20 %}  \n{% set addition = (start - curr) if curr < start else
+                      0 %} \n{% set current_idx = ((addition + curr - start) / step) %}
+                      \n{% set target_idx = (current_idx | round(0) | int) + 1 %} \n{% set
+                      final_idx = [[target_idx, 0] | max, 4] | min %} \n{{ (start + (final_idx
+                      * step)) | round(2) }}"
+                  volume_down:
+                    volume_level:
+                      "{% set curr = state_attr(final_target, 'volume_level')
+                      | default(0, true) | float %} \n{% set start = 0.05 %} \n{% set step
+                      = 0.20 %} \n{% set addition = (start - curr) if curr < start else
+                      0 %} \n{% set current_idx = ((addition + curr - start) / step) %}
+                      \n{% set target_idx = (current_idx | round(0) | int) - 1 %} \n{% set
+                      final_idx = [[target_idx, 0] | max, 4] | min %} \n{{ (start + (final_idx
+                      * step)) | round(2) }}"
+                double_action_map:
+                  volume_up: volume_set
+                  volume_down: volume_set
+                target_data:
+                  "{% if action_val == 'volume_mute' %}\n  {{ { \"is_volume_muted\":
+                  not (state_attr(final_target, 'is_volume_muted') | default(false)) } }}\n{%
+                  elif command == 'double' and is_audio %}\n  {{ double_data_map.get(action_val,
+                  {}) }}\n{% elif action_val == 'select_source' %}\n  {{ { \"source\": command_input
+                  } }}\n{% else %}\n  {{ {} }}\n{% endif %}\n"
+                target_service:
+                  "{{ double_action_map.get(action_val, action_val) if (command
+                  == 'double' and is_audio) else action_val }}
+
+                  "
+            - repeat:
+                count: "{{ num_repeats }}"
+                sequence:
+                  - event: media_sync_event
+                    event_data:
+                      current_mask: "{{ current_mask }}"
+                      target_service: "{{ target_service }}"
+                      target_data: "{{ target_data }}"
+                      target_remote_cmd: none
+                      area_key: "{{ area_key }}"
+                  - if:
+                      - condition: template
+                        value_template: "{{ repeat.index < (num_repeats | int) }}"
+                    then:
+                      - delay:
+                          milliseconds: 125
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.id == 'remote_send' }}"
+          sequence:
+            - variables:
+                action_val: "{{ payload.action_value }}"
+            - if:
+                - condition: template
+                  value_template: "{{ atv_remote != 'none' }}"
+              then:
+                - event: media_sync_event
+                  event_data:
+                    current_mask: "{{ current_mask }}"
+                    target_remote_cmd: "{{ { 'command': action_val } }}"
+                    area_key: "{{ area_key }}"
+- id: "1765921434471"
+  alias: "Media: Apple TV Sticky State Fixer"
+  description: Reloads ATV config if it is stuck in idle/paused for too long.
+  triggers:
+    - entity_id:
+        - media_player.living_room_atv
+      to:
+        - idle
+        - paused
+      for:
+        hours: 0
+        minutes: 4
+        seconds: 55
+      id: atv_stuck_paused
+      trigger: state
+  conditions: []
+  actions:
+    - wait_for_trigger:
+        - trigger: state
+          entity_id:
+            - media_player.living_room_atv
+          to:
+            - "off"
+            - standby
+          for:
+            hours: 0
+            minutes: 0
+            seconds: 20
+    - variables:
+        is_sleep: "{{ wait.completed | default(false) }}"
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ is_sleep }}"
+          sequence:
+            - event: universal_controller_command
+              event_data:
+                source_device: Apple TV Sleep
+                action_type: activity_call
+                action_value: Home_Music
+                target_label: []
+                command: press
+                command_input: ""
+                area_key: living_room
+          alias: Sleep - Off After 5 mins
+        - conditions:
+            - condition: template
+              value_template: "{{ not is_sleep }}"
+          sequence:
+            - alias: Log ATV Config Reload
+              data:
+                message:
+                  "{{ trigger.to_state.state }} for over 5m15s. Reloading config
+                  entry."
+                name: ATV stuck in
+                entity_id: media_player.living_room_atv
+              action: logbook.log
+            - alias: Reload Apple TV Configuration Entry
+              target:
+                device_id: 5dcaf3f145bf2751f65c27aab9d7b165
+              action: homeassistant.reload_config_entry
+              data: {}
+          alias: Apple TV Reload Required
+  mode: single

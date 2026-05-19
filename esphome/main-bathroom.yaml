@@ -37,6 +37,9 @@ wifi:
   ap:
     ssid: "KS-602 Fallback Hotspot"
 
+web_server:
+  port: 80
+  
 #captive_portal:
 #switch:
 

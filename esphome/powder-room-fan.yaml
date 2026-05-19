@@ -47,10 +47,12 @@ binary_sensor:
 # - id: switch_2
     platform: homeassistant
     entity_id: binary_sensor.powder_room_door
+    internal: true
 
   - id: ha_light
     platform: homeassistant
     entity_id: light.powder_room_lights
+    internal: true
 
   # - id: ha_motion
   #   platform: homeassistant
@@ -66,6 +68,7 @@ binary_sensor:
     name: Door
     platform: template
     device_class: door
+    internal: true
     lambda: return id(ha_door).state;
     # pin: 
     #   number: GPIO01
@@ -109,21 +112,21 @@ binary_sensor:
             - fan.turn_on: fan_1
             - script.execute: on_timer_stop
 
-text:
-  - id: timer_entity_id
-    platform: template
-    name: "Light Timer"
-#    initial_value: id(glbl_timer_entity_id)
-    optimistic: true
-    min_length: 0
-    max_length: 100
-    mode: text
-    restore_value: true
-    on_value:
-      then:
-        - globals.set:
-            id: glbl_timer_entity_id
-            value: !lambda 'return x;' # x represents the value of the text_template
+# text:
+#   - id: timer_entity_id
+#     platform: template
+#     name: "Light Timer"
+# #    initial_value: id(glbl_timer_entity_id)
+#     optimistic: true
+#     min_length: 0
+#     max_length: 100
+#     mode: text
+#     restore_value: true
+#     on_value:
+#       then:
+#         - globals.set:
+#             id: glbl_timer_entity_id
+#             value: !lambda 'return x;' # x represents the value of the text_template
             
 output:
   - id: gpio_13
@@ -187,11 +190,11 @@ fan:
             event: esphome.lighting_registry_update
             data:
               action: add
+              claimant_id: binary_sensor.${area_key}_motion
               area_key: ${area_key}
               seconds: '5'
               locked: "false"
               skip_warning: "true"
-              timestamp: !lambda 'return str_sprintf("%.0f", id(esptime).now().timestamp);'
         - delay: 500ms
         - homeassistant.event:
             event: esphome.start_registry_cleaner

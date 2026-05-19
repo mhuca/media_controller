@@ -1,0 +1,330 @@
+substitutions:
+  name: kc868-a6-tv-proxy
+  friendly_name: KC868-A6 TV Proxy #change
+  icon: "mdi:light-switch"
+  event: nodered_automation
+  button: button
+  board: esp32dev
+  
+  
+esphome:
+  name: ${name}
+  name_add_mac_suffix: false
+  friendly_name: ${friendly_name}
+  # Registry-First: The custom eISCP logic
+  project:
+    name: Teckin.SP10 
+    version: "1.0"
+
+packages:   # as a list
+#  - !include wifi.yaml
+  - !include common/trusted.yaml
+#  - !include formatted_uptime_sensor.yaml
+#  - !include sensor_base.yaml
+
+
+
+preferences:
+  flash_write_interval: 30s
+
+
+ota:
+  - platform: esphome
+
+uart:
+  - id: rs485
+    tx_pin: GPIO27
+    rx_pin: GPIO14
+    baud_rate: 9600
+
+  # 1. THE INBOUND BUS: Kept purely for listening to the TV's responses.
+  - id: rs232
+    rx_pin: GPIO16
+    baud_rate: 9600
+    stop_bits: 1
+    debug:
+      direction: RX
+      dummy_receiver: true
+      after:
+        bytes: 1
+      sequence:
+        - homeassistant.event:
+            event: esphome.samsung_tv_serial
+            data:
+              raw_byte: !lambda |-
+                char buf[5];
+                sprintf(buf, "%02X", bytes[0]);
+                return std::string(buf);
+
+  # 2. THE OUTBOUND BACKDOOR: We define a standard, un-bugged transmitter component 
+  # completely decoupled from the complex IDF class structure.
+  - id: rs232_tx
+    tx_pin: GPIO17
+    baud_rate: 9600
+    stop_bits: 1
+
+api:
+  actions:
+    - action: send_tv_command
+      variables:
+        b1: int
+        b2: int
+        b3: int
+        b4: int
+        b5: int
+        b6: int
+        b7: int
+      then:
+        # We write directly to our clean, dedicated TX bus ID!
+        - uart.write:
+            id: rs232_tx
+            data: !lambda |-
+              return {(uint8_t)b1, (uint8_t)b2, (uint8_t)b3, (uint8_t)b4, (uint8_t)b5, (uint8_t)b6, (uint8_t)b7};
+# -----------------------------------------------------------------------------
+# Core Components for Communication (Essential for Safety & HA)
+# -----------------------------------------------------------------------------
+# API for Home Assistant communication (mandatory for lights/sensors)
+
+# api:
+#   actions:
+#     - action: send_tv_command
+#       variables:
+#         b1: int
+#         b2: int
+#         b3: int
+#         b4: int
+#         b5: int
+#         b6: int
+#         b7: int
+#       then:
+#         - uart.write: !lambda |-
+#             // Allocate a hard, fixed memory block right on the stack
+#             uint8_t tx_buffer[7];
+#             tx_buffer[0] = (uint8_t)b1;
+#             tx_buffer[1] = (uint8_t)b2;
+#             tx_buffer[2] = (uint8_t)b3;
+#             tx_buffer[3] = (uint8_t)b4;
+#             tx_buffer[4] = (uint8_t)b5;
+#             tx_buffer[5] = (uint8_t)b6;
+#             tx_buffer[6] = (uint8_t)b7;
+
+#             // Pass the raw memory address and size directly to the hardware bus
+#             id(rs232).write_array(tx_buffer, 7);
+#             return {};
+# api:
+#   actions:
+#     - action: send_tv_bytes
+#       variables:
+#         bytes_array: int[]
+#       then:
+#         - uart.write: !lambda |-
+#             if (!bytes_array.empty()) {
+#               // Points directly to the memory address of the first integer in the array
+#               id(rs232).write_array((const uint8_t*)&bytes_array[0], bytes_array.size());
+#             }
+#             return {};
+# Use the time component to track the current time, often useful for automations
+# The server is defaulted to pool.ntp.org
+time:
+  - platform: sntp
+    id: esptime
+    timezone: "America/Toronto" # Your preferred timezone
+    
+# Enable web server for easy configuration access over the network
+web_server:
+  port: 80
+
+# The ultimate safety net for Wi-Fi issues
+captive_portal:
+  # This creates a fallback access point if Wi-Fi connection fails
+   
+
+
+# Enable logging over wireless, since USB serial might conflict during testing
+logger:
+  level: DEBUG
+  baud_rate: 0 
+
+# Basic Config
+
+
+esp32:
+  variant: esp32
+  framework:
+    type: esp-idf
+
+
+
+# uart:
+#   - id: rs232
+#     tx_pin: GPIO17
+#     rx_pin: GPIO16
+#     baud_rate: 9600
+#     stop_bits: 1
+#     debug:
+#       direction: RX
+#       dummy_receiver: true
+#       after:
+#         bytes: 1
+#       sequence:
+#         - homeassistant.event:
+#             event: esphome.samsung_tv_serial
+#             data:
+#               raw_byte: !lambda |-
+#                 char buf[5];
+#                 sprintf(buf, "%02X", bytes[0]);
+#                 return std::string(buf);
+    # stop_bits: 1
+    # debug:
+    #   direction: RX
+    #   dummy_receiver: true
+    #   after:
+    #     bytes: 1
+    #   sequence:
+    #     - homeassistant.event:
+    #         event: esphome.samsung_tv_serial
+    #         data:
+    #           raw_byte: !lambda |-
+    #             char buf[5];
+    #             sprintf(buf, "%02X", bytes[0]);
+    #             return std::string(buf);
+
+# 3. The Number Injector (Node-RED writes to this directly)
+# number:
+#   - platform: template
+#     name: "TV Send Byte"
+#     id: tv_byte_sender
+#     optimistic: true
+#     min_value: 0
+#     max_value: 255
+#     step: 1
+#     on_value:
+#       then:
+#         - uart.write: !lambda |-
+#             uint8_t raw_byte = (uint8_t)x;
+#             id(rs232).write_array(&raw_byte, 1);
+#             return {};
+
+serial_proxy:
+  - id: device_serial
+    uart_id: rs232
+    name: Samsung Frame Serial
+    port_type: RS232
+
+
+
+spi:
+  clk_pin: GPIO18
+  mosi_pin: GPIO23
+  miso_pin: GPIO19
+  # cs pin: GPIO5
+
+i2c:
+  sda: GPIO4
+  scl:
+    number: GPIO15
+    ignore_strapping_warning: true
+
+pcf8574:
+  - id: inputs
+    address: 0x22
+  - id: outputs
+    address: 0x24
+
+# time:
+#   - platform: ds1307
+#     id: rtc_time
+
+binary_sensor:
+  - platform: gpio
+    name: "KC868-A6-IN-1"
+    pin:
+      pcf8574: inputs
+      number: 0
+      mode: INPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-IN-2"
+    pin:
+      pcf8574: inputs
+      number: 1
+      mode: INPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-IN-3"
+    pin:
+      pcf8574: inputs
+      number: 2
+      mode: INPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-IN-4"
+    pin:
+      pcf8574: inputs
+      number: 3
+      mode: INPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-IN-5"
+    pin:
+      pcf8574: inputs
+      number: 4
+      mode: INPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-IN-6"
+    pin:
+      pcf8574: inputs
+      number: 5
+      mode: INPUT
+      inverted: true
+
+switch:
+  - platform: gpio
+    name: "KC868-A6-RELAY-1"
+    id: relay_1
+    pin:
+      pcf8574: outputs
+      number: 0
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-RELAY-2"
+    id: relay_2
+    pin:
+      pcf8574: outputs
+      number: 1
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-RELAY-3"
+    id: relay_3
+    pin:
+      pcf8574: outputs
+      number: 2
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-RELAY-4"
+    id: relay_4
+    pin:
+      pcf8574: outputs
+      number: 3
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-RELAY-5"
+    id: relay_5
+    pin:
+      pcf8574: outputs
+      number: 4
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-RELAY-6"
+    id: relay_6
+    pin:
+      pcf8574: outputs
+      number: 5
+      mode: OUTPUT
+      inverted: true
