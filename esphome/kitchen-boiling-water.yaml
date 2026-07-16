@@ -20,7 +20,7 @@ esp8266:
 # Use the 'common/wifi.yaml' if you prefer, or just add wifi details here
 packages:
   - !include common/wifi.yaml
-
+  - !include common/formatted_uptime_sensor.yaml
 # Essential Communication
 api:
 ota:
@@ -33,10 +33,24 @@ logger:
 web_server:
   port: 80
 
+# Use the time component to track the current time, often useful for automations
+# The server is defaulted to pool.ntp.org
 time:
   - platform: sntp
     id: esptime
-    timezone: "America/Toronto"
+    timezone: EST5EDT,M3.2.0,M11.1.0 ### "America/Toronto" # Your preferred timezone
+    servers:
+      - 10.0.168.24
+    on_time_sync:
+      then:
+        - text_sensor.template.publish:
+            id: last_boot_time  # Updated to match your existing sensor ID
+            state: !lambda |-
+              char buf[32];
+              time_t boot_time = ::time(nullptr) - (millis() / 1000);
+              struct tm *time_info = localtime(&boot_time);
+              strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", time_info);
+              return std::string(buf);
 
 
 # The "Brains" - Local 10-minute Kill Switch
