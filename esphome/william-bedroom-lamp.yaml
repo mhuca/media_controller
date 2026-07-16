@@ -1,25 +1,10 @@
-esphome:
+substitutions:
   name: william-bedroom-lamp
   friendly_name: William Bedroom Lamp
+  device_type: light
+  board: esp8285
 
-# Replace this with your actual platform if you aren't using ESP32.
-esp32:
-  board: esp32dev
-
-logger:
-
-api:
-  encryption:
-    key: "JwXkHsJUhQ7VNMU6zh7PQ45kXedf7hUd2tNqlJt19ao="
-
-ota:
-  - platform: esphome
-
-wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-  ap:
-    ssid: William Bedroom Fallback Hotspot
-    password: "z9fwLARywzZ5"
-
-captive_portal:
+packages:   # as a list
+  - !include common/wifi.yaml
+  - !include common/bulb_base.yaml
+  - !include common/athom_e27_7w_bulb.yaml
