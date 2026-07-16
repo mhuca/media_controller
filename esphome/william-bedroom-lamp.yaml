@@ -1,6 +1,6 @@
 substitutions:
-  name: williams-bedroom-lamp
-  friendly_name: Williams Bedroom Lamp
+  name: william-bedroom-lamp
+  friendly_name: William Bedroom Lamp
   device_type: light
   board: esp8285
 
