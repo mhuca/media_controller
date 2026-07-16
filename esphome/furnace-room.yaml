@@ -9,7 +9,7 @@ substitutions:
 
 esphome:
   project:
-    name: Generic.KS-602S
+    name: Generic.TS-602S
     version: "0.9"
 
 packages:   # as a list
