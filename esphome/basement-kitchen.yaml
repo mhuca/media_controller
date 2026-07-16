@@ -50,8 +50,8 @@ tuya:
 # --- Light Component ---
 light:
   - platform: "tuya"
-    id: coffee_bar_light
-    name: ${friendly_name}
+    id: basement_kitchen_main
+    name: ${friendly_name} Main
     dimmer_datapoint: 3
     switch_datapoint: 1
     min_value: 10
@@ -60,11 +60,6 @@ light:
     default_transition_length: 0s 
 
 # --- Diagnostic Sensors ---
-sensor:
-  - platform: wifi_signal
-    name: "WiFi Signal"
-    update_interval: 60s
-    entity_category: "diagnostic"
 
 binary_sensor:
   - platform: status
