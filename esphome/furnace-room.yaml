@@ -54,7 +54,8 @@ switch:
     name: "Local Switch"
     platform: template
     internal: true
-    lambda: 'return id(light_1).state;'
+    # Change 'id(light_1).state' to this C++ property:
+    lambda: 'return id(light_1).remote_values.is_on();'
     turn_on_action:
       - light.turn_on: light_1
     turn_off_action:
