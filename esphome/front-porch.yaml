@@ -72,11 +72,11 @@ light:
     default_transition_length: 0s 
 
 # --- Diagnostic Sensors ---
-sensor:
-  - platform: wifi_signal
-    name: "WiFi Signal"
-    update_interval: 60s
-    entity_category: "diagnostic"
+# sensor:
+#   - platform: wifi_signal
+#     name: "WiFi Signal"
+#     update_interval: 60s
+#     entity_category: "diagnostic"
 
 binary_sensor:
   - platform: status
