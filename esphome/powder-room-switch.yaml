@@ -17,13 +17,15 @@ esphome:
   on_boot:
     priority: -100.0
     then:
-      - lambda: |-
-          if (api.connected()) {
-            esphome_api->fire_homeassistant_event("gpe_area_request_update", {
-              {"area_id", "${room_key}"}
-            });
-            ESP_LOGI("GPE_BOOT", "Boot sequence complete. Context request sent for ${room_key}.");
-          }
+      - if:
+          condition:
+            api.connected:
+          then:
+            - homeassistant.event:
+                event: esphome.gpe_area_request_update
+                data:
+                  area_id: "${room_key}"
+            - logger.log: "Boot sequence complete. Context request sent for ${room_key}."
 
 logger:
   level: INFO
@@ -76,11 +78,10 @@ binary_sensor:
                     - script.stop: tier2_light_off_timer
                     - script.stop: tier2_fan_off_timer
                     - lambda: |-
-                        if (mqtt.connected()) {
+                        if (esphome::mqtt::global_mqtt_client != nullptr && esphome::mqtt::global_mqtt_client->is_connected()) {
                           auto m = esphome::mqtt::global_mqtt_client;
-                          char light_topic[80], fan_topic[80];
-                          snprintf(light_topic, sizeof(light_topic), "%s/%s/set", id(gpe_root_topic), id(gpe_light_target));
-                          snprintf(fan_topic, sizeof(fan_topic), "%s/%s/set", id(gpe_root_topic), id(gpe_fan_target));
+                          std::string light_topic = id(gpe_root_topic) + "/" + id(gpe_light_target) + "/set";
+                          std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_target) + "/set";
                           
                           m->publish(light_topic, "{\"state\":\"OFF\"}");
                           m->publish(fan_topic, "{\"state\":\"OFF\"}");
@@ -92,19 +93,19 @@ binary_sensor:
 globals:
   # MQTT Target Topics
   - id: gpe_root_topic
-    type: char[32]
+    type: std::string
     restore_value: no
     initial_value: '"zigbee2mqtt"'
   - id: gpe_light_target
-    type: char[32]
+    type: std::string
     restore_value: no
     initial_value: '"powder_room_lights_group"'
   - id: gpe_fan_target
-    type: char[32]
+    type: std::string
     restore_value: no
     initial_value: '"powder_room_fan"'
   - id: gpe_door_topic
-    type: char[64]
+    type: std::string
     restore_value: no
     initial_value: '"powder_room_door_sensor"'
 
@@ -154,9 +155,9 @@ mqtt:
   on_connect:
     then:
       - lambda: |-
-          if (mqtt::global_mqtt_client != nullptr) {
-            std::string full_door_topic = std::string(id(gpe_root_topic)) + "/" + std::string(id(gpe_door_topic));
-            mqtt::global_mqtt_client->subscribe(full_door_topic, [](const std::string &topic, const std::string &payload) {
+          if (esphome::mqtt::global_mqtt_client != nullptr) {
+            std::string full_door_topic = id(gpe_root_topic) + "/" + id(gpe_door_topic);
+            esphome::mqtt::global_mqtt_client->subscribe(full_door_topic, [](const std::string &topic, const std::string &payload) {
               if (payload.find("\"contact\":true") != std::string::npos || payload.find("\"contact\": true") != std::string::npos) {
                 id(glbl_door_is_open) = false;
                 ESP_LOGI("TIER2_DOOR", "Door Contact Updated -> CLOSED");
@@ -169,7 +170,7 @@ mqtt:
           }
 
 # -----------------------------------------------------------------------------
-# Native API Event Listener (Tier 1 Context Synchronizer)
+# Native API Custom Service (Tier 1 Context Synchronizer)
 # -----------------------------------------------------------------------------
 api:
   id: esphome_api
@@ -190,34 +191,26 @@ api:
         is_door_closed: bool
       then:
         - lambda: |-
-            // Heap Optimization: Zero-allocation string comparison
             if (area_id == "${room_key}") {
-              
-              // 1. Core Targets
-              if (!root_topic.empty()) snprintf(id(gpe_root_topic), sizeof(id(gpe_root_topic)), "%s", root_topic.c_str());
-              if (!light_target.empty()) snprintf(id(gpe_light_target), sizeof(id(gpe_light_target)), "%s", light_target.c_str());
-              if (!fan_target.empty()) snprintf(id(gpe_fan_target), sizeof(id(gpe_fan_target)), "%s", fan_target.c_str());
+              if (!root_topic.empty()) id(gpe_root_topic) = root_topic;
+              if (!light_target.empty()) id(gpe_light_target) = light_target;
+              if (!fan_target.empty()) id(gpe_fan_target) = fan_target;
 
-              // 2. Hardware Capabilities & Postures
               id(gpe_scene_eligible) = scene_eligible;
               id(gpe_use_scene) = use_scene;
 
-              // 3. Scene IDs
               id(light_on_scene_id) = light_on_scene;
               id(light_off_scene_id) = light_off_scene;
 
-              // 4. Dynamic Timeouts
               id(gpe_light_timeout) = light_sec;
               id(gpe_fan_timeout) = fan_sec;
 
-              // 5. Topography & Dynamic MQTT Subscription
               if (!door_topic.empty()) {
-                snprintf(id(gpe_door_topic), sizeof(id(gpe_door_topic)), "%s", door_topic.c_str());
+                id(gpe_door_topic) = door_topic;
                 
-                // Resubscribe to dynamic MQTT door topic directly in C++
-                if (mqtt::global_mqtt_client != nullptr) {
-                  std::string full_door_topic = std::string(id(gpe_root_topic)) + "/" + std::string(id(gpe_door_topic));
-                  mqtt::global_mqtt_client->subscribe(full_door_topic, [](const std::string &topic, const std::string &payload) {
+                if (esphome::mqtt::global_mqtt_client != nullptr) {
+                  std::string full_door_topic = id(gpe_root_topic) + "/" + id(gpe_door_topic);
+                  esphome::mqtt::global_mqtt_client->subscribe(full_door_topic, [](const std::string &topic, const std::string &payload) {
                     if (payload.find("\"contact\":true") != std::string::npos || payload.find("\"contact\": true") != std::string::npos) {
                       id(glbl_door_is_open) = false;
                       ESP_LOGI("TIER2_DOOR", "Door Contact Updated -> CLOSED");
@@ -230,11 +223,10 @@ api:
                 }
               }
 
-              // 6. Direct Door State Sync
               id(glbl_door_is_open) = !is_door_closed;
 
               ESP_LOGI("GPE_LEARN", "Context Synced -> Light Target: %s | Fan Timeout: %ds",
-                       id(gpe_light_target), id(gpe_fan_timeout));
+                       id(gpe_light_target).c_str(), id(gpe_fan_timeout));
             }
 
 # -----------------------------------------------------------------------------
@@ -245,41 +237,43 @@ script:
   - id: handle_button_press
     mode: restart
     then:
-      - lambda: |-
-          if (api.connected()) {
-            esphome_api->fire_homeassistant_event("gpe_wall_switch_press", {
-              {"area_id", "${room_key}"},
-              {"action", "toggle"}
-            });
-            ESP_LOGI("TIER1_EXEC", "Dispatched button press event to central engine.");
-          } else {
-            id(execute_tier2_activation).execute();
-          }
+      - if:
+          condition:
+            api.connected:
+          then:
+            - homeassistant.event:
+                event: esphome.gpe_wall_switch_press
+                data:
+                  area_id: "${room_key}"
+                  action: "toggle"
+            - logger.log: "Dispatched button press event to central engine."
+          else:
+            - script.execute: execute_tier2_activation
 
   # --- TIER 2 ACTIVATION EXECUTION ---
   - id: execute_tier2_activation
     mode: single
     then:
       - lambda: |-
-          if (mqtt.connected()) {
+          if (esphome::mqtt::global_mqtt_client != nullptr && esphome::mqtt::global_mqtt_client->is_connected()) {
             auto m = esphome::mqtt::global_mqtt_client;
             
-            char light_topic[80], fan_topic[80], light_payload[32];
-            snprintf(light_topic, sizeof(light_topic), "%s/%s/set", id(gpe_root_topic), id(gpe_light_target));
-            snprintf(fan_topic, sizeof(fan_topic), "%s/%s/set", id(gpe_root_topic), id(gpe_fan_target));
+            std::string light_topic = id(gpe_root_topic) + "/" + id(gpe_light_target) + "/set";
+            std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_target) + "/set";
             
             bool recall_scene = id(gpe_scene_eligible) && id(gpe_use_scene);
+            std::string light_payload;
 
             if (recall_scene) {
-              snprintf(light_payload, sizeof(light_payload), "{\"scene_recall\": %d}", id(light_on_scene_id));
+              light_payload = "{\"scene_recall\": " + std::to_string(id(light_on_scene_id)) + "}";
             } else {
-              snprintf(light_payload, sizeof(light_payload), "{\"state\":\"ON\"}");
+              light_payload = "{\"state\":\"ON\"}";
             }
             
             m->publish(light_topic, light_payload);
             m->publish(fan_topic, "{\"state\":\"ON\"}");
             
-            ESP_LOGW("TIER2_EXEC", "Published Fallback -> Light: %s [%s] | Fan: ON", light_topic, light_payload);
+            ESP_LOGW("TIER2_EXEC", "Published Fallback -> Light: %s [%s] | Fan: ON", light_topic.c_str(), light_payload.c_str());
 
             id(tier2_light_off_timer).execute();
             id(tier2_fan_off_timer).execute();
@@ -293,20 +287,22 @@ script:
     then:
       - delay: !lambda "return id(gpe_light_timeout) * 1000;"
       - lambda: |-
-          if (!api.connected() && mqtt.connected()) {
+          bool api_online = (esphome::api::global_api_server != nullptr && esphome::api::global_api_server->is_connected());
+          bool mqtt_online = (esphome::mqtt::global_mqtt_client != nullptr && esphome::mqtt::global_mqtt_client->is_connected());
+
+          if (!api_online && mqtt_online) {
             auto m = esphome::mqtt::global_mqtt_client;
-            char light_topic[80], light_payload[32];
-            
-            snprintf(light_topic, sizeof(light_topic), "%s/%s/set", id(gpe_root_topic), id(gpe_light_target));
+            std::string light_topic = id(gpe_root_topic) + "/" + id(gpe_light_target) + "/set";
+            std::string light_payload;
             
             if (id(gpe_scene_eligible) && id(gpe_use_scene) && id(light_off_scene_id) > 0) {
-              snprintf(light_payload, sizeof(light_payload), "{\"scene_recall\": %d}", id(light_off_scene_id));
+              light_payload = "{\"scene_recall\": " + std::to_string(id(light_off_scene_id)) + "}";
             } else {
-              snprintf(light_payload, sizeof(light_payload), "{\"state\":\"OFF\"}");
+              light_payload = "{\"state\":\"OFF\"}";
             }
             
             m->publish(light_topic, light_payload);
-            ESP_LOGI("TIER2_TIMER", "Light Watchdog Expired -> Deactivated %s", light_topic);
+            ESP_LOGI("TIER2_TIMER", "Light Watchdog Expired -> Deactivated %s", light_topic.c_str());
           }
 
   # --- TIER 2 FAN WATCHDOG OFF TIMER ---
@@ -315,12 +311,13 @@ script:
     then:
       - delay: !lambda "return id(gpe_fan_timeout) * 1000;"
       - lambda: |-
-          if (!api.connected() && mqtt.connected()) {
+          bool api_online = (esphome::api::global_api_server != nullptr && esphome::api::global_api_server->is_connected());
+          bool mqtt_online = (esphome::mqtt::global_mqtt_client != nullptr && esphome::mqtt::global_mqtt_client->is_connected());
+
+          if (!api_online && mqtt_online) {
             auto m = esphome::mqtt::global_mqtt_client;
-            char fan_topic[80];
+            std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_target) + "/set";
             
-            snprintf(fan_topic, sizeof(fan_topic), "%s/%s/set", id(gpe_root_topic), id(gpe_fan_target));
             m->publish(fan_topic, "{\"state\":\"OFF\"}");
-            
-            ESP_LOGI("TIER2_TIMER", "Fan Watchdog Expired -> Deactivated %s", fan_topic);
+            ESP_LOGI("TIER2_TIMER", "Fan Watchdog Expired -> Deactivated %s", fan_topic.c_str());
           }
