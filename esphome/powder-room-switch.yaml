@@ -6,7 +6,7 @@
 substitutions:
   device_name: "powder-room-switch"
   friendly_name: "Powder Room Switch"
-  room_key: "powder_room"
+  area_id: "powder_room"
   board: esp01_1m
 
 esphome:
@@ -24,8 +24,8 @@ esphome:
             - homeassistant.event:
                 event: esphome.gpe_area_request_update
                 data:
-                  area_id: "${room_key}"
-            - logger.log: "Boot sequence complete. Context request sent for ${room_key}."
+                  area_id: "${area_id}"
+            - logger.log: "Boot sequence complete. Context request sent for ${area_id}."
 
 logger:
   level: INFO
@@ -191,7 +191,7 @@ api:
         is_door_closed: bool
       then:
         - lambda: |-
-            if (area_id == "${room_key}") {
+            if (area_id == "${area_id}") {
               if (!root_topic.empty()) id(gpe_root_topic) = root_topic;
               if (!light_target.empty()) id(gpe_light_target) = light_target;
               if (!fan_target.empty()) id(gpe_fan_target) = fan_target;
@@ -244,7 +244,7 @@ script:
             - homeassistant.event:
                 event: esphome.gpe_wall_switch_press
                 data:
-                  area_id: "${room_key}"
+                  area_id: "${area_id}"
                   action: "toggle"
             - logger.log: "Dispatched button press event to central engine."
           else:
