@@ -170,41 +170,48 @@ mqtt:
           }
 
 # -----------------------------------------------------------------------------
-# Native API Custom Service (Tier 1 Context Synchronizer)
+# Native API Context Synchronizer (Tier 1 Context)
+# Path: /config/esphome/powder_room_switch.yaml
 # -----------------------------------------------------------------------------
 api:
   id: esphome_api
-  services:
-    - service: gpe_area_update
+  actions:
+    - action: gpe_area_update
       variables:
         area_id: string
         root_topic: string
         light_target: string
         fan_target: string
         door_topic: string
+        
+        # Flattened Policy & Timeout Configuration
         scene_eligible: bool
         use_scene: bool
         light_on_scene: int
         light_off_scene: int
         light_sec: int
         fan_sec: int
-        is_door_closed: bool
       then:
         - lambda: |-
             if (area_id == "${area_id}") {
+              // 1. Dynamic Topic & Entity Targets
               if (!root_topic.empty()) id(gpe_root_topic) = root_topic;
               if (!light_target.empty()) id(gpe_light_target) = light_target;
               if (!fan_target.empty()) id(gpe_fan_target) = fan_target;
 
+              // 2. Features Object Mapping
               id(gpe_scene_eligible) = scene_eligible;
               id(gpe_use_scene) = use_scene;
 
+              // 3. Scenes Object Mapping
               id(light_on_scene_id) = light_on_scene;
               id(light_off_scene_id) = light_off_scene;
 
+              // 4. Timeouts Object Mapping
               id(gpe_light_timeout) = light_sec;
               id(gpe_fan_timeout) = fan_sec;
 
+              // 5. Dynamic MQTT Door Subscription
               if (!door_topic.empty()) {
                 id(gpe_door_topic) = door_topic;
                 
@@ -213,20 +220,18 @@ api:
                   esphome::mqtt::global_mqtt_client->subscribe(full_door_topic, [](const std::string &topic, const std::string &payload) {
                     if (payload.find("\"contact\":true") != std::string::npos || payload.find("\"contact\": true") != std::string::npos) {
                       id(glbl_door_is_open) = false;
-                      ESP_LOGI("TIER2_DOOR", "Door Contact Updated -> CLOSED");
+                      ESP_LOGI("TIER2_DOOR", "Door Contact Updated via MQTT -> CLOSED");
                     } else if (payload.find("\"contact\":false") != std::string::npos || payload.find("\"contact\": false") != std::string::npos) {
                       id(glbl_door_is_open) = true;
-                      ESP_LOGI("TIER2_DOOR", "Door Contact Updated -> OPEN");
+                      ESP_LOGI("TIER2_DOOR", "Door Contact Updated via MQTT -> OPEN");
                     }
                   });
-                  ESP_LOGI("GPE_MQTT", "Updated subscription for door topic: %s", full_door_topic.c_str());
+                  ESP_LOGI("GPE_MQTT", "Subscribed to door topic: %s", full_door_topic.c_str());
                 }
               }
 
-              id(glbl_door_is_open) = !is_door_closed;
-
-              ESP_LOGI("GPE_LEARN", "Context Synced -> Light Target: %s | Fan Timeout: %ds",
-                       id(gpe_light_target).c_str(), id(gpe_fan_timeout));
+              ESP_LOGI("GPE_LEARN", "Context Synced -> Area: %s | Light Target: %s | Light Scene: %d | Fan Timeout: %ds",
+                       area_id.c_str(), id(gpe_light_target).c_str(), id(light_on_scene_id), id(gpe_fan_timeout));
             }
 
 # -----------------------------------------------------------------------------
