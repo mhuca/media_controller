@@ -25,6 +25,9 @@ esphome:
             ESP_LOGI("GPE_BOOT", "Boot sequence complete. Context request sent for ${room_key}.");
           }
 
+logger:
+  level: INFO
+
 packages:
   board_template: !include common/templates/ts602s_switch.yaml
 
@@ -148,70 +151,91 @@ mqtt:
   username: !secret mqtt_user
   password: !secret mqtt_password
   keepalive: 15s
-  on_json_message:
-    - topic: !lambda 'return std::string(id(gpe_root_topic)) + "/" + std::string(id(gpe_door_topic));'
-      then:
-        - lambda: |-
-            if (x.containsKey("contact")) {
-              bool closed = x["contact"];
-              id(glbl_door_is_open) = !closed;
-              ESP_LOGI("TIER2_DOOR", "Zigbee Door Contact Updated -> Open: %s", id(glbl_door_is_open) ? "YES" : "NO");
-            }
+  on_connect:
+    then:
+      - lambda: |-
+          if (mqtt::global_mqtt_client != nullptr) {
+            std::string full_door_topic = std::string(id(gpe_root_topic)) + "/" + std::string(id(gpe_door_topic));
+            mqtt::global_mqtt_client->subscribe(full_door_topic, [](const std::string &topic, const std::string &payload) {
+              if (payload.find("\"contact\":true") != std::string::npos || payload.find("\"contact\": true") != std::string::npos) {
+                id(glbl_door_is_open) = false;
+                ESP_LOGI("TIER2_DOOR", "Door Contact Updated -> CLOSED");
+              } else if (payload.find("\"contact\":false") != std::string::npos || payload.find("\"contact\": false") != std::string::npos) {
+                id(glbl_door_is_open) = true;
+                ESP_LOGI("TIER2_DOOR", "Door Contact Updated -> OPEN");
+              }
+            });
+            ESP_LOGI("GPE_MQTT", "Subscribed to door topic on connect: %s", full_door_topic.c_str());
+          }
 
 # -----------------------------------------------------------------------------
 # Native API Event Listener (Tier 1 Context Synchronizer)
 # -----------------------------------------------------------------------------
 api:
   id: esphome_api
-  on_event:
-    event_type: gpe_area_update
-    then:
-      - lambda: |-
-          // Heap Optimization: Zero-allocation string comparison
-          if (x.count("area_id") && strcmp(x["area_id"].as<const char*>(), "${room_key}") == 0) {
-            
-            // 1. Core Targets
-            if (x.count("root_topic")) snprintf(id(gpe_root_topic), sizeof(id(gpe_root_topic)), "%s", x["root_topic"].as<const char*>());
-            if (x.count("light_target")) snprintf(id(gpe_light_target), sizeof(id(gpe_light_target)), "%s", x["light_target"].as<const char*>());
-            if (x.count("fan_target")) snprintf(id(gpe_fan_target), sizeof(id(gpe_fan_target)), "%s", x["fan_target"].as<const char*>());
+  services:
+    - service: gpe_area_update
+      variables:
+        area_id: string
+        root_topic: string
+        light_target: string
+        fan_target: string
+        door_topic: string
+        scene_eligible: bool
+        use_scene: bool
+        light_on_scene: int
+        light_off_scene: int
+        light_sec: int
+        fan_sec: int
+        is_door_closed: bool
+      then:
+        - lambda: |-
+            // Heap Optimization: Zero-allocation string comparison
+            if (area_id == "${room_key}") {
+              
+              // 1. Core Targets
+              if (!root_topic.empty()) snprintf(id(gpe_root_topic), sizeof(id(gpe_root_topic)), "%s", root_topic.c_str());
+              if (!light_target.empty()) snprintf(id(gpe_light_target), sizeof(id(gpe_light_target)), "%s", light_target.c_str());
+              if (!fan_target.empty()) snprintf(id(gpe_fan_target), sizeof(id(gpe_fan_target)), "%s", fan_target.c_str());
 
-            // 2. Hardware Capabilities & Postures
-            if (x.count("features")) {
-              auto f = x["features"];
-              if (f.count("scene_eligible")) id(gpe_scene_eligible) = f["scene_eligible"].as<bool>();
-              if (f.count("use_scene")) id(gpe_use_scene) = f["use_scene"].as<bool>();
-            }
+              // 2. Hardware Capabilities & Postures
+              id(gpe_scene_eligible) = scene_eligible;
+              id(gpe_use_scene) = use_scene;
 
-            // 3. Scene IDs
-            if (x.count("scenes")) {
-              auto s = x["scenes"];
-              if (s.count("light_on")) id(light_on_scene_id) = s["light_on"].as<int>();
-              if (s.count("light_off")) id(light_off_scene_id) = s["light_off"].as<int>();
-            }
+              // 3. Scene IDs
+              id(light_on_scene_id) = light_on_scene;
+              id(light_off_scene_id) = light_off_scene;
 
-            // 4. Dynamic Timeouts
-            if (x.count("timeouts")) {
-              auto t = x["timeouts"];
-              if (t.count("light_sec")) id(gpe_light_timeout) = t["light_sec"].as<int>();
-              if (t.count("fan_sec")) id(gpe_fan_timeout) = t["fan_sec"].as<int>();
-            }
+              // 4. Dynamic Timeouts
+              id(gpe_light_timeout) = light_sec;
+              id(gpe_fan_timeout) = fan_sec;
 
-            // 5. Topography
-            if (x.count("topography")) {
-              auto topo = x["topography"];
-              if (topo.count("door_topic")) {
-                snprintf(id(gpe_door_topic), sizeof(id(gpe_door_topic)), "%s", topo["door_topic"].as<const char*>());
+              // 5. Topography & Dynamic MQTT Subscription
+              if (!door_topic.empty()) {
+                snprintf(id(gpe_door_topic), sizeof(id(gpe_door_topic)), "%s", door_topic.c_str());
+                
+                // Resubscribe to dynamic MQTT door topic directly in C++
+                if (mqtt::global_mqtt_client != nullptr) {
+                  std::string full_door_topic = std::string(id(gpe_root_topic)) + "/" + std::string(id(gpe_door_topic));
+                  mqtt::global_mqtt_client->subscribe(full_door_topic, [](const std::string &topic, const std::string &payload) {
+                    if (payload.find("\"contact\":true") != std::string::npos || payload.find("\"contact\": true") != std::string::npos) {
+                      id(glbl_door_is_open) = false;
+                      ESP_LOGI("TIER2_DOOR", "Door Contact Updated -> CLOSED");
+                    } else if (payload.find("\"contact\":false") != std::string::npos || payload.find("\"contact\": false") != std::string::npos) {
+                      id(glbl_door_is_open) = true;
+                      ESP_LOGI("TIER2_DOOR", "Door Contact Updated -> OPEN");
+                    }
+                  });
+                  ESP_LOGI("GPE_MQTT", "Updated subscription for door topic: %s", full_door_topic.c_str());
+                }
               }
-            }
 
-            // 6. Direct Door State Sync
-            if (x.count("is_door_closed")) {
-              id(glbl_door_is_open) = !x["is_door_closed"].as<bool>();
-            }
+              // 6. Direct Door State Sync
+              id(glbl_door_is_open) = !is_door_closed;
 
-            ESP_LOGI("GPE_LEARN", "Context Synced -> Light Target: %s | Fan Timeout: %ds",
-                     id(gpe_light_target), id(gpe_fan_timeout));
-          }
+              ESP_LOGI("GPE_LEARN", "Context Synced -> Light Target: %s | Fan Timeout: %ds",
+                       id(gpe_light_target), id(gpe_fan_timeout));
+            }
 
 # -----------------------------------------------------------------------------
 # Routing & Direct Execution Scripts
