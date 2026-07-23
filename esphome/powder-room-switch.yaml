@@ -266,30 +266,35 @@ script:
     mode: single
     then:
       - lambda: |-
-          if (esphome::mqtt::global_mqtt_client != nullptr && esphome::mqtt::global_mqtt_client->is_connected()) {
-            auto m = esphome::mqtt::global_mqtt_client;
-            
-            std::string light_topic = id(gpe_root_topic) + "/" + id(gpe_light_target) + "/set";
-            std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_target) + "/set";
-            
-            bool recall_scene = id(gpe_scene_eligible) && id(gpe_use_scene);
-            std::string light_payload;
+          // Strict Guard: ONLY execute Tier 2 fallback logic if API is truly offline
+          if (!id(glbl_api_is_connected)) {
+            if (esphome::mqtt::global_mqtt_client != nullptr && esphome::mqtt::global_mqtt_client->is_connected()) {
+              auto m = esphome::mqtt::global_mqtt_client;
+              
+              std::string light_topic = id(gpe_root_topic) + "/" + id(gpe_light_target) + "/set";
+              std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_target) + "/set";
+              
+              bool recall_scene = id(gpe_scene_eligible) && id(gpe_use_scene);
+              std::string light_payload;
 
-            if (recall_scene) {
-              light_payload = "{\"scene_recall\": " + std::to_string(id(light_on_scene_id)) + "}";
+              if (recall_scene) {
+                light_payload = "{\"scene_recall\": " + std::to_string(id(light_on_scene_id)) + "}";
+              } else {
+                light_payload = "{\"state\":\"ON\"}";
+              }
+              
+              m->publish(light_topic, light_payload);
+              m->publish(fan_topic, "{\"state\":\"ON\"}");
+              
+              ESP_LOGW("TIER2_EXEC", "Published Fallback -> Light: %s [%s] | Fan: ON", light_topic.c_str(), light_payload.c_str());
+
+              id(tier2_light_off_timer).execute();
+              id(tier2_fan_off_timer).execute();
             } else {
-              light_payload = "{\"state\":\"ON\"}";
+              ESP_LOGE("TIER2_EXEC", "Critical: Loss of both Core API and Local MQTT!");
             }
-            
-            m->publish(light_topic, light_payload);
-            m->publish(fan_topic, "{\"state\":\"ON\"}");
-            
-            ESP_LOGW("TIER2_EXEC", "Published Fallback -> Light: %s [%s] | Fan: ON", light_topic.c_str(), light_payload.c_str());
-
-            id(tier2_light_off_timer).execute();
-            id(tier2_fan_off_timer).execute();
           } else {
-            ESP_LOGE("TIER2_EXEC", "Critical: Loss of both Core API and Local MQTT!");
+            ESP_LOGD("TIER2_EXEC", "API connected -> Tier 2 local execution suppressed.");
           }
 
   # --- TIER 2 LIGHT WATCHDOG OFF TIMER ---
@@ -298,10 +303,10 @@ script:
     then:
       - delay: !lambda "return id(gpe_light_timeout) * 1000;"
       - lambda: |-
-          bool api_online = (esphome::api::global_api_server != nullptr && esphome::api::global_api_server->is_connected());
+          // Simple, clean boolean checks via globally tracked flags
           bool mqtt_online = (esphome::mqtt::global_mqtt_client != nullptr && esphome::mqtt::global_mqtt_client->is_connected());
 
-          if (!api_online && mqtt_online) {
+          if (!id(glbl_api_is_connected) && mqtt_online) {
             auto m = esphome::mqtt::global_mqtt_client;
             std::string light_topic = id(gpe_root_topic) + "/" + id(gpe_light_target) + "/set";
             std::string light_payload;
@@ -314,6 +319,8 @@ script:
             
             m->publish(light_topic, light_payload);
             ESP_LOGI("TIER2_TIMER", "Light Watchdog Expired -> Deactivated %s", light_topic.c_str());
+          } else {
+            ESP_LOGI("TIER2_TIMER", "Light Watchdog Expired -> Ignored (API restored or MQTT down)");
           }
 
   # --- TIER 2 FAN WATCHDOG OFF TIMER ---
@@ -322,13 +329,14 @@ script:
     then:
       - delay: !lambda "return id(gpe_fan_timeout) * 1000;"
       - lambda: |-
-          bool api_online = (esphome::api::global_api_server != nullptr && esphome::api::global_api_server->is_connected());
           bool mqtt_online = (esphome::mqtt::global_mqtt_client != nullptr && esphome::mqtt::global_mqtt_client->is_connected());
 
-          if (!api_online && mqtt_online) {
+          if (!id(glbl_api_is_connected) && mqtt_online) {
             auto m = esphome::mqtt::global_mqtt_client;
             std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_target) + "/set";
             
             m->publish(fan_topic, "{\"state\":\"OFF\"}");
             ESP_LOGI("TIER2_TIMER", "Fan Watchdog Expired -> Deactivated %s", fan_topic.c_str());
+          } else {
+            ESP_LOGI("TIER2_TIMER", "Fan Watchdog Expired -> Ignored (API restored or MQTT down)");
           }
