@@ -296,7 +296,21 @@ script:
           } else {
             ESP_LOGD("TIER2_EXEC", "API connected -> Tier 2 local execution suppressed.");
           }
-
+# Overrides the base stub from smart_switch.yaml
+  - id: !extend execute_tier2_double
+    mode: single
+    then:
+      - lambda: |-
+          if (!id(glbl_api_is_connected)) {
+            if (esphome::mqtt::global_mqtt_client != nullptr && esphome::mqtt::global_mqtt_client->is_connected()) {
+              auto m = esphome::mqtt::global_mqtt_client;
+              std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_target) + "/set";
+              
+              // Example Tier 2 Double-Click Action: Force Fan ON for max ventilation
+              m->publish(fan_topic, "{\"state\":\"ON\"}");
+              ESP_LOGW("TIER2_DOUBLE", "Published Tier 2 Double-Click -> Fan Boost: %s", fan_topic.c_str());
+            }
+          }
   # --- TIER 2 LIGHT WATCHDOG OFF TIMER ---
   - id: tier2_light_off_timer
     mode: restart
