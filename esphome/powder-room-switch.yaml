@@ -261,23 +261,6 @@ api:
 # Routing & Direct Execution Scripts
 # -----------------------------------------------------------------------------
 script:
-  # # --- BUTTON PRESS HANDLER ---
-  # - id: handle_button_press
-  #   mode: restart
-  #   then:
-  #     - if:
-  #         condition:
-  #           api.connected:
-  #         then:
-  #           - homeassistant.event:
-  #               event: esphome.gpe_wall_switch_press
-  #               data:
-  #                 area_id: "${area_id}"
-  #                 action: "toggle"
-  #           - logger.log: "Dispatched button press event to central engine."
-  #         else:
-  #           - script.execute: execute_tier2_activation
-
   # --- TIER 2 ACTIVATION EXECUTION ---
   - id: execute_tier2_activation
     mode: single
