@@ -15,19 +15,19 @@ esphome:
   comment: "Decoupled Edge Controller with Local Zigbee2MQTT Fallback"
   
   # Boot Trigger: Request Area Context Update on startup
-  on_boot:
-    priority: -100.0
-    then:
-      - if:
-          condition:
-            api.connected:
-          then:
-            - homeassistant.event:
-                event: esphome.gpe_area_request_update
-                data:
-                  area_id: "${area_id}"
-                  device_name: "${device_name}"
-            - logger.log: "Boot sequence complete. Context request sent for ${area_id}."
+  # on_boot:
+  #   priority: -100.0
+  #   then:
+  #     - if:
+  #         condition:
+  #           api.connected:
+  #         then:
+  #           - homeassistant.event:
+  #               event: esphome.gpe_area_request_update
+  #               data:
+  #                 area_id: "${area_id}"
+  #                 device_name: "${device_name}"
+  #           - logger.log: "Boot sequence complete. Context request sent for ${area_id}."
 
 logger:
   level: INFO
