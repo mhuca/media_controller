@@ -7,6 +7,7 @@ substitutions:
   device_name: "powder-room-switch"
   friendly_name: "Powder Room Switch"
   area_id: "powder_room"
+  area_name: "Powder Room"
   board: esp01_1m
 
 esphome:
@@ -100,15 +101,15 @@ globals:
   - id: gpe_light_target
     type: std::string
     restore_value: no
-    initial_value: '"powder_room_lights_group"'
+    initial_value: ${area_name}
   - id: gpe_fan_target
     type: std::string
     restore_value: no
-    initial_value: '"powder_room_fan"'
+    initial_value: ${area_name} Fan
   - id: gpe_door_topic
     type: std::string
     restore_value: no
-    initial_value: '"powder_room_door_sensor"'
+    initial_value: ${area_name} Door
 
   # Hardware Capabilities & Runtime Postures
   - id: gpe_scene_eligible
