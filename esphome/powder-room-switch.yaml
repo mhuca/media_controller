@@ -193,7 +193,12 @@ api:
   on_client_connected:
     then:
       - lambda: 'id(glbl_api_is_connected) = true;'
-      - logger.log: "Native API Connected -> Setting glbl_api_is_connected = true"
+      - homeassistant.event:
+          event: esphome.gpe_area_request_update
+          data:
+            area_id: "${area_id}"
+            device_name: "${device_name}"
+      - logger.log: "Native API Connected -> Requesting Context Update for ${area_id}"
 
   on_client_disconnected:
     then:
@@ -236,12 +241,16 @@ api:
               id(gpe_fan_timeout) = fan_sec;
 
               // 5. Dynamic MQTT Door Subscription
-              if (!door_topic.empty()) {
-                id(gpe_door_topic) = door_topic;
-                
+              // Prevent duplicate MQTT subscriptions if topic hasn't changed
+              if (!door_topic.empty() && door_topic != id(gpe_door_topic)) {
                 if (esphome::mqtt::global_mqtt_client != nullptr) {
-                  std::string full_door_topic = id(gpe_root_topic) + "/" + id(gpe_door_topic);
-                  esphome::mqtt::global_mqtt_client->subscribe(full_door_topic, [](const std::string &topic, const std::string &payload) {
+                  std::string old_topic = id(gpe_root_topic) + "/" + id(gpe_door_topic);
+                  esphome::mqtt::global_mqtt_client->unsubscribe(old_topic);
+                  
+                  id(gpe_door_topic) = door_topic;
+                  std::string new_topic = id(gpe_root_topic) + "/" + id(gpe_door_topic);
+                  
+                  esphome::mqtt::global_mqtt_client->subscribe(new_topic, [](const std::string &topic, const std::string &payload) {
                     if (payload.find("\"contact\":true") != std::string::npos || payload.find("\"contact\": true") != std::string::npos) {
                       id(glbl_door_is_open) = false;
                       ESP_LOGI("TIER2_DOOR", "Door Contact Updated via MQTT -> CLOSED");
@@ -250,12 +259,12 @@ api:
                       ESP_LOGI("TIER2_DOOR", "Door Contact Updated via MQTT -> OPEN");
                     }
                   });
-                  ESP_LOGI("GPE_MQTT", "Subscribed to door topic: %s", full_door_topic.c_str());
+                  ESP_LOGI("GPE_MQTT", "Updated door subscription to: %s", new_topic.c_str());
                 }
               }
 
               ESP_LOGI("GPE_LEARN", "Context Synced -> Area: %s | Light Target: %s | Light Scene: %d | Fan Timeout: %ds",
-                       area_id.c_str(), id(gpe_light_target).c_str(), id(light_on_scene_id), id(gpe_fan_timeout));
+                area_id.c_str(), id(gpe_light_target).c_str(), id(light_on_scene_id), id(gpe_fan_timeout));
             }
 
 # -----------------------------------------------------------------------------
