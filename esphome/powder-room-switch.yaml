@@ -101,15 +101,15 @@ globals:
   - id: gpe_light_target
     type: std::string
     restore_value: no
-    initial_value: "${area_name}"
+    initial_value: '"${area_name}"'
   - id: gpe_fan_target
     type: std::string
     restore_value: no
-    initial_value: "${area_name} Fan"
+    initial_value: '"${area_name} Fan"'
   - id: gpe_door_topic
     type: std::string
     restore_value: no
-    initial_value: "${area_name} Door"
+    initial_value: '"${area_name} Door"'
 
   # Hardware Capabilities & Runtime Postures
   - id: gpe_scene_eligible
