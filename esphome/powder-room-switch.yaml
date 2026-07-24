@@ -5,9 +5,9 @@
 
 substitutions:
   device_name: "powder-room-switch"
-  friendly_name: "Powder Room Switch"
   area_id: "powder_room"
   area_name: "Powder Room"
+  friendly_name: "${area_name} Switch"
   board: esp01_1m
 
 esphome:
