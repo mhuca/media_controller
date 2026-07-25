@@ -82,8 +82,8 @@ binary_sensor:
                     - lambda: |-
                         if (esphome::mqtt::global_mqtt_client != nullptr && esphome::mqtt::global_mqtt_client->is_connected()) {
                           auto m = esphome::mqtt::global_mqtt_client;
-                          std::string light_topic = id(gpe_root_topic) + "/" + id(gpe_light_target) + "/set";
-                          std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_target) + "/set";
+                          std::string light_topic = id(gpe_root_topic) + "/" + id(gpe_light_topic) + "/set";
+                          std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_topic) + "/set";
                           
                           m->publish(light_topic, "{\"state\":\"OFF\"}");
                           m->publish(fan_topic, "{\"state\":\"OFF\"}");
@@ -98,11 +98,11 @@ globals:
     type: std::string
     restore_value: no
     initial_value: '"zigbee2mqtt"'
-  - id: gpe_light_target
+  - id: gpe_light_topic
     type: std::string
     restore_value: no
     initial_value: '"${area_name}"'
-  - id: gpe_fan_target
+  - id: gpe_fan_topic
     type: std::string
     restore_value: no
     initial_value: '"${area_name} Fan"'
@@ -209,8 +209,8 @@ api:
       variables:
         area_id: string
         root_topic: string
-        light_target: string
-        fan_target: string
+        light_topic: string
+        fan_topic: string
         door_topic: string
         
         # Flattened Policy & Timeout Configuration
@@ -225,8 +225,8 @@ api:
             if (area_id == "${area_id}") {
               // 1. Dynamic Topic & Entity Targets
               if (!root_topic.empty()) id(gpe_root_topic) = root_topic;
-              if (!light_target.empty()) id(gpe_light_target) = light_target;
-              if (!fan_target.empty()) id(gpe_fan_target) = fan_target;
+              if (!light_topic.empty()) id(gpe_light_topic) = light_topic;
+              if (!fan_topic.empty()) id(gpe_fan_topic) = fan_topic;
 
               // 2. Features Object Mapping
               id(gpe_scene_eligible) = scene_eligible;
@@ -264,7 +264,7 @@ api:
               }
 
               ESP_LOGI("GPE_LEARN", "Context Synced -> Area: %s | Light Target: %s | Light Scene: %d | Fan Timeout: %ds",
-                area_id.c_str(), id(gpe_light_target).c_str(), id(light_on_scene_id), id(gpe_fan_timeout));
+                area_id.c_str(), id(gpe_light_topic).c_str(), id(light_on_scene_id), id(gpe_fan_timeout));
             }
 
 # -----------------------------------------------------------------------------
@@ -281,8 +281,8 @@ script:
             if (esphome::mqtt::global_mqtt_client != nullptr && esphome::mqtt::global_mqtt_client->is_connected()) {
               auto m = esphome::mqtt::global_mqtt_client;
               
-              std::string light_topic = id(gpe_root_topic) + "/" + id(gpe_light_target) + "/set";
-              std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_target) + "/set";
+              std::string light_topic = id(gpe_root_topic) + "/" + id(gpe_light_topic) + "/set";
+              std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_topic) + "/set";
               
               bool recall_scene = id(gpe_scene_eligible) && id(gpe_use_scene);
               std::string light_payload;
@@ -314,7 +314,7 @@ script:
           if (!id(glbl_api_is_connected)) {
             if (esphome::mqtt::global_mqtt_client != nullptr && esphome::mqtt::global_mqtt_client->is_connected()) {
               auto m = esphome::mqtt::global_mqtt_client;
-              std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_target) + "/set";
+              std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_topic) + "/set";
               
               // Example Tier 2 Double-Click Action: Force Fan ON for max ventilation
               m->publish(fan_topic, "{\"state\":\"ON\"}");
@@ -332,7 +332,7 @@ script:
 
           if (!id(glbl_api_is_connected) && mqtt_online) {
             auto m = esphome::mqtt::global_mqtt_client;
-            std::string light_topic = id(gpe_root_topic) + "/" + id(gpe_light_target) + "/set";
+            std::string light_topic = id(gpe_root_topic) + "/" + id(gpe_light_topic) + "/set";
             std::string light_payload;
             
             if (id(gpe_scene_eligible) && id(gpe_use_scene) && id(light_off_scene_id) > 0) {
@@ -357,7 +357,7 @@ script:
 
           if (!id(glbl_api_is_connected) && mqtt_online) {
             auto m = esphome::mqtt::global_mqtt_client;
-            std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_target) + "/set";
+            std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_topic) + "/set";
             
             m->publish(fan_topic, "{\"state\":\"OFF\"}");
             ESP_LOGI("TIER2_TIMER", "Fan Watchdog Expired -> Deactivated %s", fan_topic.c_str());
