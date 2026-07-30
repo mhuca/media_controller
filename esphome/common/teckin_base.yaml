@@ -37,7 +37,17 @@ api:
 time:
   - platform: sntp
     id: esptime
-    timezone: "America/Toronto" # Your preferred timezone
+    timezone: EST5EDT,M3.2.0,M11.1.0 ### "America/Toronto" # Your preferred timezone
+    on_time_sync:
+      then:
+        - text_sensor.template.publish:
+            id: last_boot_time  # Updated to match your existing sensor ID
+            state: !lambda |-
+              char buf[32];
+              time_t boot_time = ::time(nullptr) - (millis() / 1000);
+              struct tm *time_info = localtime(&boot_time);
+              strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", time_info);
+              return std::string(buf);
     
 # Enable web server for easy configuration access over the network
 web_server:

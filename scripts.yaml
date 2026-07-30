@@ -2787,3 +2787,106 @@ media_activity_snapshot_v4_0:
         name: UCC Snapshot
         message: 'Saved ''{{ activity_name }}'' for {{ area_key }} (Bits: {{ calculated_bits
           }})'
+energy_publisher_definition_publish:
+  sequence:
+  - repeat:
+      for_each: '{{ label_entities(''energy_publisher'') }}'
+      sequence:
+      - variables:
+          target_area: '{{ area_id(repeat.item) }}'
+          displayName: '{{ state_attr(repeat.item, "friendly_name") }}'
+          appId: energy
+          discoveryPrefix: homeassistant
+          deviceObj:
+            hw_version: 1
+            identifiers:
+            - zigbee2mqtt_0xa4c138fda6ff07ee
+            manufacturer: MHCOZY
+            model: 4 channel relay
+            model_id: TYWB 4ch-RF
+            via_device: zigbee2mqtt_bridge_0x00124b00258d4ca6
+            name: Pool Pump
+          topic: '{{ discoveryPrefix }}/{{ repeat.item | replace(''.'',''/'') }}/{{
+            appId }}/config'
+          payload:
+            name: '{{ state_attr(repeat.item, ''friendly_name'') | replace(area_name(target_area),
+              '''') | trim }}'
+            unique_id: '{{ target_area }}_matrix_{{ appId }}_unique'
+            default_entity_id: '{{ repeat.item }}'
+            state_topic: '{{ discoveryPrefix }}/{{ repeat.item | replace(''.'',''/'')
+              }}/{{ appId }}/state'
+            value_template: '{% raw %}{{ value | float(0) }}{% endraw %}'
+            state_class: '{{ state_attr(repeat.item, ''state_class'') }}'
+            unit_of_measurement: '{{ state_attr(repeat.item, ''unit_of_measurement'')
+              }}'
+            icon: mdi:card-account-details-star
+            retain: true
+            device: '{{ deviceObj }}'
+        alias: Energy Publisher Definition
+      - action: mqtt.publish
+        data:
+          topic: '{{ topic }}'
+          payload: '{{ payload | tojson }}'
+          retain: true
+        enabled: true
+  alias: Energy Publisher Definition Publish
+  description: ''
+duplicate_kitchen_person_for_hallway_discovery:
+  sequence:
+  - variables:
+      appId: hallway_person
+      topic: homeassistant/binary_sensor/hallway/kitchen_presence_sensor/config
+      payload:
+        name: Kitchen Presence Sensor
+        unique_id: hallwa_kitchen_presence_sensor
+        default_entity_id: binary_sensor.hallway_kitchen_presence_sensor
+        state_topic: home/kitchen/kitchen_presence_sensor/state
+        device:
+          identifiers:
+          - hallway_person_presence
+          name: Hallway Person Presence
+          suggested_area: Hallway
+        device_class: motion
+        icon: mdi:motion-sensor
+  - action: mqtt.publish
+    data:
+      topic: '{{ topic }}'
+      payload: '{{ payload | tojson }}'
+      retain: true
+  alias: Duplicate Kitchen Person for Hallway Discovery
+  description: ''
+discovery_generator_v1:
+  alias: Discovery Generator v1
+  description: ''
+  sequence:
+  - repeat:
+      for_each: '{{ label_entities(''person'') }}'
+      sequence:
+      - variables:
+          target_area: '{{ area_id(repeat.item) }}'
+          displayName: '{{ area_name(target_area) | default(target_area | replace(''_'',
+            '' '') | title) }}'
+          discoveryPrefix: homeassistant
+          deviceObj:
+            identifiers:
+            - '{{ target_area }}_person_presence'
+            name: '{{ displayName }} Person Presence'
+            suggested_area: '{{ displayName }}'
+      - variables:
+          appId: '{{ repeat.item | replace(''binary_sensor.'', '''') }}'
+          topic: '{{ discoveryPrefix }}/binary_sensor/{{ target_area }}/{{ appId }}/config'
+          payload:
+            name: '{{ appId | replace(''_'', '' '') | title }}'
+            unique_id: '{{ target_area }}_{{ appId }}'
+            default_entity_id: binary_sensor.{{ target_area }}_{{ appId }}
+            state_topic: home/{{ target_area }}/{{ appId }}/state
+            value_template: '{% raw %}{{ value }}{% endraw %}'
+            device: '{{ deviceObj }}'
+            device_class: motion
+            icon: mdi:motion-sensor
+        alias: Config Definition
+      - action: mqtt.publish
+        data:
+          topic: '{{ topic }}'
+          payload: '{{ payload | tojson }}'
+          retain: true

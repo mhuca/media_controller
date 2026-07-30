@@ -10,3 +10,6 @@ wifi:
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
     ssid: "Sonoff-4Ch-Pro Fallback Hotspot"
+
+ota:
+  - platform: esphome

@@ -1,0 +1,341 @@
+# =============================================================================
+# Core Template: Advanced Smart Button & Relay Controller (with Detach & Timer)
+# Path: /config/esphome/common/templates/smart_switch.yaml
+# =============================================================================
+
+# These defaults match your original GPIO0 button and GPIO12 relay,
+# but can be overridden in your main device file!
+substitutions:
+  button_pin: GPIO0
+  relay_pin: "12"
+  event: switch_event
+  button: button
+
+# -----------------------------------------------------------------------------
+# Outputs & Physical Inputs
+# -----------------------------------------------------------------------------
+output:
+  - id: relay_output
+    platform: gpio
+    pin:
+      number: ${relay_pin}
+
+binary_sensor:
+  - id: physical_button
+    name: "Physical Button"
+    platform: gpio
+    internal: true
+    entity_category: "diagnostic"
+    pin:
+      number: ${button_pin}
+      inverted: true
+    on_multi_click:
+      - timing:
+          - ON for at most 0.4s
+          - OFF for at most 0.4s
+          - ON for at most 0.4s
+          - OFF for at least 0.2s
+        then:
+          - logger.log: "Double Clicked"
+          - homeassistant.event:
+              event: esphome.${event}
+              data:
+                entity_id: esphome.${name}
+                event_type: ${button}
+                event_value: "double"
+      - timing:
+          - OFF for at least 0.2s
+        then:
+          - logger.log: "Released"
+          - if:
+              condition:
+                lambda: 'return id(_hold_tick).is_running();'
+              then:
+                - homeassistant.event:
+                    event: esphome.${event}
+                    data:
+                      entity_id: esphome.${name}
+                      event_type: ${button}
+                      event_value: "release"
+                - script.stop: _hold_tick
+                - logger.log: "script _hold_tick stopped"
+      - timing:
+          - ON for at least 0.4s
+        then:
+          - logger.log: "Hold Clicked"
+          - script.execute: _hold_tick
+      - timing:
+          - ON for at most 0.4s
+          - OFF for at least 0.5s
+        then:
+          - logger.log: "Single Short Clicked..."
+          - if:
+              condition:
+                lambda: 'return !id(glbl_detach_relay);'
+              then:
+                - switch.toggle: hw_relay
+          - homeassistant.event:
+              event: esphome.${event}
+              data:
+                entity_id: esphome.${name}
+                event_type: ${button}
+                event_value: "press"
+
+# -----------------------------------------------------------------------------
+# Globals & State Tracking
+# -----------------------------------------------------------------------------
+globals:
+  - id: glbl_relay_state
+    type: bool
+    restore_value: true
+    initial_value: "false"
+  - id: glbl_detach_relay
+    type: bool
+    restore_value: true
+    initial_value: "false"
+  - id: glbl_remote_mode
+    type: bool
+    restore_value: true
+    initial_value: "false"
+  - id: glbl_timeout_enabled
+    type: bool
+    restore_value: true
+    initial_value: "true"
+  - id: glbl_timeout_length_ticks
+    type: int
+    restore_value: true
+    initial_value: "300"
+  - id: _glbl_timeout_ticks
+    type: int
+    initial_value: "0"
+  - id: _glbl_timeout_major_ticks
+    type: int
+    initial_value: "0"
+  - id: _glbl_hold_ticks
+    type: int
+    initial_value: "0"
+
+# -----------------------------------------------------------------------------
+# Software Automation Scripts (Timers & Events)
+# -----------------------------------------------------------------------------
+script:
+  - id: start_timer
+    mode: single
+    then:
+      - script.execute: _timer_tick
+
+  - id: on_timer_end
+    mode: single
+    then:
+      - switch.turn_off: hw_relay
+      - logger.log: "on_timer_end: output should be off!"
+
+  - id: on_timer_stop
+    mode: single
+    then:
+      - lambda: |-
+          id(_timer_tick).stop();
+          id(_glbl_timeout_ticks) = 0;
+
+  - id: on_timer_restart
+    mode: single
+    then:
+      - switch.turn_on: hw_relay
+      - lambda: |-
+          id(_glbl_timeout_ticks) = 0;
+          if (!id(_timer_tick).is_running()) {
+            id(start_timer).execute();
+          }
+
+  - id: _timer_tick
+    mode: queued
+    then:
+      - delay: 1s
+      - lambda: |-
+          id(_glbl_timeout_ticks) += 1;
+          id(_glbl_timeout_major_ticks) += 1;
+          if (id(_glbl_timeout_ticks) >= id(glbl_timeout_length_ticks)) {
+            id(on_timer_end).execute();
+            id(_glbl_timeout_ticks) = 0;
+            id(_timer_tick).stop();
+          } else {
+            id(_glbl_timeout_major_ticks) = 0;
+            if (id(glbl_timeout_enabled)) {
+              id(_timer_tick).execute();
+            }
+          }          
+
+  - id: _hold_tick
+    mode: queued
+    then:
+      - homeassistant.event:
+          event: esphome.${event}
+          data:
+            entity_id: esphome.${name}
+            event_type: ${button}
+            event_value: "hold"
+      - delay: 0.85s
+      - lambda: |-
+            id(_hold_tick).execute();
+
+  - id: on_hold_tick_stop
+    mode: single
+    then:
+      - if:
+          condition:
+            lambda: 'return id(_hold_tick).is_running();'
+          then:
+            - homeassistant.event:
+                event: esphome.${event}
+                data:
+                  entity_id: esphome.${name}
+                  event_type: ${button}
+                  event_value: "release"
+      - lambda: |-
+          id(_hold_tick).stop();
+
+  - id: evaluate_indicator_state
+    mode: restart
+    then:
+      - lambda: |-
+          // ESPHome 2026.7.0 compliant current option string retrieval
+          std::string mode = id(indicator_led_mode).current_option();
+          bool light_is_on = id(light_1).remote_values.is_on();
+          
+          if (mode == "Status Viewport") {
+            // LED mirrors the light state
+            if (light_is_on) {
+              auto call = id(board_indicator_led).turn_on();
+              call.perform();
+            } else {
+              auto call = id(board_indicator_led).turn_off();
+              call.perform();
+            }
+          } 
+          else if (mode == "Locator Beacon") {
+            // LED is a guide in the dark (inverted from light state)
+            if (!light_is_on) {
+              auto call = id(board_indicator_led).turn_on();
+              call.perform();
+            } else {
+              auto call = id(board_indicator_led).turn_off();
+              call.perform();
+            }
+          } 
+          else if (mode == "Always Off") {
+            auto call = id(board_indicator_led).turn_off();
+            call.perform();
+          }
+
+# -----------------------------------------------------------------------------
+# Control Switches & Numbers
+# -----------------------------------------------------------------------------
+switch:
+  - id: hw_relay
+    platform: template
+    name: "Main Relay"
+    device_class: "switch"
+    disabled_by_default: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: "config"
+    lambda: 'return id(glbl_relay_state);'
+    turn_on_action:
+      - output.turn_on: relay_output
+      - globals.set:
+          id: glbl_relay_state
+          value: "true"
+    turn_off_action:
+      - output.turn_off: relay_output
+      - globals.set:
+          id: glbl_relay_state
+          value: "false"
+
+  - id: sw_relay_mode
+    name: "Detach Relay"
+    platform: template
+    device_class: "switch"
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: "config"
+    lambda: 'return id(glbl_detach_relay);'      
+    turn_on_action:
+      - globals.set:
+          id: glbl_detach_relay
+          value: "true"
+    turn_off_action:
+      - globals.set:
+          id: glbl_detach_relay
+          value: "false"
+
+  - id: sw_remote_mode
+    name: "Remote Binding"
+    platform: template
+    device_class: "switch"
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: "config"
+    disabled_by_default: true
+    lambda: 'return id(glbl_remote_mode);'
+    turn_on_action:
+      - globals.set:
+          id: glbl_remote_mode
+          value: "true"
+    turn_off_action:
+      - globals.set:
+          id: glbl_remote_mode
+          value: "false"
+
+  - id: sw_timeout_enabled
+    name: "Timeout Automation"
+    platform: template
+    device_class: "switch"
+    entity_category: "config"
+    restore_mode: RESTORE_DEFAULT_OFF
+    lambda: 'return id(glbl_timeout_enabled);'      
+    turn_on_action:
+      then:
+        - lambda: |-
+            id(glbl_timeout_enabled) = true;
+            if (id(glbl_relay_state)) {
+              id(start_timer).execute();
+            }            
+    turn_off_action:
+      then:
+        - lambda: |-
+            id(glbl_timeout_enabled) = false;
+            id(on_timer_stop).execute();
+
+
+number:
+  - id: timeout_length
+    platform: template
+    name: "Timeout"
+    entity_category: "config"
+    unit_of_measurement: seconds
+    mode: box
+    min_value: 30
+    max_value: 21600
+    step: 30
+    lambda: 'return (int) id(glbl_timeout_length_ticks);'      
+    set_action:
+      then:
+        - globals.set:
+            id: glbl_timeout_length_ticks
+            value: !lambda 'return (int) x;'
+
+# Additions for: /config/esphome/common/templates/smart_switch.yaml
+
+select:
+  - platform: template
+    name: "Indicator LED Mode"
+    id: indicator_led_mode
+    icon: "mdi:led-variant"
+    entity_category: "config"
+    optimistic: true
+    options:
+      - "Status Viewport"
+      - "Locator Beacon"
+      - "Always Off"
+    initial_option: "Status Viewport"
+    restore_value: true
+    on_value:
+      then:
+        - script.execute: evaluate_indicator_state

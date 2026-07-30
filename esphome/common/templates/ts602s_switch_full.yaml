@@ -1,0 +1,81 @@
+# =============================================================================
+# Hardware Template: TS-602S In-Wall Smart Switch
+# Path: /config/esphome/common/templates/ts602s_switch.yaml
+# =============================================================================
+
+# Define the hardware-specific GPIO profiles for the TS-602S board design
+substitutions:
+  button_pin: GPIO0
+  relay_pin: "12"
+  led_pin: "13"
+
+# -----------------------------------------------------------------------------
+# Chip Platform & Flash Memory Performance
+# -----------------------------------------------------------------------------
+esp8266:
+  board: ${board}
+  restore_from_flash: true
+
+preferences:
+  flash_write_interval: 30s
+
+# Enable core diagnostic logging
+logger:
+
+# Import your master smart-switch timer, detach, and multi-click logic package
+packages:
+  - !include smart_switch.yaml
+
+# Inside: /config/esphome/common/templates/ts602s_switch.yaml
+
+# -----------------------------------------------------------------------------
+# 1. Hardware Outputs (Declared first so the ID exists for lookup)
+# -----------------------------------------------------------------------------
+output:
+  - id: indicator_led_pin
+    platform: gpio
+    pin:
+      number: ${led_pin}
+      inverted: true
+
+# -----------------------------------------------------------------------------
+# 2. Light & Indicator Entities
+# -----------------------------------------------------------------------------
+light:
+  # The physical indicator LED mapped to the GPIO output above
+  - id: board_indicator_led
+    platform: binary
+    output: indicator_led_pin
+    internal: true
+
+  # The main Light/Relay entity using the relay from the smart_switch package
+  - id: light_1
+    name: "Light"
+    platform: binary
+    output: relay_output
+    restore_mode: RESTORE_DEFAULT_OFF
+    
+    # Forward the state triggers to our tracking script in smart_switch.yaml
+    on_turn_on:
+      then:
+        - script.execute: evaluate_indicator_state
+        - if:
+            condition:
+              # ONLY start the local hardware timer if automation is enabled AND the network is broken!
+              lambda: 'return id(glbl_timeout_enabled) && !api.connected();'
+              # lambda: 'return id(glbl_timeout_enabled);'
+            then:
+              - script.execute: start_timer
+            else:
+              - logger.log: "Light turned on, countdown timer not enabled"
+
+    on_turn_off:
+      then:
+        - script.execute: evaluate_indicator_state
+        - if:
+            condition:
+              lambda: 'return id(_timer_tick).is_running();'
+            then:
+              - script.execute: on_timer_stop
+            else:
+              - logger.log: "Light turned off, countdown timer not enabled"

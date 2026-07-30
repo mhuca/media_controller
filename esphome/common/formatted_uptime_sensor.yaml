@@ -15,9 +15,9 @@ esphome:
     priority: -100 # Run after core components are initialized
     then:
       # Set the boot time immediately upon start, formatted nicely.
-      - globals.set:
-          id: glbl_boot_time
-          value: 'id(esptime).now().strftime("%Y-%m-%d %H:%M:%S %Z")'
+      # - globals.set:
+      #     id: glbl_boot_time
+      #     value: 'id(esptime).now().strftime("%Y-%m-%d %H:%M:%S %Z")'
       - logger.log:
           level: INFO
           format: "System Boot Detected: Last Boot Time set to %s"
@@ -67,7 +67,14 @@ text_sensor:
   - platform: template
     name: Last Boot Time
     id: last_boot_time
+    update_interval: never
     icon: "mdi:calendar-clock"
     entity_category: "diagnostic"
     # This value is only updated on boot via the global variable.
-    lambda: 'return id(glbl_boot_time);'
+    lambda: |- #'return id(glbl_boot_time);'
+      if (id(glbl_boot_time).empty()) {
+        return {"Waiting for NTP sync..."};
+      }
+      return id(glbl_boot_time);
+
+

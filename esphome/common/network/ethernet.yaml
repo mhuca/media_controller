@@ -1,0 +1,56 @@
+# =============================================================================
+# Core Network Package: Hardwired Ethernet Segment
+# Path: /config/esphome/common/network/ethernet.yaml
+# =============================================================================
+
+# 1. Pull in the single, central secrets file
+secrets: ../../secrets.yaml
+
+# 2. Define default hardware pins for the most common board (e.g., WT32-ETH01)
+# These can be easily overridden in the main device file if using Olimex, etc.
+substitutions:
+  ethernet_type: LAN8720
+  ethernet_mdc_pin: GPIO23
+  ethernet_mdio_pin: GPIO18
+  ethernet_power_pin: GPIO12
+  ethernet_clock_mode: CLK_OUT
+  ethernet_phy_addr: "0"
+  ethernet_clk_pin: GPIO17
+
+ethernet:
+  type: ${ethernet_type}
+  mdc_pin: ${ethernet_mdc_pin}
+  mdio_pin: ${ethernet_mdio_pin}
+# Modern clock mapping configuration
+  clk:
+    pin: ${ethernet_clk_pin}
+    mode: ${ethernet_clk_mode}
+  # Optional power_pin setting (Uncomment if your specific board needs it)
+  power_pin: ${ethernet_power_pin}
+
+  # Optional manual IP settings for static network assignment
+  # manual_ip:
+  #   static_ip: 10.0.168.X
+  #   gateway: 10.0.168.1
+  #   subnet: 255.255.255.0
+
+# Enable native web server for quick local IP diagnostics over the wire
+web_server:
+  port: 80
+
+# -----------------------------------------------------------------------------
+# Over-The-Air Updates & Network Diagnostics
+# -----------------------------------------------------------------------------
+ota:
+  - platform: esphome
+
+# Appended to the bottom of common/network/ethernet.yaml
+text_sensor:
+  - platform: template
+    name: "ESP IP Address"
+    id: eth_ip_address
+    entity_category: "diagnostic"
+    disabled_by_default: true
+    icon: "mdi:ip-network"
+    lambda: |-
+      return {network::get_ip_address().to_string()};

@@ -1,0 +1,262 @@
+# =============================================================================
+# Core Template: Advanced Smart Button & Sensor Base
+# Path: /config/esphome/common/templates/smart_switch.yaml
+# =============================================================================
+
+substitutions:
+  event: switch_event
+  button: button
+
+# -----------------------------------------------------------------------------
+# Physical & Virtual Inputs/Outputs
+# -----------------------------------------------------------------------------
+output:
+  - id: relay_output
+    platform: gpio
+    pin:
+      number: ${relay_pin}
+
+binary_sensor:
+  # Physical Wall Button
+  - id: physical_button
+    name: "Physical Button"
+    platform: gpio
+    internal: true
+    entity_category: "diagnostic"
+    pin:
+      number: ${button_pin}
+      inverted: true
+    on_multi_click:
+      - timing:
+          - ON for at most 0.4s
+          - OFF for at most 0.4s
+          - ON for at most 0.4s
+          - OFF for at least 0.2s
+        then:
+          - logger.log: "Double Clicked"
+          - if:
+              condition:
+                api.connected:
+              then:
+                - homeassistant.event:
+                    event: esphome.${event}
+                    data:
+                      entity_id: esphome.${name}
+                      area_id: "${area_id}"
+                      event_type: ${button}
+                      event_value: "double"
+              else:
+                - script.execute: execute_tier2_double
+
+      - timing:
+          - OFF for at least 0.2s
+        then:
+          - logger.log: "Released"
+          - if:
+              condition:
+                and:
+                  - lambda: 'return id(_hold_tick).is_running();'
+                  - api.connected:
+              then:
+                - homeassistant.event:
+                    event: esphome.${event}
+                    data:
+                      entity_id: esphome.${name}
+                      area_id: "${area_id}"
+                      event_type: ${button}
+                      event_value: "release"
+                - script.stop: _hold_tick
+
+      - timing:
+          - ON for at least 0.4s
+        then:
+          - logger.log: "Hold Clicked"
+          - script.execute: _hold_tick
+
+      - timing:
+          - ON for at most 0.4s
+          - OFF for at least 0.5s
+        then:
+          - logger.log: "Single Short Clicked"
+          - if:
+              condition:
+                lambda: 'return !id(glbl_detach_relay);'
+              then:
+                - light.toggle: light_1
+              else:
+                if:
+                  condition:
+                    api.connected:
+                  then:
+                    - homeassistant.event:
+                        event: esphome.${event}
+                        data:
+                          entity_id: esphome.${name}
+                          area_id: "${area_id}"
+                          event_type: ${button}
+                          event_value: "press"
+                    - script.execute: execute_tier2_activation
+
+  # Generic Template Motion Hook (Overridden or published to by area implementations)
+  - id: motion_sensor
+    name: "Motion Sensor"
+    platform: template
+    device_class: motion
+    internal: true
+
+  # Ingested/Virtual Door Sensor
+  - id: door_sensor
+    name: "Door Contact"
+    platform: template
+    device_class: door
+    internal: true
+    lambda: 'return id(glbl_door_is_open);'
+
+# -----------------------------------------------------------------------------
+# Globals & State Tracking
+# -----------------------------------------------------------------------------
+globals:
+  - id: glbl_detach_relay
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  - id: glbl_remote_mode
+    type: bool
+    restore_value: true
+    initial_value: "false"
+  - id: glbl_timeout_enabled
+    type: bool
+    restore_value: true
+    initial_value: "true"
+  - id: glbl_timeout_length_ticks
+    type: int
+    restore_value: true
+    initial_value: "300"
+  - id: glbl_door_is_open
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  # System Connectivity Tracker
+  - id: glbl_api_is_connected
+    type: bool
+    restore_value: no
+    initial_value: "false"
+# -----------------------------------------------------------------------------
+# Core Scripts & Indicator Logic
+# -----------------------------------------------------------------------------
+script:
+  - id: start_hardware_timer
+    mode: restart
+    then:
+      - delay: !lambda 'return id(glbl_timeout_length_ticks) * 1000;'
+      - light.turn_off: light_1
+      - logger.log: "Hardware Fallback Safety Timeout Triggered"
+
+  - id: stop_hardware_timer
+    mode: single
+    then:
+      - script.stop: start_hardware_timer
+
+  - id: _hold_tick
+    mode: queued
+    then:
+      - homeassistant.event:
+          event: esphome.${event}
+          data:
+            entity_id: esphome.${name}
+            event_type: ${button}
+            event_value: "hold"
+      - delay: 0.85s
+      - script.execute: _hold_tick
+
+  - id: evaluate_indicator_state
+    mode: restart
+    then:
+      - lambda: |-
+          std::string mode = id(indicator_led_mode).current_option();
+          bool light_is_on = id(light_1).remote_values.is_on();
+          
+          if (mode == "Status Viewport") {
+            light_is_on ? id(board_indicator_led).turn_on().perform() : id(board_indicator_led).turn_off().perform();
+          } 
+          else if (mode == "Locator Beacon") {
+            !light_is_on ? id(board_indicator_led).turn_on().perform() : id(board_indicator_led).turn_off().perform();
+          } 
+          else if (mode == "Always Off") {
+            id(board_indicator_led).turn_off().perform();
+          }
+
+  # Base stub for Tier 2 Double Click (Can be overridden by area implementations)
+  - id: execute_tier2_double
+    mode: single
+    then:
+      - logger.log: "Tier 2 Double Click triggered (Default: No action defined)"
+# -----------------------------------------------------------------------------
+# Configuration Controls
+# -----------------------------------------------------------------------------
+switch:
+  - id: sw_relay_mode
+    name: "Detach Relay"
+    platform: template
+    device_class: "switch"
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: "config"
+    lambda: 'return id(glbl_detach_relay);'      
+    turn_on_action:
+      - globals.set: { id: glbl_detach_relay, value: "true" }
+    turn_off_action:
+      - globals.set: { id: glbl_detach_relay, value: "false" }
+
+  - id: sw_timeout_enabled
+    name: "Timeout Automation"
+    platform: template
+    device_class: "switch"
+    entity_category: "config"
+    restore_mode: RESTORE_DEFAULT_OFF
+    lambda: 'return id(glbl_timeout_enabled);'      
+    turn_on_action:
+      then:
+        - globals.set: { id: glbl_timeout_enabled, value: "true" }
+        - if:
+            condition:
+              lambda: 'return id(light_1).remote_values.is_on();'
+            then:
+              - script.execute: start_hardware_timer
+    turn_off_action:
+      then:
+        - globals.set: { id: glbl_timeout_enabled, value: "false" }
+        - script.execute: stop_hardware_timer
+
+number:
+  - id: timeout_length
+    platform: template
+    name: "Timeout"
+    entity_category: "config"
+    unit_of_measurement: s
+    mode: box
+    min_value: 30
+    max_value: 21600
+    step: 30
+    lambda: 'return (int) id(glbl_timeout_length_ticks);'      
+    set_action:
+      then:
+        - globals.set:
+            id: glbl_timeout_length_ticks
+            value: !lambda 'return (int) x;'
+
+select:
+  - platform: template
+    name: "Indicator LED Mode"
+    id: indicator_led_mode
+    icon: "mdi:led-variant"
+    entity_category: "config"
+    optimistic: true
+    options:
+      - "Status Viewport"
+      - "Locator Beacon"
+      - "Always Off"
+    initial_option: "Status Viewport"
+    restore_value: true
+    on_value:
+      then:
+        - script.execute: evaluate_indicator_state

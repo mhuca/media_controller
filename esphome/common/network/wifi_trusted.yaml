@@ -1,0 +1,54 @@
+# =============================================================================
+# Core Network Package: IoT Wi-Fi Segment
+# Path: /config/esphome/common/network/wifi_iot.yaml
+# =============================================================================
+
+# 1. Pull in the single, central secrets file
+secrets: ../../secrets.yaml
+
+wifi:
+  # Pull credentials cleanly from our central secrets file
+  ssid: !secret trusted_ssid
+  password: !secret trusted_password
+
+  # Use a manual IP block if you want to enforce local DNS/Gateway
+  # (Optional: Only use this if your DHCP server doesn't already assign these)
+  # manual_ip:
+  #   static_ip: 10.0.168.X
+  #   gateway: 10.0.168.1
+  #   subnet: 255.255.255.0
+  #   dns1: 10.0.168.24  # Force DNS requests locally (e.g. to your local Pi-Hole/AdGuard/Unbound)
+
+  # Network stability settings
+  fast_connect: true      # Scans for the SSID quickly without searching all channels first
+  reboot_timeout: 15min   # Only reboot the device if Wi-Fi is completely lost for 15 minutes 
+                          # (prevents massive boot-loops during router firmware updates)
+  
+# Modern Security & Performance
+  min_auth_mode: WPA2     # Force WPA2/WPA3 and ignore insecure legacy modes
+  power_save_mode: none   # Keeps Wi-Fi fully awake for zero latency
+
+  # Fallback AP: If the main IoT network is dead, the bulb hosts its own hotspot
+  ap:
+    ssid: !secret wifi_fallback_ssid
+    password: !secret wifi_fallback_password
+
+# Captive Portal: Serves a web page on the fallback AP to let you change Wi-Fi settings
+captive_portal:
+
+# Enable native web server for quick local IP diagnostics
+web_server:
+  port: 80
+
+# -----------------------------------------------------------------------------
+# Over-The-Air Updates & Network Diagnostics
+# -----------------------------------------------------------------------------
+ota:
+  - platform: esphome
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "ESP IP Address"
+      entity_category: "diagnostic"
+      disabled_by_default: true

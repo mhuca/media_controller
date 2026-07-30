@@ -1,0 +1,63 @@
+# =============================================================================
+# Hardware Template: TS-602S In-Wall Smart Switch
+# Path: /config/esphome/common/templates/ts602s_switch.yaml
+# =============================================================================
+
+substitutions:
+  button_pin: GPIO0
+  relay_pin: "12"
+  led_pin: "13"
+
+esp8266:
+  board: ${board}
+  restore_from_flash: true
+
+preferences:
+  flash_write_interval: 30s
+
+logger:
+  level: INFO
+
+packages:
+  smart_switch: !include smart_switch.yaml
+
+# -----------------------------------------------------------------------------
+# Hardware Outputs & Indicators
+# -----------------------------------------------------------------------------
+output:
+  - id: indicator_led_pin
+    platform: gpio
+    pin:
+      number: ${led_pin}
+      inverted: true
+
+light:
+  - id: board_indicator_led
+    platform: binary
+    output: indicator_led_pin
+    internal: true
+
+  # Physical Relay Entity (Internal: prevents duplicate control in Home Assistant)
+  - id: light_1
+    platform: binary
+    output: relay_output
+    restore_mode: RESTORE_DEFAULT_OFF
+    internal: true
+    
+    on_turn_on:
+      then:
+        - script.execute: evaluate_indicator_state
+        - if:
+            condition:
+              and:
+                - lambda: 'return id(glbl_timeout_enabled);'
+                - not:
+                    api.connected:
+            then:
+              - script.execute: start_hardware_timer
+              #- script.execute: handle_button_press
+
+    on_turn_off:
+      then:
+        - script.execute: evaluate_indicator_state
+        - script.execute: stop_hardware_timer

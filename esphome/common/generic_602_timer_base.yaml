@@ -24,7 +24,7 @@ esphome:
 time:
   - platform: sntp
     id: esptime_generic
-    timezone: "America/Toronto" 
+    timezone: timezone: EST5EDT,M3.2.0,M11.1.0 ### "America/Toronto" 
     # The tick script is executed every five seconds for optimization.
     on_time:
       - seconds: /15 # <-- UPDATED FREQUENCY
@@ -37,7 +37,22 @@ time:
                 # - lambda: 'return id(_glbl_current_tick_count) > 0;'
               then:
                 - script.execute: timer_tick
-          
+  - platform: sntp
+    id: esptime
+    timezone: EST5EDT,M3.2.0,M11.1.0 ### "America/Toronto" # Your preferred timezone
+    servers:
+      - 10.0.168.24
+    on_time_sync:
+      then:
+        - text_sensor.template.publish:
+            id: last_boot_time  # Updated to match your existing sensor ID
+            state: !lambda |-
+              char buf[32];
+              time_t boot_time = ::time(nullptr) - (millis() / 1000);
+              struct tm *time_info = localtime(&boot_time);
+              strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", time_info);
+              return std::string(buf);
+        
 # -----------------------------------------------------------------------------
 # User-Configurable Timer Settings (via Home Assistant)
 # -----------------------------------------------------------------------------

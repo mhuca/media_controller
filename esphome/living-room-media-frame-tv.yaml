@@ -28,46 +28,46 @@ captive_portal:
 
 api:
   reboot_timeout: 0s
-  services:
-    # Service 1: The Instant Handshake (For transitions)
-    - service: predict_art_mode
-      then:
-        - globals.set:
-            id: last_art_transition_time
-            value: !lambda "return millis();"
-        - logger.log: "Predictive Handshake: Art Mode engaged by HA"
+  # services:
+  #   # Service 1: The Instant Handshake (For transitions)
+  #   - service: predict_art_mode
+  #     then:
+  #       - globals.set:
+  #           id: last_art_transition_time
+  #           value: !lambda "return millis();"
+  #       - logger.log: "Predictive Handshake: Art Mode engaged by HA"
 
-    # Service 2: The Source of Truth (For continuous sync)
-    # Mode 0: OFF, Mode 1: ART, Mode 2: VIDEO
-    - service: set_target_mode
-      variables:
-        mode: int
-      then:
-        - globals.set:
-            id: target_matrix_mode
-            value: !lambda "return mode;"
-        - globals.set:
-            id: last_mode_transition_time
-            value: !lambda "return millis();"
-        - logger.log:
-            format: "Target Mode Sync: HA set hardware target to %d"
-            args: ["mode"]
+  #   # Service 2: The Source of Truth (For continuous sync)
+  #   # Mode 0: OFF, Mode 1: ART, Mode 2: VIDEO
+  #   - service: set_target_mode
+  #     variables:
+  #       mode: int
+  #     then:
+  #       - globals.set:
+  #           id: target_matrix_mode
+  #           value: !lambda "return mode;"
+  #       - globals.set:
+  #           id: last_mode_transition_time
+  #           value: !lambda "return millis();"
+  #       - logger.log:
+  #           format: "Target Mode Sync: HA set hardware target to %d"
+  #           args: ["mode"]
 
-    # Service 3: The Image Shift Notification
-    - service: alert_image_change
-      variables:
-        mode: int
-      then:
-        - globals.set:
-            id: target_matrix_mode
-            value: !lambda "return mode;"
-        - globals.set:
-            id: last_mode_transition_time
-            value: !lambda "return millis();"
-        - globals.set:
-            id: last_art_transition_time
-            value: !lambda "return millis();"
-        - logger.log: "Network Sync: Image shift detected. Resetting safety window."
+  #   # Service 3: The Image Shift Notification
+  #   - service: alert_image_change
+  #     variables:
+  #       mode: int
+  #     then:
+  #       - globals.set:
+  #           id: target_matrix_mode
+  #           value: !lambda "return mode;"
+  #       - globals.set:
+  #           id: last_mode_transition_time
+  #           value: !lambda "return millis();"
+  #       - globals.set:
+  #           id: last_art_transition_time
+  #           value: !lambda "return millis();"
+  #       - logger.log: "Network Sync: Image shift detected. Resetting safety window."
 
 ota:
   - platform: esphome
@@ -76,65 +76,65 @@ logger:
   level: DEBUG
   baud_rate: 0 
 
-globals:
-  - id: pulse_count
-    type: int
-    restore_value: no
-    initial_value: "0"
-  - id: last_art_transition_time
-    type: uint32
-    restore_value: no
-    initial_value: "0"
-  - id: last_mode_transition_time
-    type: uint32
-    restore_value: no
-    initial_value: "0"
-  - id: target_matrix_mode
-    type: int
-    restore_value: no
-    initial_value: "0" # 0=Unknown/Off, 1=Art, 2=Video
+# globals:
+#   - id: pulse_count
+#     type: int
+#     restore_value: no
+#     initial_value: "0"
+#   - id: last_art_transition_time
+#     type: uint32
+#     restore_value: no
+#     initial_value: "0"
+#   - id: last_mode_transition_time
+#     type: uint32
+#     restore_value: no
+#     initial_value: "0"
+#   - id: target_matrix_mode
+#     type: int
+#     restore_value: no
+#     initial_value: "0" # 0=Unknown/Off, 1=Art, 2=Video
 
 sensor:
-  - platform: template
-    name: "TV Power Delta"
-    id: tv_power_delta
-    update_interval: 5s
-    unit_of_measurement: "W"
-    accuracy_decimals: 2
-    lambda: |-
-      uint32_t last_mode = id(last_mode_transition_time);
-      uint32_t now_ms = millis();
-      static float last_read = -1.0;
-      float current_read = id(raw_power).state;
-      if (std::isnan(current_read) || last_read < 0) {
-        if (!std::isnan(current_read)) last_read = current_read;
-        return 0.0;
-      }
-      float delta = abs(current_read - last_read);
-      last_read = current_read;
+  # - platform: template
+  #   name: "TV Power Delta"
+  #   id: tv_power_delta
+  #   update_interval: 5s
+  #   unit_of_measurement: "W"
+  #   accuracy_decimals: 2
+  #   lambda: |-
+  #     uint32_t last_mode = id(last_mode_transition_time);
+  #     uint32_t now_ms = millis();
+  #     static float last_read = -1.0;
+  #     float current_read = id(raw_power).state;
+  #     if (std::isnan(current_read) || last_read < 0) {
+  #       if (!std::isnan(current_read)) last_read = current_read;
+  #       return 0.0;
+  #     }
+  #     float delta = abs(current_read - last_read);
+  #     last_read = current_read;
       
-      // if (delta >= 1.0) {
-      //   id(last_art_transition_time) = millis();
-      //   ESP_LOGD("custom", "Hardware Pulse Detected");
-      // }
+  #     // if (delta >= 1.0) {
+  #     //   id(last_art_transition_time) = millis();
+  #     //   ESP_LOGD("custom", "Hardware Pulse Detected");
+  #     // }
 
-      if (delta >= 0.12 && delta < 0.25) {
-        id(pulse_count) += 1;
-      }
-      return delta;
+  #     if (delta >= 0.12 && delta < 0.25) {
+  #       id(pulse_count) += 1;
+  #     }
+  #     return delta;
 
-  - platform: template
-    name: "TV Stability Score"
-    id: tv_stability_score
-    update_interval: 20s 
-    unit_of_measurement: "pulses"
-    lambda: |-
-      int pulses = id(pulse_count);
-      id(pulse_count) = 0; 
-      // if (pulses >= 2.0) {
-      //   id(last_art_transition_time) = millis();
-      //}
-      return (float)pulses;
+  # - platform: template
+  #   name: "TV Stability Score"
+  #   id: tv_stability_score
+  #   update_interval: 20s 
+  #   unit_of_measurement: "pulses"
+  #   lambda: |-
+  #     int pulses = id(pulse_count);
+  #     id(pulse_count) = 0; 
+  #     // if (pulses >= 2.0) {
+  #     //   id(last_art_transition_time) = millis();
+  #     //}
+  #     return (float)pulses;
 
   - platform: hlw8012
     sel_pin: { number: GPIO12, inverted: true }
@@ -143,7 +143,7 @@ sensor:
     voltage_divider: 780 
     current_resistor: 0.001
     change_mode_every: 1 
-    update_interval: 2s 
+    update_interval: 5s 
     power:
       id: raw_power
       name: "Power"
@@ -159,50 +159,50 @@ sensor:
             - 434.2469 -> 189.5000
         - lambda: if (x < 1.5600) return 0; else return (x - 1.5600);
 
-binary_sensor:
-  - platform: template
-    name: "Confirmed Art Mode"
-    id: confirmed_art_mode
-    device_class: connectivity
-    lambda: |-
-      float p = id(raw_power).state;
-      // float s = id(tv_stability_score).state;
-      int target = id(target_matrix_mode);
-      uint32_t now_ms = millis();
-      uint32_t last_pulse = id(last_art_transition_time);
-      uint32_t last_mode = id(last_mode_transition_time);
+# binary_sensor:
+#   - platform: template
+#     name: "Confirmed Art Mode"
+#     id: confirmed_art_mode
+#     device_class: connectivity
+#     lambda: |-
+#       float p = id(raw_power).state;
+#       // float s = id(tv_stability_score).state;
+#       int target = id(target_matrix_mode);
+#       uint32_t now_ms = millis();
+#       uint32_t last_pulse = id(last_art_transition_time);
+#       uint32_t last_mode = id(last_mode_transition_time);
 
-      // CLOSED LOOP OVERRIDE: If HA explicitly says we are in Video mode, 
-      // believe it immediately and ignore the pulse logic.
-      if (target == 0 ) return false; 
-      if (target == 2 ) return false; 
-      // if (target == 0 && ((now_ms - last_mode) < 20000) ) return false; 
-      // if (target == 2 && ((now_ms - last_mode) < 20000) ) return false; 
+#       // CLOSED LOOP OVERRIDE: If HA explicitly says we are in Video mode, 
+#       // believe it immediately and ignore the pulse logic.
+#       if (target == 0 ) return false; 
+#       if (target == 2 ) return false; 
+#       // if (target == 0 && ((now_ms - last_mode) < 20000) ) return false; 
+#       // if (target == 2 && ((now_ms - last_mode) < 20000) ) return false; 
 
-      // If HA says we are in Art mode, or we saw a pulse, lock it in.
-      if (target == 1 ) return true;
-      if ((now_ms - last_pulse) < 20000) return true;
+#       // If HA says we are in Art mode, or we saw a pulse, lock it in.
+#       if (target == 1 ) return true;
+#       if ((now_ms - last_pulse) < 20000) return true;
       
-      if (std::isnan(p) || p < ${standby_threshold}) return false;
-      if (std::isnan(p) || p > ${video_threshold}) return false;
+#       if (std::isnan(p) || p < ${standby_threshold}) return false;
+#       if (std::isnan(p) || p > ${video_threshold}) return false;
 
-      return true;
-      // Fallback: No Apple TV jitters = Art Mode
-      // return (s >= 2);
-    filters:
-      - delayed_on: 0s 
-      - delayed_off: 0s
+#       return true;
+#       // Fallback: No Apple TV jitters = Art Mode
+#       // return (s >= 2);
+#     filters:
+#       - delayed_on: 0s 
+#       - delayed_off: 0s
 
-text_sensor:
-  - platform: template
-    name: "Matrix Mode"
-    id: matrix_mode_sensor
-    lambda: |-
-      float p = id(raw_power).state;
-      if (std::isnan(p) || p < ${standby_threshold}) return {"OFF"};
-      if (std::isnan(p) || p > ${video_threshold}) return {"VIDEO"};
-      if (id(confirmed_art_mode).state) return {"ART"};
-      return {"ART"};
+# text_sensor:
+#   - platform: template
+#     name: "Matrix Mode"
+#     id: matrix_mode_sensor
+#     lambda: |-
+#       float p = id(raw_power).state;
+#       if (std::isnan(p) || p < ${standby_threshold}) return {"OFF"};
+#       if (std::isnan(p) || p > ${video_threshold}) return {"VIDEO"};
+#       if (id(confirmed_art_mode).state) return {"ART"};
+#       return {"ART"};
 
 switch:
   - platform: gpio

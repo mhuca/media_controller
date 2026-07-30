@@ -46,7 +46,7 @@ binary_sensor:
   - id: ha_door
 # - id: switch_2
     platform: homeassistant
-    entity_id: binary_sensor.powder_room_door
+    entity_id: binary_sensor.powder_room_door_contact
     internal: true
 
   - id: ha_light

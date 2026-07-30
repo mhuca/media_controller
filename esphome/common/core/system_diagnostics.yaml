@@ -1,0 +1,134 @@
+# =============================================================================
+# Core Package: System Diagnostics & Time Synchronization
+# Path: /config/esphome/common/core/system_diagnostics.yaml
+# =============================================================================
+
+# Define defaults for the local NTP server and timezone
+# These can be overridden in the main device YAML if needed
+substitutions:
+  local_ntp_server: "10.0.168.24"       # Your dedicated local NTP container
+  timezone_string: "EST5EDT,M3.2.0,M11.1.0"
+  has_wifi_signal: "true"               # Set to "false" in device YAML for Ethernet nodes
+
+# 1. Enable the core debug component
+debug:
+  update_interval: 60s
+
+# -----------------------------------------------------------------------------
+# Time Component (Local SNTP Client)
+# -----------------------------------------------------------------------------
+time:
+  - platform: sntp
+    id: esptime
+    timezone: ${timezone_string}
+    servers:
+      - ${local_ntp_server}
+      - pool.ntp.org                    # Fallback if local container is restarting
+    on_time_sync:
+      then:
+        - lambda: |-
+            char buf[32];
+            // Compute the absolute boot time using current NTP time and millis uptime
+            time_t boot_time = ::time(nullptr) - (millis() / 1000);
+            struct tm *time_info = localtime(&boot_time);
+            strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", time_info);
+            
+            // 1. Update the global variable
+            id(glbl_boot_time) = std::string(buf); 
+            
+            // 2. Publish to the template sensor immediately
+            id(last_boot_time).publish_state(buf);
+
+# -----------------------------------------------------------------------------
+# Global Variables & Core Sensors
+# -----------------------------------------------------------------------------
+globals:
+  - id: glbl_boot_time
+    type: std::string
+    initial_value: '""'
+
+sensor:
+  # 1. Raw Uptime (Internal tracker used for mathematical calculations)
+  - platform: uptime
+    id: raw_uptime
+    internal: true
+
+  # 2. Free Memory (Crucial for monitoring stability and memory leaks)
+  # --- Diagnostic Sensors (Disabled by Default) ---
+  - platform: debug
+    free:
+      name: Free Heap Memory
+      id: diagnostic_free_heap
+      unit_of_measurement: bytes
+      icon: mdi:memory
+    # update_interval: 1min
+    # Hidden unless explicitly enabled in HA UI
+      state_class: "measurement"
+      entity_category: "diagnostic"
+      disabled_by_default: true
+
+  # 3. Wi-Fi Signal Sensor (Only compiled if device has a Wi-Fi connection)
+  - platform: wifi_signal
+    name: "Wi-Fi Signal"
+    id: diagnostic_wifi_signal
+    update_interval: 60s
+    entity_category: "diagnostic"
+    # This filter compiles out the Wi-Fi signal sensor entirely for Ethernet devices!
+    filters:
+      - lambda: |-
+          if (std::string("${has_wifi_signal}") == "false") {
+            return {};
+          }
+          return x;
+
+
+# -----------------------------------------------------------------------------
+# Text Sensors
+# -----------------------------------------------------------------------------
+text_sensor:
+  # 1. Last Boot Time (Perfected, zero-drift, event-driven)
+  - platform: template
+    name: "Last Boot Time"
+    id: last_boot_time
+    update_interval: never               # NEVER let the sensor pull automatically
+    icon: "mdi:calendar-clock"
+    entity_category: "diagnostic"
+    lambda: |-
+      if (id(glbl_boot_time).empty()) {
+        return {"Waiting for NTP sync..."};
+      }
+      return id(glbl_boot_time);
+
+  # 2. Formatted Uptime (A clean human-readable duration, e.g., "3d 04h 12m")
+  - platform: template
+    name: "Uptime"
+    id: formatted_uptime
+    icon: "mdi:clock-check-outline"
+    entity_category: "diagnostic"
+    update_interval: 60s
+    lambda: |-
+      int seconds = id(raw_uptime).state;
+      int days = seconds / 86400;
+      seconds %= 86400;
+      int hours = seconds / 3600;
+      seconds %= 3600;
+      int minutes = seconds / 60;
+      int secs = seconds % 60;
+
+      std::string output = "";
+      if (days > 0) {
+        output += std::to_string(days) + "d ";
+      }
+      output += str_sprintf("%02dh %02dm %02ds", hours, minutes, secs);
+      return output;
+
+# Adds deep firmware, sdk, and compile diagnostics
+  - platform: debug
+    device:
+      name: "Device Info"
+      entity_category: "diagnostic"
+      disabled_by_default: true
+    reset_reason:
+      name: "Restart Reason"
+      entity_category: "diagnostic"
+      disabled_by_default: true

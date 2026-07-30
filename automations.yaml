@@ -3,20 +3,26 @@
   description: Feed Cat at fixed schedule
   triggers:
   - at: 05:00:00
-    enabled: true
+    enabled: false
     trigger: time
   - at: 08:30:00
     trigger: time
+    enabled: false
   - at: '12:00:00'
     trigger: time
+    enabled: false
   - at: '16:30:00'
     trigger: time
+    enabled: false
   - at: '19:30:00'
     trigger: time
+    enabled: false
   - at: '22:30:00'
     trigger: time
+    enabled: false
   - at: 00:00:00
     trigger: time
+    enabled: false
   conditions: []
   actions:
   - action: select.select_first
@@ -247,14 +253,19 @@
   triggers:
   - trigger: time
     at: 07:51:00
+    enabled: false
   - trigger: time
     at: 08:00:00
+    enabled: false
   - trigger: time
     at: 08:09:00
+    enabled: false
   - trigger: time
     at: 08:18:00
+    enabled: false
   - trigger: time
     at: 08:27:00
+    enabled: false
   conditions:
   - condition: state
     entity_id: binary_sensor.is_school_day
@@ -961,11 +972,8 @@
       - condition: trigger
         id: warning
       sequence:
-      - action: notify.mobile_app_work_iphone
-        data:
-          title: ⚠️ Water Heater Warning
-          message: The Kitchen Boiling Water has been heating for 5 minutes. Investigating
-            status...
+      - action: notify.mobile_app_bd_iphone
+        data: {}
     - conditions:
       - condition: trigger
         id: kill_switch
@@ -975,19 +983,14 @@
         data: {}
         target:
           device_id: 91c3753a18068bf4c9c9dbfe6d355620
-      - action: notify.mobile_app_work_iphone
-        data:
-          title: "\U0001F6D1 EMERGENCY SHUTDOWN"
-          message: HotMaster killed by HA after 10 min continuous draw.
+      - action: notify.mobile_app_bd_iphone
+        data: {}
     - conditions:
       - condition: trigger
         id: local_trip
       sequence:
-      - action: notify.mobile_app_work_iphone
-        data:
-          title: "\U0001F6E1️ Local Safety Trip"
-          message: The Athom plug locally killed the HotMaster power due to prolonged
-            heating.
+      - action: notify.mobile_app_bd_iphone
+        data: {}
   mode: single
 - id: '1770589510327'
   alias: Override - Pet Feeder (Subscriber)
@@ -1188,6 +1191,8 @@
   - variables:
       avr: '{{ (label_entities(''media_role_avr'') | select(''in'', area_entities(area_key))
         | first | default(''none'')) | replace(''"'', '''') | trim }}'
+      avr_source: '{{ state_attr(avr,''source'') | default(''none'') | replace(''"'',
+        '''') | trim }}'
       tv_dev: '{{ (label_devices(''media_role_tv'') | select(''in'', area_devices(area_key))
         | first | default(''none'')) | replace(''"'', '''') | trim }}'
       tv: '{{ (device_entities(tv_dev) | select(''match'', ''media_player\.'') | first
@@ -1214,9 +1219,9 @@
       final_target: "{% if is_remote %}\n  {{ atv_remote }}\n{% elif is_audio %}\n
         \ {% if atv != 'none' and state_attr(atv, 'volume_level') is not none %}\n
         \   {{ atv }}\n  {% else %}\n    {{ avr if avr != 'none' else atv }}\n  {%
-        endif %}\n{% elif is_state(atv, 'off') or is_state(atv, 'unavailable') %}\n
-        \ {{ home_music }}\n{% else %}\n  {{ atv if atv != 'none' else avr }}\n{%
-        endif %}\n"
+        endif %}\n{# elif is_state(atv, 'off') or is_state(atv, 'unavailable') #}\n{%
+        elif avr_source == 'CD' %}\n  {{ home_music }}\n{% else %}\n  {{ atv if atv
+        != 'none' else avr }}\n{% endif %}\n"
       t_service: '{{ domain ~ ''.'' ~ service if domain != ''none'' and service !=
         ''none'' else ''none'' }}
 
@@ -1280,15 +1285,10 @@
             }}'
           command_input: '{{ keymap.get(''data'', {}).get(''command_input'', '''')
             }}'
-      - action: homeassistant.update_entity
-        target:
-          entity_id: '{{ atv }}'
-        data:
-          entity_id:
-          - media_player.living_room_atv
       - event: universal_controller_command
         event_data:
-          area_key: '{{ area_key }}'
+          target:
+            area_id: '{{ area_key }}'
           action_type: '{{ action_type}}'
           action_value: '{{ action_value }}'
           command_input: '{{ command_input | default(none) }}'
@@ -1538,7 +1538,8 @@
   - alias: Global Context Acquisition
     variables:
       payload: '{{ trigger.event.data }}'
-      area_key: '{{ payload.area_key | default(''living_room'') }}'
+      area_key: '{{ payload.target.area_id | default(payload.area_key) | default(''living_room'')
+        }}'
       avr: '{{ (label_entities(''media_role_avr'') | select(''in'', area_entities(area_key))
         | first | default(''none'')) | replace(''"'', '''') | trim }}'
       avr_interlock: '{{ (label_entities(''media_role_power_interlock'') | select(''in'',
@@ -1563,8 +1564,10 @@
         | trim }}'
       art: '{{ (label_entities(''media_role_art_sensor'') | select(''in'', area_entities(area_key))
         | first | default(''none'')) | replace(''"'', '''') | trim }}'
-      atv_active: '{{ not is_state(atv, ''off'') and not is_state(atv, ''unavailable'')
-        }}'
+      avr_source: "{{ state_attr('atv','source') \n   | default('none') \n   | replace('\"',
+        '') \n   | trim \n}}"
+      atv_active: "{# not is_state(atv, 'off') and not is_state(atv, 'unavailable')
+        #} \n{{ avr_source == 'AppleTV' }}"
       tv_active: '{{ is_state(tv, ''on'') }}'
       avr_active: '{{ is_state(avr, ''on'') }}'
       interlock_active: '{{ is_state(avr, ''on'') }}'
@@ -1632,9 +1635,9 @@
           valid_activities: '{{ state_attr(intent_id, ''options'') | default({}) }}'
           valid_activities_old: '{{ state_attr(''input_select.'' ~ area_key ~ ''_media_activity'',
             ''options'') | default([]) }}'
+          activity_map: '{{ state_attr(intent_id, ''activity_map'') | default({''activity_map'':
+            {}}, true ) }}'
       - variables:
-          activity_map: '{{ state_attr(intent_id, ''activity_map'') | default({})
-            }}'
           active_config: '{{ activity_map.get(resolved_activity, {}) }}'
           target_mask: '{{ active_config.get(''bits'', 0 ) | int }}'
           target_sound_mode: '{{ active_config.get(''sound'', ''none'') }}'
@@ -1645,6 +1648,7 @@
             != ''none'' else ''none'' }}'
           target_data: '{{ { ''source'': active_config.get(''app'', ''none'') } if
             active_config.get(''app'', ''none'') != ''none'' else {} }}'
+      - variables:
           posture_ok: '{{ (current_mask | int) == (target_mask | int) }}'
           sound_mode_ok: "{% if avr != 'none' and target_sound_mode != 'none' %}\n
             \ {{ state_attr(avr, 'sound_mode') | string | lower == target_sound_mode
@@ -1755,6 +1759,8 @@
             current_mask: '{{ current_mask }}'
             target_remote_cmd: '{{ { ''command'': action_val } }}'
             area_key: '{{ area_key }}'
+  trace:
+    stored_traces: 50
 - id: '1765921434471'
   alias: 'Media: Apple TV Sticky State Fixer'
   description: Reloads ATV config if it is stuck in idle/paused for too long.
@@ -1822,40 +1828,52 @@
   alias: 'Media: Stub Override if media playing'
   description: ''
   triggers:
-  - trigger: state
-    entity_id:
-    - media_player.living_room_atv
-    id: Playing
-    enabled: true
-    from:
-    - 'off'
-  - trigger: state
-    entity_id:
-    - media_player.living_room_atv
-    id: Playing
-    enabled: true
-    to:
-    - 'off'
+  - trigger: media_player.started_playing
+    target:
+      label_id: media_role_source_atv
+    options:
+      behavior: each
+    id: add
+  - trigger: media_player.stopped_playing
+    target:
+      label_id: media_role_source_atv
+    options:
+      behavior: each
+    id: remove
+  - trigger: media_player.paused_playing
+    target:
+      label_id: media_role_source_atv
+    options:
+      behavior: each
+    id: remove
+  - trigger: media_player.turned_off
+    target:
+      label_id: media_role_source_atv
+    options:
+      behavior: each
+    id: remove
   conditions: []
   actions:
   - variables:
       is_off: '{{ trigger.to_state.state in [''off'',''unavailable'',''unknown'']
         }}'
+      is_playing: '{{ trigger.to_state.state in [''playing''] }}'
       action_type: lighting_registry_update
-      area_key: living_room
+      area_key: '{{ area_id(trigger.entity_id) | default(''living_room'') }}'
       action_value: '{{ ''off'' if is_off else ''on''}}'
-      action: '{{ ''remove'' if is_off else ''add'' }}'
-      claimant_id: media_player.living_room_atv
+      action: '{{ trigger.id | default(''remove'') }}'
+      claimant_id: '{{ trigger.entity_id }}'
       intent_type: override
       locked: '{{ is_off }}'
       source_device: media_controller
-      seconds: '{{ 30 if is_off else -1 }}'
+      seconds: '{{ -1 if is_playing else 0 }}'
       payload:
         action_type: '{{ action_type }}'
         action: '{{ action }}'
         claimant_id: '{{ claimant_id }}'
         intent_type: '{{ intent_type }}'
-        area_key: '{{ area_key }}'
+        target:
+          area_id: '{{ area_key }}'
         locked: '{{ locked }}'
         source_device: '{{ source_device }}'
   - action: mqtt.publish
@@ -1865,17 +1883,20 @@
       payload: '{{ payload | tojson }}'
       topic: home/universal/bus
       evaluate_payload: true
-    enabled: true
+    enabled: false
   - event: universal_controller_command
     event_data:
-      action_type: light_override
-      area_key: '{{ area_key }}'
-      action_value: '{{ ''on'' if is_playing else ''off''}}'
-      claimant_id: media_player.living_room_atv
+      action_type: '{{ action_type }}'
       command_input: broadcast
+      target:
+        area_id: '{{ area_key }}'
+      action: '{{ action }}'
       seconds: '{{ -1 if is_playing else 30 }}'
       skip_warning: true
-    enabled: false
+      claimant_id: '{{ claimant_id }}'
+      intent_type: '{{ intent_type }}'
+      source_device: '{{ source_device }}'
+    enabled: true
   mode: queued
   max: 10
 - id: '1777902621656'
@@ -1886,12 +1907,12 @@
     target:
       label_id: person
     options:
-      behavior: any
+      behavior: each
   - trigger: occupancy.detected
     target:
       label_id: person
     options:
-      behavior: any
+      behavior: each
   conditions: []
   actions:
   - variables:
@@ -1922,46 +1943,60 @@
     target:
       label_id: media_role_source_atv
     options:
-      behavior: any
+      behavior: each
     id: Power_Off
+    enabled: false
   - trigger: media_player.turned_on
     target:
       label_id: media_role_source_atv
     options:
-      behavior: any
+      behavior: each
     id: Power_On
+    enabled: false
   - trigger: media_player.paused_playing
     target:
       label_id: media_role_source_atv
     options:
-      behavior: any
+      behavior: each
       for:
         hours: 0
         minutes: 5
         seconds: 0
     id: Pause
+    enabled: false
   - trigger: media_player.turned_off
     target:
       label_id: media_role_tv
     options:
-      behavior: any
+      behavior: each
     id: TV_Power_Off
   - trigger: occupancy.detected
     target:
       label_id: occupancy
     options:
-      behavior: any
+      behavior: each
     id: Occupancy_Detected
   - trigger: occupancy.cleared
     target:
       label_id: occupancy
     options:
-      behavior: any
+      behavior: each
       for:
         hours: 0
         minutes: 2
         seconds: 0
     id: Occupancy_Cleared
+  - trigger: state
+    entity_id:
+    - media_player.living_room_atv
+    to:
+    - idle
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+    id: Pause
+    enabled: false
   conditions: []
   actions:
   - variables:
@@ -2056,7 +2091,8 @@
           source_device: TV Sleep
           action_type: art_mode_update
           action_value: false
-          area_key: '{{ area_key }}'
+          target:
+            area_id: '{{ area_key }}'
       alias: TV Sleep - Off
     - conditions:
       - condition: trigger
@@ -2072,7 +2108,7 @@
         action: logbook.log
       - alias: Reload Apple TV Configuration Entry
         target:
-          device_id: '{{ device_id(trigger.entity_id) }}'
+          entity_id: '{{ trigger.entity_id }}'
         action: homeassistant.reload_config_entry
         data: {}
       alias: Apple TV Reload Required
@@ -2166,7 +2202,8 @@
   - alias: 1. Ingest Contract and Resolve Context
     variables:
       payload: '{{ trigger.event.data }}'
-      area_key: '{{ payload.area_key | default(''living_room'') }}'
+      area_key: '{{ payload.target.area_id | default(payload.area_key) | default(''living_room'')
+        }}'
       t_mask: '{{ payload.get(''target_mask'', 0) }}'
       c_mask: '{{ payload.get(''current_mask'', 0) }}'
       t_source: '{{ payload.get(''target_avr_source'', ''none'') }}'
@@ -2265,27 +2302,31 @@
 
               '
           then:
-          - action: media_player.turn_{{ 'on' if t_mask | bitwise_and(4) else 'off'
-              }}
+          - action: remote.send_command
             target:
-              entity_id: '{{ atv }}'
+              entity_id: '{{ atv_remote }}'
+            data:
+              command: '{{ ''wakeup'' if t_mask | bitwise_and(4) else ''suspend''
+                }}'
         - variables:
             atv_state: '{{ states[atv].state }}'
+            avr_source: '{{state_attr(avr,''source'') | default(''none'') | replace(''"'',
+              '''') | trim }}'
             is_atv_on: '{{ atv != ''none'' and not is_state(atv, ''off'') and not
               is_state(atv, ''unavailable'') }}'
             final_target: "{% if is_remote %}\n  {{ atv_remote }}\n{% elif is_audio
               %}\n  {% if atv != 'none' and state_attr(atv, 'volume_level') is not
               none %}\n    {{ atv }}\n  {% else %}\n    {{ avr if avr != 'none' else
-              atv }}\n  {% endif %}\n{% elif is_state(atv, 'off') or is_state(atv,
-              'unavailable') %}\n  {{ home_music }}\n{% else %}\n  {{ atv if atv !=
-              'none' else avr }}\n{% endif %}\n"
+              atv }}\n  {% endif %}\n{# elif is_state(atv, 'off') or is_state(atv,
+              'unavailable') #}\n{% elif avr_source == 'CD' %}\n  {{ home_music }}\n{%
+              else %}\n  {{ atv if atv != 'none' else avr }}\n{% endif %}\n"
         - alias: App Sync (Wait Only)
           if:
           - condition: template
             value_template: "{{ (is_remote or t_service not in ['release', 'none'])
               \n   and final_target not in ['none', 'unknown', ''] }}\n"
           then:
-          - wait_template: '{{ not is_state(atv, ''off'') }}'
+          - wait_template: '{{ avr_source == ''AppleTV'' }}'
             timeout: 00:00:10
             continue_on_timeout: true
       - alias: TV Pipeline
@@ -2309,12 +2350,13 @@
               target:
                 label_id: media_role_tv
               options:
-                behavior: any
+                behavior: each
+              enabled: true
             - trigger: media_player.turned_off
               target:
                 label_id: media_role_tv
               options:
-                behavior: any
+                behavior: each
                 for:
                   hours: 0
                   minutes: 0
@@ -2332,27 +2374,22 @@
               | bitwise_and(128) > 0) and (c_mask | bitwise_and(64) > 0))\n) }}"
         - event: universal_controller_command
           event_data:
-            area_key: '{{ area_key }}'
+            target:
+              area_id: '{{ area_key }}'
             action_type: art_mode_update
             action_value: '{{ (t_mask | bitwise_and(64) > 0) }}'
-        - alias: 3. Art Mode Handshake
-          if:
-          - condition: template
-            value_template: '{{ not power_in_sync and tv_mode_mismatch }}
-
-              '
-          then: []
-          enabled: false
   - variables:
       atv_state: '{{ states[atv].state }}'
+      avr_source: '{{state_attr(avr,''source'') | default(''none'') | replace(''"'',
+        '''') | trim }}'
       is_atv_on: '{{ atv != ''none'' and not is_state(atv, ''off'') and not is_state(atv,
         ''unavailable'') }}'
       final_target: "{% if is_remote %}\n  {{ atv_remote }}\n{% elif is_audio %}\n
         \ {% if atv != 'none' and state_attr(atv, 'volume_level') is not none %}\n
         \   {{ atv }}\n  {% else %}\n    {{ avr if avr != 'none' else atv }}\n  {%
-        endif %}\n{% elif is_state(atv, 'off') or is_state(atv, 'unavailable') %}\n
-        \ {{ home_music }}\n{% else %}\n  {{ atv if atv != 'none' else avr }}\n{%
-        endif %}\n"
+        endif %}\n{# elif is_state(atv, 'off') or is_state(atv, 'unavailable') #}\n{%
+        elif avr_source == 'CD' %}\n  {{ home_music }}\n{% else %}\n  {{ atv if atv
+        != 'none' else avr }}\n{% endif %}\n"
   - alias: 5. Execute Surgical Command
     if:
     - condition: template
@@ -2372,6 +2409,290 @@
       target:
         entity_id: '{{ atv }}'
       data: {}
+    enabled: false
   trace:
     stored_traces: 50
   mode: restart
+- id: '1779250248176'
+  alias: Media - Living Room Art Mode Handshake V2.5
+  description: "# ART MODE HANDSHAKE (V2.5) \nThe ONLY place allowed to send KEY_POWER
+    commands to the Frame TV. Ensures the ESPHome sensor is notified immediately (predictive
+    logic)."
+  triggers:
+  - trigger: event
+    event_type: universal_controller_command
+    event_data:
+      action_type: art_mode_update
+  conditions: []
+  actions:
+  - variables:
+      area_key: '{{ trigger.event.data.target.area_id | default(trigger.event.data.area_key)
+        | default(''living_room'') }}'
+      tv_dev: '{{ (label_devices(''media_role_tv'') | select(''in'', area_devices(area_key))
+        | first | default(''none'')) }}'
+      tv: '{{ (device_entities(tv_dev) | select(''match'', ''media_player\.'') | first
+        | default(''none'')) | replace(''"'', '''') | trim }}'
+      tv_remote: '{{ (device_entities(tv_dev) | select(''match'', ''remote\.'') |
+        first | default(''none'')) | replace(''"'', '''') | trim }}'
+      is_tv_off: '{{ is_state(tv, ''off'') }}'
+      art_mode_entity: '{{ (label_entities(''media_role_art_sensor'') | select(''in'',
+        area_entities(area_key)) | first | default(''none'')) | replace(''"'', '''')
+        | trim }}'
+      is_confirmed_art: '{{ is_state(art_mode_entity, ''on'')}}'
+      action: '{{ trigger.event.data.action_value | bool | default(is_confirmed_art)
+        }}'
+      update_required: '{{ action != is_confirmed_art }}'
+      mode: '{{ 0 if is_tv_off else 1 if action else 2 }}'
+      proxy_dev: '{{ label_devices(''media_role_serial_proxy'') | select(''in'', area_devices(area_key))
+        | first | default(''none'') }}'
+      proxy_name: '{{ device_attr(proxy_dev, ''name'') | replace(''-'', ''_'') | replace(''
+        '', ''_'') | lower if proxy_dev != ''none'' else ''none'' }}'
+      proxy_action: esphome.{{ proxy_name }}_send_tv_command
+      art_on:
+        b1: 8
+        b2: 34
+        b3: 11
+        b4: 11
+        b5: 14
+        b6: 1
+        b7: 177
+      art_off:
+        b1: 8
+        b2: 34
+        b3: 11
+        b4: 11
+        b5: 14
+        b6: 0
+        b7: 178
+  - if:
+    - alias: Abort if Reality already matches Action
+      condition: template
+      value_template: '{{ action != is_confirmed_art }}
+
+        '
+    then:
+    - if:
+      - condition: template
+        value_template: '{{ not is_tv_off }}'
+      then:
+      - action: logbook.log
+        data:
+          name: Art Handshake
+          message: 'Sent {{ ''art_on'' if action else ''art_off'' }} to TV and triggered
+            predictive sensor logic.
+
+            '
+          entity_id: '{{ tv }}'
+      - action: '{{ proxy_action }}'
+        data: '{{ art_on if action else art_off }}'
+  mode: queued
+  trace:
+    stored_traces: 50
+- id: '1779713775136'
+  alias: Discovery Generator v1
+  description: ''
+  triggers: []
+  conditions: []
+  actions:
+  - repeat:
+      for_each: '{{ label_entities(''person'') }}'
+      sequence:
+      - variables:
+          target_area: '{{ area_id(repeat.item) }}'
+          displayName: '{{ area_name(target_area) | default(target_area | replace(''_'',
+            '' '') | title) }}'
+          discoveryPrefix: homeassistant
+          deviceObj:
+            identifiers:
+            - '{{ target_area }}_person_presence'
+            name: '{{ displayName }} Person Presence'
+            suggested_area: '{{ displayName }}'
+      - variables:
+          appId: '{{ repeat.item | replace(''binary_sensor.'', '''') }}'
+          topic: '{{ discoveryPrefix }}/binary_sensor/{{ target_area }}/{{ appId }}/config'
+          payload:
+            name: '{{ appId | replace(''_'', '' '') | title }}'
+            unique_id: '{{ target_area }}_{{ appId }}'
+            default_entity_id: binary_sensor.{{ target_area }}_{{ appId }}
+            state_topic: home/{{ target_area }}/{{ appId }}/state
+            value_template: '{% raw %}{{ value }}{% endraw %}'
+            device: '{{ deviceObj }}'
+            device_class: motion
+            icon: mdi:motion-sensor
+        alias: Config Definition
+      - action: mqtt.publish
+        data:
+          topic: '{{ topic }}'
+          payload: '{{ payload | tojson }}'
+          retain: true
+  mode: single
+- id: '1779716758736'
+  alias: Person Telemetry for Lighting Controller
+  description: ''
+  triggers:
+  - trigger: occupancy.cleared
+    target:
+      label_id: person
+    options:
+      behavior: each
+  - trigger: occupancy.detected
+    target:
+      label_id: person
+    options:
+      behavior: each
+  conditions: []
+  actions:
+  - variables:
+      appId: '{{ trigger.entity_id | replace(''binary_sensor.'', '''') }}'
+      target_area: '{{ area_id( trigger.entity_id) }}'
+      topic: home/{{ target_area }}/{{ appId }}/state
+  - action: mqtt.publish
+    metadata: {}
+    data:
+      qos: 0
+      topic: '{{ topic }}'
+      payload: '{{ trigger.to_state.state | upper }}'
+    enabled: true
+  mode: parallel
+  max: 10
+- id: '1782834009912'
+  alias: Energy Publisher Update Values
+  description: ''
+  triggers:
+  - trigger: power.changed
+    target:
+      label_id: energy_publisher
+    options:
+      threshold:
+        type: any
+  conditions: []
+  actions:
+  - variables:
+      appId: energy
+      discoveryPrefix: homeassistant
+      topic: '{{ discoveryPrefix }}/{{ trigger.entity_id | replace(''.'',''/'') }}/{{
+        appId }}/state'
+      payload: '{{ trigger.to_state.state | float(0) }}'
+    alias: Energy Publisher Definition
+  - action: mqtt.publish
+    metadata: {}
+    data:
+      evaluate_payload: false
+      qos: '0'
+      retain: false
+      topic: '{{ topic }}'
+      payload: '{{ payload | tojson }}'
+  mode: single
+- id: '1783733277796'
+  alias: System - Sync Meda Playing
+  description: ''
+  triggers:
+  - trigger: media_player.started_playing
+    target:
+      label_id: media_role_source_atv
+    options:
+      behavior: each
+  - trigger: media_player.stopped_playing
+    target:
+      label_id: media_role_source_atv
+    options:
+      behavior: each
+  conditions: []
+  actions: []
+  mode: single
+- id: '1785345618956'
+  alias: Bridge - UCC Importer
+  description: ''
+  triggers:
+  - trigger: mqtt
+    options:
+      topic: home/universal/bus
+      payload: broadcast
+      value_template: '{{ value_json.command_input }}'
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.payload_json.controller_id != "media_primary" }}'
+  actions:
+  - variables:
+      payload: '{{ trigger.payload_json }}'
+  - event: universal_controller_command
+  mode: single
+- id: '1785389471475'
+  alias: Sync Alectra Tariff from OEB
+  description: Syncs select.alectra with official OEB active peak status
+  triggers:
+  - trigger: state
+    entity_id: sensor.alectra_utilities_corporation_brampton_rate_zone_residential_electricity_rate
+    attribute: active_peak
+  - trigger: homeassistant
+    event: start
+  actions:
+  - action: select.select_option
+    target:
+      entity_id: select.alectra
+    data:
+      option: '{% set peak = state_attr(''sensor.alectra_utilities_corporation_brampton_rate_zone_residential_electricity_rate'',
+        ''active_peak'') %} {{ ''Off-Peak'' if peak == ''off_peak'' else ''Mid-Peak''
+        if peak == ''mid_peak'' else ''Peak'' }}'
+  mode: single
+- id: '1785399789555'
+  alias: 'Media: Stub Override if media playing (V2.0)'
+  description: ''
+  triggers:
+  - trigger: media_player.started_playing
+    target:
+      label_id: media_role_source_atv
+    options:
+      behavior: each
+    id: add
+  - trigger: media_player.stopped_playing
+    target:
+      label_id: media_role_source_atv
+    options:
+      behavior: each
+    id: remove
+  - trigger: media_player.paused_playing
+    target:
+      label_id: media_role_source_atv
+    options:
+      behavior: each
+    id: remove
+  - trigger: media_player.turned_off
+    target:
+      label_id: media_role_source_atv
+    options:
+      behavior: each
+    id: remove
+  - trigger: time_pattern
+    minutes: /15
+    id: heartbeat
+    enabled: false
+  conditions: []
+  actions:
+  - variables:
+      is_playing: '{{ trigger.to_state.state == ''playing'' if trigger.id != ''heartbeat''
+        else true }}'
+      action_type: lighting_registry_update
+      area_key: '{{ area_id(trigger.entity_id) | default(''living_room'') }}'
+      action: '{{ ''add'' if is_playing else ''remove'' }}'
+      claimant_id: '{{ trigger.entity_id if trigger.id != ''heartbeat'' else (label_entities(''media_role_source_atv'')
+        | select(''is_state'', ''playing'') | first) }}'
+      intent_type: override
+      locked: false
+      source_device: media_controller
+      seconds: '{{ 950 if is_playing else 30 }}'
+  - event: universal_controller_command
+    event_data:
+      action_type: '{{ action_type }}'
+      command_input: broadcast
+      target:
+        area_id: '{{ area_key }}'
+      action: '{{ action }}'
+      seconds: '{{ -1 if is_playing else 30 }}'
+      skip_warning: true
+      claimant_id: '{{ claimant_id }}'
+      intent_type: '{{ intent_type }}'
+      source_device: '{{ source_device }}'
+    enabled: false
+  mode: queued
+  max: 10

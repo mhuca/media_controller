@@ -1,311 +1,191 @@
-import { LitElement, html, css } from "https://unpkg.com/lit@3.1.2/index.js?module";
-import { when } from "https://unpkg.com/lit@3.1.2/directives/when.js?module";
-import { cardStyles } from "./device-pulse-table-card-style.js";
-const CARD_VERSION = "1.0.4";
-class DevicePulseTableCard extends LitElement {
-  static properties = {
-    _devices: { state: true },
-    _sortColumn: { type: String },
-    _sortDirection: { type: String },
-    _filterText: { type: String },
-    _showStatus: { type: String },
-    _groupBy: { type: String }
-  };
-  static styles = cardStyles;
-  constructor() {
-    super();
-    this._hass = null;
-    this._initialized = false;
-    this._config = {};
-    this._devices = {};
-    this._unsubscribes = [];
-    this._sortColumn = "device_name";
-    this._sortDirection = "asc";
-    this._filterText = "";
-    this._showStatus = "all";
-    this._groupBy = "none";
-    this._valueChangedCells = /* @__PURE__ */ new Map();
-    this._statusChangedRows = /* @__PURE__ */ new Map();
-  }
-  static getStubConfig() {
-    return {
-      title: "Monitored Network Devices",
-      group_by_integration: false,
-      show_status: "all",
-      columns: ["host", "integration_name"]
-    };
-  }
-  static getConfigElement() {
-    return document.createElement("device-pulse-table-card-editor");
-  }
-  set hass(hass) {
-    if (!this._hass) {
-      this._hass = hass;
-      this._loadDevices();
-      this._subscribeToEvents();
+import{LitElement as g,html as o}from"https://unpkg.com/lit@3.1.2/index.js?module";import{when as m}from"https://unpkg.com/lit@3.1.2/directives/when.js?module";import{css as v}from"https://unpkg.com/lit@3.1.2/index.js?module";var _=v`
+    :host {
+        display: block;
+        font-family: var(--paper-font-body1_-_font-family);
     }
-  }
-  setConfig(config) {
-    this._config = {
-      title: config.title || "Monitored Network Devices",
-      ...config,
-      grid_options: {
-        rows: config.grid_options?.rows ?? "auto",
-        columns: config.grid_options?.columns ?? "auto",
-        ...config.grid_options
-      }
-    };
-    if (this._config.group_by_integration) {
-      this._groupBy = "integration_name";
+    .card {
+        background: var(--ha-card-background, var(--card-background-color));
+        border-radius: var(--ha-card-border-radius, 12px);
     }
-    this._showStatus = this._config.show_status;
-  }
-  getCardSize() {
-    return 4;
-  }
-  disconnectedCallback() {
-    if (this._unsubscribe?.length) {
-      this._unsubscribes.forEach((unsub) => unsub());
-      this._unsubscribes = [];
+    .header {
+        margin-bottom: 10px;
+        margin-top: 24px;
+        text-align: center;
     }
-    super.disconnectedCallback();
-  }
-  async _subscribeToEvents() {
-    if (!this._hass?.connection || this._unsubscribes?.length) {
-      return;
+    .header h2 {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--primary-text-color);
+        margin: 0;
     }
-    try {
-      this._unsubscribes.push(await this._hass.connection.subscribeEvents((event) => this._handleStateChanged(event), "state_changed"));
-    } catch (error) {
-      console.error("Unable to subscribe to events:", error);
+    .controls {
+        padding: 0 8px 16px;
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
     }
-  }
-  async _loadDevices() {
-    try {
-      const result = await this._hass.callWS({
-        type: "device_pulse/get_devices"
-      });
-      if (result && result.devices) {
-        this._initialized = true;
-        this._devices = result.devices;
-      }
-    } catch (error) {
-      console.error("Unable to load Device Pulse monitored devices list:", error);
+    .filter-input {
+        flex: 1;
+        min-width: 200px;
+        padding: 8px;
+        border: 1px solid var(--divider-color);
+        border-radius: 4px;
+        background: var(--card-background-color);
+        color: var(--primary-text-color);
     }
-  }
-  _handleStateChanged(event) {
-    const entityId = event.data.entity_id;
-    const entity = this._hass.entities[entityId];
-    if (entity && entity.platform === "device_pulse") {
-      let device_id = entity.device_id;
-      let state = event.data.new_state;
-      if (!this._devices[device_id]) {
-        console.warn(`Device id [${device_id}] not found`);
-        return;
-      }
-      if (!state) {
-        return;
-      }
-      if (!this._valueChangedCells.has(device_id)) {
-        this._valueChangedCells.set(device_id, /* @__PURE__ */ new Set());
-      }
-      if (["ping_status", "pings_failed_count", "last_response_time"].includes(state.attributes.tag)) {
-        let property = state.attributes.tag;
-        this._devices = {
-          ...this._devices,
-          [device_id]: {
-            ...this._devices[device_id],
-            [property]: {
-              ...this._devices[device_id][property],
-              state: state.state,
-              ...property === "ping_status" ? { pings_failed: state.attributes.pings_failed } : {}
-            },
-            ...property === "ping_status" ? { ping_status_since_timestamp: state.attributes.state_since } : {}
-          }
-        };
-        if (property === "ping_status") {
-          this._statusChangedRows.set(device_id, state.state);
-          setTimeout(() => {
-            this._statusChangedRows.delete(device_id);
-            this.requestUpdate();
-          }, 2e3);
+    .filter-select {
+        padding: 8px;
+        border: 1px solid var(--divider-color);
+        border-radius: 4px;
+        background: var(--card-background-color);
+        color: var(--primary-text-color);
+    }
+    
+    .table-container {
+        overflow-x: auto;
+    }
+    
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        border-top: 1px solid var(--divider-color);
+    }
+    th {
+        text-align: left;
+        padding: 12px 8px;
+        border-bottom: 3px solid var(--divider-color);
+        user-select: none;
+        white-space: nowrap;
+        background: rgba(0, 0, 0, 0.03);
+    }
+    td {
+        padding: 10px 8px;
+        border-bottom: 1px solid var(--divider-color);
+        white-space: nowrap;
+    }
+    table tr:nth-child(even) {
+        background-color: rgba(0, 0, 0, 0.015);
+    }
+    table tr:last-child td {
+        border-bottom: none;
+    }
+    th.sortable:hover {
+        cursor: pointer;
+        border-bottom: 3px solid rgba(0, 0, 0, 0.3);
+    }
+    td.ping_status {
+        min-width: 30px;
+        text-align: center;
+    }
+    td.host {
+        user-select: text;
+    }
+    .group-header {
+        background: var(--secondary-background-color);
+        font-weight: 500;
+        padding: 8px;
+        margin-top: 16px;
+    }
+    .group-header:first-child {
+        margin-top: 0;
+    }
+    table.background-status .device-status-off {
+        background-color: #db44371a;
+    }
+    table.background-status .device-status-on {
+        background-color: #4caf501a;
+    }
+    table.background-status .device-status-warning {
+        background-color: #f4a8361a;
+    }
+    .device_name {
+        font-weight: bold;
+    }
+    .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+    }
+    .status-on {
+        background-color: var(--success-color);
+        box-shadow: 0 0 6px var(--success-color);
+    }
+    .status-off {
+        background-color: var(--error-color);
+        box-shadow: 0 0 6px var(--error-color);
+    }
+    .status-warning {
+        background-color: var(--warning-color);
+        box-shadow: 0 0 6px var(--warning-color);
+    }
+    .no-data {
+        padding: 20px;
+        text-align: center;
+        color: var(--secondary-text-color);
+    }
+    .clickable {
+        cursor: pointer;
+    }
+    .clickable:hover {
+        color: var(--primary-color);
+    }
+    .not-available {
+        text-transform: uppercase;
+        font-size: 13px;
+        color: #777;
+    }
+    .total-failed-pings-count-number {
+        color: var(--primary-text-color);
+    }
+    .total-failed-pings-count-started {
+        color: var(--secondary-text-color);
+        font-size: 12px;
+        display: block;
+    }
+    @keyframes valueChangedAnimation {
+        0% {
+            transform: scale(1.2);
+            font-weight: 700;
         }
-        this._valueChangedCells.get(device_id).add(property);
-        setTimeout(() => {
-          this._valueChangedCells.get(device_id)?.delete(property);
-          this.requestUpdate();
-        }, 2e3);
-      }
-    }
-  }
-  _handleSort(column) {
-    if (this._sortColumn === column) {
-      this._sortDirection = this._sortDirection === "asc" ? "desc" : "asc";
-    } else {
-      this._sortColumn = column;
-      this._sortDirection = "asc";
-    }
-  }
-  _handleFilter(e) {
-    this._filterText = e.target.value;
-  }
-  _handleShowStatusChange(e) {
-    this._showStatus = e.target.value;
-  }
-  _handleGroupChange(e) {
-    this._groupBy = e.target.value;
-  }
-  _openEntityDialog(entity_id) {
-    const event = new Event("hass-action", {
-      bubbles: true,
-      composed: true
-    });
-    event.detail = {
-      action: "tap",
-      config: {
-        entity: entity_id,
-        tap_action: {
-          action: "more-info"
+        100% {
+            transform: scale(1);
+            font-weight: normal;
         }
-      }
-    };
-    this.dispatchEvent(event);
-  }
-  _getFilteredAndSortedDevices() {
-    let devices = Object.values(this._devices);
-    if (this._filterText) {
-      const filter = this._filterText.toLowerCase();
-      devices = devices.filter(
-        (d) => d.device_name.toLowerCase().includes(filter) || d.host.toLowerCase().includes(filter) || d.integration_name.toLowerCase().includes(filter)
-      );
     }
-    if (this._showStatus !== "all") {
-      devices = devices.filter((d) => d.ping_status.state === this._showStatus);
+    td.value-changed span.animate-change {
+        animation: valueChangedAnimation 2s ease-out;
+        display: inline-block;
     }
-    devices.sort((a, b) => {
-      const valA = a[this._sortColumn]?.toLowerCase() || "";
-      const valB = b[this._sortColumn]?.toLowerCase() || "";
-      const cmp = valA.localeCompare(valB);
-      return this._sortDirection === "asc" ? cmp : -cmp;
-    });
-    return devices;
-  }
-  _groupDevices(devices) {
-    if (this._groupBy === "none") {
-      return { "": devices };
-    }
-    const groups = {};
-    devices.forEach((device) => {
-      const key = device[this._groupBy] || "Unknown";
-      if (!groups[key]) {
-        groups[key] = [];
-      }
-      groups[key].push(device);
-    });
-    return groups;
-  }
-  _hasSort(column) {
-    return !["ping_status", "last_response_time"].includes(column);
-  }
-  _getSortIcon(column) {
-    if (this._sortColumn !== column) {
-      return "";
-    }
-    return this._sortDirection === "asc" ? "\u2191" : "\u2193";
-  }
-  _getColumnLabel(column) {
-    const labels = {
-      device_name: "Name",
-      host: "Host",
-      integration_name: "Integration",
-      ping_status: " ",
-      ping_status_since_timestamp: "Since",
-      pings_failed_count: "Pings Failed",
-      last_response_time: "Last Response Time"
-    };
-    return labels[column] || column;
-  }
-  _renderCellValue(device, column) {
-    if (column === "device_name") {
-      return html`
+`;var w="1.1.0",u=class extends g{static properties={_devices:{state:!0},_sortColumn:{type:String},_sortDirection:{type:String},_filterText:{type:String},_showStatus:{type:String},_groupBy:{type:String}};static styles=_;constructor(){super(),this._hass=null,this._initialized=!1,this._config={},this._devices={},this._unsubscribes=[],this._sortColumn="device_name",this._sortDirection="asc",this._filterText="",this._showStatus="all",this._groupBy="none",this._valueChangedCells=new Map,this._statusChangedRows=new Map}static getStubConfig(){return{title:"Monitored Network Devices",group_by_integration:!1,show_status:"all",columns:["host","integration_name"]}}static getConfigElement(){return document.createElement("device-pulse-table-card-editor")}set hass(t){this._hass||(this._hass=t,this._loadDevices(),this._subscribeToEvents())}setConfig(t){this._config={title:t.title||"Monitored Network Devices",...t,grid_options:{rows:t.grid_options?.rows??"auto",columns:t.grid_options?.columns??"auto",...t.grid_options}},this._config.group_by_integration&&(this._groupBy="integration_name"),this._showStatus=this._config.show_status}getCardSize(){return 4}disconnectedCallback(){this._unsubscribe?.length&&(this._unsubscribes.forEach(t=>t()),this._unsubscribes=[]),super.disconnectedCallback()}async _subscribeToEvents(){if(!(!this._hass?.connection||this._unsubscribes?.length))try{this._unsubscribes.push(await this._hass.connection.subscribeEvents(t=>this._handleStateChanged(t),"state_changed"))}catch(t){console.error("Unable to subscribe to events:",t)}}async _loadDevices(){try{let t=await this._hass.callWS({type:"device_pulse/get_devices"});t&&t.devices&&(this._initialized=!0,this._devices=t.devices)}catch(t){console.error("Unable to load Device Pulse monitored devices list:",t)}}_handleStateChanged(t){let e=t.data.entity_id,a=this._hass.entities[e];if(a&&a.platform==="device_pulse"){let s=a.device_id,n=t.data.new_state;if(!this._devices[s]){console.warn(`Device id [${s}] not found`);return}if(!n)return;if(this._valueChangedCells.has(s)||this._valueChangedCells.set(s,new Set),["ping_status","pings_failed_count","total_failed_pings_count","last_response_time"].includes(n.attributes.tag)){let i=n.attributes.tag;this._devices={...this._devices,[s]:{...this._devices[s],[i]:{...this._devices[s][i],state:n.state,...i==="ping_status"?{pings_failed:n.attributes.pings_failed}:{},...i==="total_failed_pings_count"?{count_started_at:n.attributes.count_started_at}:{}},...i==="ping_status"?{ping_status_since_timestamp:n.attributes.state_since}:{}}},i==="ping_status"&&(this._statusChangedRows.set(s,n.state),setTimeout(()=>{this._statusChangedRows.delete(s),this.requestUpdate()},2e3)),this._valueChangedCells.get(s).add(i),setTimeout(()=>{this._valueChangedCells.get(s)?.delete(i),this.requestUpdate()},2e3)}}}_handleSort(t){this._sortColumn===t?this._sortDirection=this._sortDirection==="asc"?"desc":"asc":(this._sortColumn=t,this._sortDirection="asc")}_handleFilter(t){this._filterText=t.target.value}_handleShowStatusChange(t){this._showStatus=t.target.value}_handleGroupChange(t){this._groupBy=t.target.value}_openEntityDialog(t){let e=new Event("hass-action",{bubbles:!0,composed:!0});e.detail={action:"tap",config:{entity:t,tap_action:{action:"more-info"}}},this.dispatchEvent(e)}_parseIpv4Address(t){let e=t.trim().split(".");if(e.length!==4)return null;let a=e.map(s=>{if(!/^\d+$/.test(s))return null;let n=Number(s);return n>=0&&n<=255?n:null});return a.includes(null)?null:a}_compareSortValues(t,e){let a=String(t??"").toLowerCase(),s=String(e??"").toLowerCase();if(this._sortColumn==="host"){let n=this._parseIpv4Address(a),i=this._parseIpv4Address(s);if(n&&i){for(let r=0;r<n.length;r++)if(n[r]!==i[r])return n[r]-i[r];return 0}}return a.localeCompare(s)}_getFilteredAndSortedDevices(){let t=Object.values(this._devices);if(this._filterText){let e=this._filterText.toLowerCase();t=t.filter(a=>a.device_name.toLowerCase().includes(e)||a.host.toLowerCase().includes(e)||a.integration_name.toLowerCase().includes(e))}return this._showStatus!=="all"&&(t=t.filter(e=>e.ping_status.state===this._showStatus)),t.sort((e,a)=>{let s=this._compareSortValues(e[this._sortColumn],a[this._sortColumn]);return this._sortDirection==="asc"?s:-s}),t}_groupDevices(t){if(this._groupBy==="none")return{"":t};let e={};return t.forEach(a=>{let s=a[this._groupBy]||"Unknown";e[s]||(e[s]=[]),e[s].push(a)}),e}_hasSort(t){return!["ping_status","last_response_time"].includes(t)}_getSortIcon(t){return this._sortColumn!==t?"":this._sortDirection==="asc"?"\u2191":"\u2193"}_getColumnLabel(t){return{device_name:"Name",host:"Host",integration_name:"Integration",ping_status:" ",ping_status_since_timestamp:"Since",pings_failed_count:"Pings Failed",total_failed_pings_count:"Total Failed Pings",last_response_time:"Last Response Time"}[t]||t}_renderCellValue(t,e){if(e==="device_name")return o`
                 <span 
                     class="clickable"
-                    @click=${() => this._openEntityDialog(device["ping_status"].entity_id)}
+                    @click=${()=>this._openEntityDialog(t.ping_status.entity_id)}
                 >
-                    ${device[column]}
+                    ${t[e]}
                 </span>
-            `;
-    }
-    if (column === "ping_status") {
-      return html`
+            `;if(e==="ping_status")return o`
                 <span 
-                  @click=${() => this._openEntityDialog(device[column].entity_id)}
-                  class="clickable status-indicator status-${device.ping_status.pings_failed && device.ping_status.state === "on" ? "warning" : device.ping_status.state}"
-                  title="${device.ping_status.state === "on" ? "Connected" : "Disconnected"}"
+                  @click=${()=>this._openEntityDialog(t[e].entity_id)}
+                  class="clickable status-indicator status-${t.ping_status.pings_failed&&t.ping_status.state==="on"?"warning":t.ping_status.state}"
+                  title="${t.ping_status.state==="on"?"Connected":"Disconnected"}"
                 ></span>
-            `;
-    }
-    if (column === "ping_status_since_timestamp" && device[column]) {
-      const now = /* @__PURE__ */ new Date();
-      const diff = now - new Date(device[column] * 1e3);
-      const seconds = Math.floor(diff / 1e3);
-      const minutes = Math.floor(seconds / 60);
-      const hours = Math.floor(minutes / 60);
-      const days = Math.floor(hours / 24);
-      let parts = [];
-      if (days) {
-        parts.push(`${days}d`);
-      }
-      const remainingHours = hours % 24;
-      if (days || remainingHours) {
-        parts.push(`${remainingHours}h`);
-      }
-      const remainingMinutes = minutes % 60;
-      if (days || remainingHours || remainingMinutes) {
-        parts.push(`${remainingMinutes}m`);
-      }
-      const remainingSeconds = seconds % 60;
-      parts.push(`${remainingSeconds}s`);
-      return html`${parts.join(" ")}`;
-    }
-    if (["pings_failed_count", "last_response_time"].includes(column)) {
-      return !device[column] ? html`<span class="not-available" title="Not Available">n.a.</span>` : html`<span class="clickable" @click=${() => this._openEntityDialog(device[column].entity_id)}>
-                    ${device[column].state && !["unknown", "0"].includes(device[column].state) ? device[column].state : "-"} 
-                    ${device[column].state && device[column].state !== "unknown" ? device[column].unit_of_measurement : ""}
+            `;if(e==="ping_status_since_timestamp"&&t[e]){let s=new Date-new Date(t[e]*1e3),n=Math.floor(s/1e3),i=Math.floor(n/60),r=Math.floor(i/60),l=Math.floor(r/24),c=[];l&&c.push(`${l}d`);let d=r%24;(l||d)&&c.push(`${d}h`);let p=i%60;(l||d||p)&&c.push(`${p}m`);let f=n%60;return c.push(`${f}s`),o`${c.join(" ")}`}if(e==="total_failed_pings_count"){if(!t[e])return o`<span class="not-available" title="Not Available">n.a.</span>`;let a=t[e].count_started_at;return o`
+                <div class="clickable total-failed-pings-count" @click=${()=>this._openEntityDialog(t[e].entity_id)}>
+                    <span class="total-failed-pings-count-number animate-change">
+                        ${t[e].state&&!["unknown","unavailable"].includes(t[e].state)?t[e].state:"-"}
+                    </span>
+                    ${a?o`<span class="total-failed-pings-count-started">Since: ${new Date(a).toLocaleString()}</span>`:""}
+                </div>
+            `}return["pings_failed_count","last_response_time"].includes(e)?t[e]?o`<span class="clickable animate-change" @click=${()=>this._openEntityDialog(t[e].entity_id)}>
+                    ${t[e].state&&!["unknown","0"].includes(t[e].state)?t[e].state:"-"} 
+                    ${t[e].state&&t[e].state!=="unknown"?t[e].unit_of_measurement:""}
                 </span>
-            `;
-    }
-    return device[column] || "-";
-  }
-  _shouldShowColumn(column) {
-    if (column === "device_name") {
-      return true;
-    }
-    if (column === "ping_status") {
-      return this._groupBy !== "ping_status";
-    }
-    if (column === "integration_name") {
-      return this._groupBy !== "integration_name";
-    }
-    return this._config.columns.includes(column);
-  }
-  render() {
-    const devices = this._getFilteredAndSortedDevices();
-    const groupedDevices = this._groupDevices(devices);
-    const visibleColumns = [
-      "ping_status",
-      "device_name",
-      "host",
-      "ping_status_since_timestamp",
-      "last_response_time",
-      "pings_failed_count",
-      "integration_name"
-    ].filter((col) => this._shouldShowColumn(col));
-    return html`
+            `:o`<span class="not-available" title="Not Available">n.a.</span>`:t[e]||"-"}_shouldShowColumn(t){return t==="device_name"?!0:t==="ping_status"?this._groupBy!=="ping_status":t==="integration_name"?this._groupBy!=="integration_name":this._config.columns.includes(t)}render(){let t=this._getFilteredAndSortedDevices(),e=this._groupDevices(t),a=["ping_status","device_name","host","ping_status_since_timestamp","last_response_time","pings_failed_count","total_failed_pings_count","integration_name"].filter(s=>this._shouldShowColumn(s));return o`
             <ha-card>
                 <div class="card">
                     <div class="header">
-                        <h2>${this._config?.title || "Monitored Network Devices"}</h2>
+                        <h2>${this._config?.title||"Monitored Network Devices"}</h2>
                     </div>
         
                     <div class="controls">
@@ -317,174 +197,68 @@ class DevicePulseTableCard extends LitElement {
                                 @input=${this._handleFilter}
                         />
                         <select class="status-select filter-select" @change=${this._handleShowStatusChange}>
-                            <option value="all" ?selected=${this._showStatus === "all"}>
+                            <option value="all" ?selected=${this._showStatus==="all"}>
                                 All Statuses
                             </option>
-                            <option value="on" ?selected=${this._showStatus === "on"}>
+                            <option value="on" ?selected=${this._showStatus==="on"}>
                                 Only Connected
                             </option>
-                            <option value="off" ?selected=${this._showStatus === "off"}>
+                            <option value="off" ?selected=${this._showStatus==="off"}>
                                 Only Disconnected
                             </option>
                         </select>
                         <select class="group-select filter-select" @change=${this._handleGroupChange}>
-                            <option value="none" ?selected=${this._groupBy === "none"}>
+                            <option value="none" ?selected=${this._groupBy==="none"}>
                                 No Group
                             </option>
-                            <option value="integration_name" ?selected=${this._groupBy === "integration_name"}>
+                            <option value="integration_name" ?selected=${this._groupBy==="integration_name"}>
                                 Group By Integration
                             </option>
                         </select>
                     </div>
         
                     <div class="table-container">
-                        ${devices.length === 0 ? html` <div class="no-data">No Device Found</div>` : Object.entries(groupedDevices).map(
-      ([groupName, groupDevices]) => html`
-                                    ${this._groupBy !== "none" ? html`
+                        ${t.length===0?o` <div class="no-data">No Device Found</div>`:Object.entries(e).map(([s,n])=>o`
+                                    ${this._groupBy!=="none"?o`
                                             <div class="group-header">
-                                                ${groupName} (${groupDevices.length})
-                                            </div>` : ""}
+                                                ${s} (${n.length})
+                                            </div>`:""}
                                     <table>
                                         <thead>
                                         <tr>
-                                            ${visibleColumns.map(
-        (col) => when(
-          this._hasSort(col),
-          () => html`
-                                                        <th class="sortable" @click=${() => this._handleSort(col)}>
-                                                            ${this._getColumnLabel(col)}
-                                                            ${this._getSortIcon(col)}
+                                            ${a.map(i=>m(this._hasSort(i),()=>o`
+                                                        <th class="sortable" @click=${()=>this._handleSort(i)}>
+                                                            ${this._getColumnLabel(i)}
+                                                            ${this._getSortIcon(i)}
                                                         </th>
-                                                    `,
-          () => html`
+                                                    `,()=>o`
                                                     <th>
-                                                        ${this._getColumnLabel(col)}
+                                                        ${this._getColumnLabel(i)}
                                                     </th>
-                                                `
-        )
-      )}
+                                                `))}
                                         </tr>
                                         </thead>
                                         <tbody>
-                                        ${groupDevices.map(
-        (device) => html`
-                                                <tr class="device-status-${device["ping_status"]["state"]} ${this._statusChangedRows.has(device["device_id"]) ? "status-changed" : ""}">
-                                                    ${visibleColumns.map(
-          (col) => {
-            const valueChanged = this._valueChangedCells.get(device.device_id)?.has(col) || this._valueChangedCells.get(device.device_id)?.size && col === "ping_status";
-            return html`
-                                                                <td class="${col} ${valueChanged ? "value-changed" : ""}">
-                                                                    <span>${this._renderCellValue(device, col)}</span>
-                                                                </td>`;
-          }
-        )}
+                                        ${n.map(i=>o`
+                                                <tr class="device-status-${i.ping_status.state} ${this._statusChangedRows.has(i.device_id)?"status-changed":""}">
+                                                    ${a.map(r=>{let l=this._valueChangedCells.get(i.device_id)?.has(r)||this._valueChangedCells.get(i.device_id)?.size&&r==="ping_status";return o`
+                                                                <td class="${r} ${l?"value-changed":""}">
+                                                                    <span>${this._renderCellValue(i,r)}</span>
+                                                                </td>`})}
                                                 </tr>
-                                            `
-      )}
+                                            `)}
                                         </tbody>
                                     </table>
-                                `
-    )}
+                                `)}
                     </div>
                 </div>
             </ha-card>
-        `;
-  }
-}
-class DevicePulseTableCardEditor extends LitElement {
-  static properties = {
-    _config: { state: true }
-  };
-  setConfig(config) {
-    this._config = config;
-  }
-  _valueChanged(evt) {
-    const target = evt.target;
-    if (!this._config || !target) {
-      return;
-    }
-    let config = {
-      ...this._config,
-      ...evt.detail.value
-    };
-    const event = new Event("config-changed", {
-      bubbles: true,
-      composed: true
-    });
-    event.detail = { config };
-    this.dispatchEvent(event);
-  }
-  _computeLabel(schema) {
-    switch (schema.name) {
-      case "title":
-        return "Card Title";
-      case "show_status":
-        return "Statues to Show";
-      case "group_by_integration":
-        return "Group-By Integration";
-      case "columns":
-        return "Columns";
-    }
-    return void 0;
-  }
-  render() {
-    if (!this._config) {
-      return html``;
-    }
-    const schema = [
-      { name: "title", selector: {
-        text: {}
-      } },
-      { name: "show_status", selector: {
-        select: {
-          mode: "dropdown",
-          options: [
-            { value: "all", label: "All" },
-            { value: "on", label: "Only Connected" },
-            { value: "off", label: "Only Disconnected" }
-          ]
-        }
-      } },
-      { name: "group_by_integration", selector: {
-        boolean: {}
-      } },
-      { name: "columns", selector: {
-        select: {
-          multiple: true,
-          mode: "dropdown",
-          options: [
-            { value: "host", label: "Host" },
-            { value: "integration_name", label: "Integration Name" },
-            { value: "last_response_time", label: "Last Response Time" },
-            { value: "pings_failed_count", label: "Pings Failed" },
-            { value: "ping_status_since_timestamp", label: "Connected/Disconnected Since" }
-          ]
-        }
-      } }
-    ];
-    return html`
+        `}},h=class extends g{static properties={_config:{state:!0}};setConfig(t){this._config=t}_valueChanged(t){let e=t.target;if(!this._config||!e)return;let a={...this._config,...t.detail.value},s=new Event("config-changed",{bubbles:!0,composed:!0});s.detail={config:a},this.dispatchEvent(s)}_computeLabel(t){switch(t.name){case"title":return"Card Title";case"show_status":return"Statues to Show";case"group_by_integration":return"Group-By Integration";case"columns":return"Columns"}}render(){if(!this._config)return o``;let t=[{name:"title",selector:{text:{}}},{name:"show_status",selector:{select:{mode:"dropdown",options:[{value:"all",label:"All"},{value:"on",label:"Only Connected"},{value:"off",label:"Only Disconnected"}]}}},{name:"group_by_integration",selector:{boolean:{}}},{name:"columns",selector:{select:{multiple:!0,mode:"dropdown",options:[{value:"host",label:"Host"},{value:"integration_name",label:"Integration Name"},{value:"last_response_time",label:"Last Response Time"},{value:"pings_failed_count",label:"Pings Failed"},{value:"total_failed_pings_count",label:"Total Failed Pings"},{value:"ping_status_since_timestamp",label:"Connected/Disconnected Since"}]}}}];return o`
             <ha-form
                 .hass=${this.hass}
                 .data=${this._config}
-                .schema=${schema}
+                .schema=${t}
                 .computeLabel=${this._computeLabel}
                 @value-changed=${this._valueChanged}
             ></ha-form>
-        `;
-  }
-}
-customElements.define("device-pulse-table-card", DevicePulseTableCard);
-customElements.define("device-pulse-table-card-editor", DevicePulseTableCardEditor);
-window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "device-pulse-table-card",
-  name: "Device Pulse Table",
-  description: "Show a table of monitored network devices with Device Pulse integration",
-  preview: true,
-  documentationURL: "https://github.com/studiobts/device-pulse-table-card"
-});
-console.info(
-  `%c DEVICE-PULSE-TABLE-CARD %c v${CARD_VERSION} `,
-  "background: #1976d2; color: white; font-weight: bold; padding: 2px 6px; border-radius: 4px 0 0 4px;",
-  "background: #ff7043; color: white; font-weight: bold; padding: 2px 6px; border-radius: 0 4px 4px 0;"
-);
+        `}};customElements.define("device-pulse-table-card",u);customElements.define("device-pulse-table-card-editor",h);window.customCards=window.customCards||[];window.customCards.push({type:"device-pulse-table-card",name:"Device Pulse Table",description:"Show a table of monitored network devices with Device Pulse integration",preview:!0,documentationURL:"https://github.com/studiobts/device-pulse-table-card"});console.info(`%c DEVICE-PULSE-TABLE-CARD %c v${w} `,"background: #1976d2; color: white; font-weight: bold; padding: 2px 6px; border-radius: 4px 0 0 4px;","background: #ff7043; color: white; font-weight: bold; padding: 2px 6px; border-radius: 0 4px 4px 0;");
