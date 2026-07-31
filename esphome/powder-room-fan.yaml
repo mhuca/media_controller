@@ -189,6 +189,7 @@ mqtt:
 # -----------------------------------------------------------------------------
 api:
   id: esphome_api
+  max_connections: 8  # Bumped from default 4 to support dashboard + HA + traces
   
   # Live Connectivity Handlers
   on_client_connected:
