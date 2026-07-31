@@ -158,6 +158,7 @@ mqtt:
   username: !secret mqtt_user
   password: !secret mqtt_password
   keepalive: 15s
+  discovery: false  # <--- DISABLE AUTO-DISCOVERY (PREVENTS DUPLICATE HA ENTITIES)
   on_connect:
     then:
       - lambda: |-
