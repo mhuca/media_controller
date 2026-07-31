@@ -152,7 +152,7 @@ wifi:
       - lambda: 'id(glbl_detach_relay) = false;'
       - logger.log: "TIER 3 ACTIVATED: Wi-Fi Disconnected -> Relays Physically Attached"
 mqtt:
-  broker: !secret mqtt_broker
+  broker: 10.0.168.36
   port: 1883
   username: !secret mqtt_user
   password: !secret mqtt_password
