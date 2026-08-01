@@ -35,13 +35,13 @@ light:
   - id: board_indicator_led
     platform: binary
     output: indicator_led_pin
-    internal: true
+    internal: false
 
   # Physical Relay Entity (Internal: prevents duplicate control in Home Assistant)
   - id: light_1
     platform: binary
     output: relay_output
-    restore_mode: RESTORE_DEFAULT_OFF
+    restore_mode: ALWAYS_ON  # <--- Ensures mains power passes to bulbs immediately on boot
     internal: true
     
     on_turn_on:

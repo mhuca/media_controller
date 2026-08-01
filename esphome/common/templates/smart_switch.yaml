@@ -7,6 +7,10 @@ substitutions:
   event: switch_event
   button: button
 
+ota:
+  - platform: esphome
+
+
 # -----------------------------------------------------------------------------
 # Physical & Virtual Inputs/Outputs
 # -----------------------------------------------------------------------------
@@ -207,42 +211,42 @@ switch:
     turn_off_action:
       - globals.set: { id: glbl_detach_relay, value: "false" }
 
-  - id: sw_timeout_enabled
-    name: "Timeout Automation"
-    platform: template
-    device_class: "switch"
-    entity_category: "config"
-    restore_mode: RESTORE_DEFAULT_OFF
-    lambda: 'return id(glbl_timeout_enabled);'      
-    turn_on_action:
-      then:
-        - globals.set: { id: glbl_timeout_enabled, value: "true" }
-        - if:
-            condition:
-              lambda: 'return id(light_1).remote_values.is_on();'
-            then:
-              - script.execute: start_hardware_timer
-    turn_off_action:
-      then:
-        - globals.set: { id: glbl_timeout_enabled, value: "false" }
-        - script.execute: stop_hardware_timer
+  # - id: sw_timeout_enabled
+  #   name: "Timeout Automation"
+  #   platform: template
+  #   device_class: "switch"
+  #   entity_category: "config"
+  #   restore_mode: RESTORE_DEFAULT_OFF
+  #   lambda: 'return id(glbl_timeout_enabled);'      
+  #   turn_on_action:
+  #     then:
+  #       - globals.set: { id: glbl_timeout_enabled, value: "true" }
+  #       - if:
+  #           condition:
+  #             lambda: 'return id(light_1).remote_values.is_on();'
+  #           then:
+  #             - script.execute: start_hardware_timer
+  #   turn_off_action:
+  #     then:
+  #       - globals.set: { id: glbl_timeout_enabled, value: "false" }
+  #       - script.execute: stop_hardware_timer
 
-number:
-  - id: timeout_length
-    platform: template
-    name: "Timeout"
-    entity_category: "config"
-    unit_of_measurement: s
-    mode: box
-    min_value: 30
-    max_value: 21600
-    step: 30
-    lambda: 'return (int) id(glbl_timeout_length_ticks);'      
-    set_action:
-      then:
-        - globals.set:
-            id: glbl_timeout_length_ticks
-            value: !lambda 'return (int) x;'
+# number:
+#   - id: timeout_length
+#     platform: template
+#     name: "Timeout"
+#     entity_category: "config"
+#     unit_of_measurement: s
+#     mode: box
+#     min_value: 30
+#     max_value: 21600
+#     step: 30
+#     lambda: 'return (int) id(glbl_timeout_length_ticks);'      
+#     set_action:
+#       then:
+#         - globals.set:
+#             id: glbl_timeout_length_ticks
+#             value: !lambda 'return (int) x;'
 
 select:
   - platform: template

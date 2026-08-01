@@ -973,7 +973,9 @@
         id: warning
       sequence:
       - action: notify.mobile_app_bd_iphone
-        data: {}
+        data:
+          message: WARNING Boiling Water Under Kitchen Sink WARNING
+          title: BOILING WATER OVER HEAT
     - conditions:
       - condition: trigger
         id: kill_switch
@@ -2202,8 +2204,7 @@
   - alias: 1. Ingest Contract and Resolve Context
     variables:
       payload: '{{ trigger.event.data }}'
-      area_key: '{{ payload.target.area_id | default(payload.area_key) | default(''living_room'')
-        }}'
+      area_key: '{{ payload.area_key | default(''living_room'') }}'
       t_mask: '{{ payload.get(''target_mask'', 0) }}'
       c_mask: '{{ payload.get(''current_mask'', 0) }}'
       t_source: '{{ payload.get(''target_avr_source'', ''none'') }}'
