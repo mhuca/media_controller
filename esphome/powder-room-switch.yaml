@@ -126,7 +126,7 @@ globals:
   - id: light_on_scene_id
     type: int
     restore_value: no
-    initial_value: "15"
+    initial_value: "10"
   - id: light_off_scene_id
     type: int
     restore_value: no
