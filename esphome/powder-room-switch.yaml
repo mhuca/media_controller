@@ -60,7 +60,19 @@ binary_sensor:
               - logger.log: "Tier 2: Motion Detected (API Offline) -> Activating Local Fallback"
               - script.stop: tier2_light_off_timer
               - script.stop: tier2_fan_off_timer
-              - script.execute: execute_tier2_activation
+              - lambda: |-
+                  if (esphome::mqtt::global_mqtt_client != nullptr && esphome::mqtt::global_mqtt_client->is_connected()) {
+                    auto m = esphome::mqtt::global_mqtt_client;
+                    std::string light_topic = id(gpe_root_topic) + "/" + id(gpe_light_topic) + "/set";
+                    std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_topic) + "/set";
+                    
+                    std::string light_payload = (id(gpe_scene_eligible) && id(gpe_use_scene)) ? 
+                      "{\"scene_recall\": " + std::to_string(id(light_on_scene_id)) + "}" : "{\"state\":\"ON\"}";
+                    
+                    m->publish(light_topic, light_payload);
+                    m->publish(fan_topic, "{\"state\":\"ON\"}");
+                    id(glbl_light_is_on) = true;
+                  }
 
     on_release:
       then:
@@ -80,15 +92,15 @@ binary_sensor:
                     - logger.log: "Tier 2: Motion Cleared with Door CLOSED -> Shutting Down Active Loads"
                     - script.stop: tier2_light_off_timer
                     - script.stop: tier2_fan_off_timer
-                    - lambda: |-
-                        if (esphome::mqtt::global_mqtt_client != nullptr && esphome::mqtt::global_mqtt_client->is_connected()) {
-                          auto m = esphome::mqtt::global_mqtt_client;
-                          std::string light_topic = id(gpe_root_topic) + "/" + id(gpe_light_topic) + "/set";
-                          std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_topic) + "/set";
+                    # - lambda: |-
+                    #     if (esphome::mqtt::global_mqtt_client != nullptr && esphome::mqtt::global_mqtt_client->is_connected()) {
+                    #       auto m = esphome::mqtt::global_mqtt_client;
+                    #       std::string light_topic = id(gpe_root_topic) + "/" + id(gpe_light_topic) + "/set";
+                    #       std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_topic) + "/set";
                           
-                          m->publish(light_topic, "{\"state\":\"OFF\"}");
-                          m->publish(fan_topic, "{\"state\":\"OFF\"}");
-                        }
+                    #       m->publish(light_topic, "{\"state\":\"OFF\"}");
+                    #       m->publish(fan_topic, "{\"state\":\"OFF\"}");
+                    #     }
 
 # -----------------------------------------------------------------------------
 # Dynamic Learned State Globals (RAM-Only: No Flash Wear)
