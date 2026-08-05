@@ -417,7 +417,8 @@ script:
             std::string light_topic = id(gpe_root_topic) + "/" + id(gpe_light_topic) + "/set";
             std::string light_payload;
             
-            if (id(gpe_scene_eligible) && id(gpe_use_scene) && id(light_off_scene_id) > 0) {
+            // #if (id(gpe_scene_eligible) && id(gpe_use_scene) && id(light_off_scene_id) > 0) {
+            if (id(gpe_scene_eligible) && id(gpe_use_scene) ) {
               light_payload = "{\"scene_recall\": " + std::to_string(id(light_off_scene_id)) + "}";
             } else {
               light_payload = "{\"state\":\"OFF\"}";
