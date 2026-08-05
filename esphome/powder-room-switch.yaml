@@ -176,6 +176,16 @@ mqtt:
                 ESP_LOGI("TIER2_DOOR", "Door Contact Updated via MQTT -> OPEN");
               }
             });
+            
+            // Subscribe to Room Light Topic for Ingested State Tracking
+            std::string full_light_topic = id(gpe_root_topic) + "/" + id(gpe_light_topic);
+            esphome::mqtt::global_mqtt_client->subscribe(full_light_topic, [](const std::string &topic, const std::string &payload) {
+              if (payload.find("\"state\":\"ON\"") != std::string::npos || payload.find("\"state\": \"ON\"") != std::string::npos) {
+                id(glbl_light_is_on) = true;
+              } else if (payload.find("\"state\":\"OFF\"") != std::string::npos || payload.find("\"state\": \"OFF\"") != std::string::npos) {
+                id(glbl_light_is_on) = false;
+              }
+            });
             ESP_LOGI("GPE_MQTT", "Subscribed to door topic on connect: %s", full_door_topic.c_str());
           }
   # Tier 2 -> Tier 3 Fail-Safe Fallback
@@ -286,29 +296,86 @@ script:
               
               std::string light_topic = id(gpe_root_topic) + "/" + id(gpe_light_topic) + "/set";
               std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_topic) + "/set";
-              
-              bool recall_scene = id(gpe_scene_eligible) && id(gpe_use_scene);
               std::string light_payload;
 
-              if (recall_scene) {
-                light_payload = "{\"scene_recall\": " + std::to_string(id(light_on_scene_id)) + "}";
-              } else {
-                light_payload = "{\"state\":\"ON\"}";
-              }
-              
-              m->publish(light_topic, light_payload);
-              m->publish(fan_topic, "{\"state\":\"ON\"}");
-              
-              ESP_LOGW("TIER2_EXEC", "Published Fallback -> Light: %s [%s] | Fan: ON", light_topic.c_str(), light_payload.c_str());
+              // TOGGLE CHECK: If light is currently ON -> turn light & fan OFF
+              if (id(glbl_light_is_on)) {
+                if (id(gpe_scene_eligible) && id(gpe_use_scene) && id(light_off_scene_id) > 0) {
+                  light_payload = "{\"scene_recall\": " + std::to_string(id(light_off_scene_id)) + "}";
+                } else {
+                  light_payload = "{\"state\":\"OFF\"}";
+                }
 
-              id(tier2_light_off_timer).execute();
-              id(tier2_fan_off_timer).execute();
+                m->publish(light_topic, light_payload);
+                m->publish(fan_topic, "{\"state\":\"OFF\"}");
+
+                id(glbl_light_is_on) = false;
+
+                // Stop active grace timers on manual shutoff
+                id(tier2_light_off_timer).stop();
+                id(tier2_fan_off_timer).stop();
+
+                ESP_LOGW("TIER2_EXEC", "Toggle OFF -> Light: %s [%s] | Fan: OFF", light_topic.c_str(), light_payload.c_str());
+
+              } else {
+                // TOGGLE CHECK: If light is currently OFF -> turn ON / Recall Scene
+                bool recall_scene = id(gpe_scene_eligible) && id(gpe_use_scene);
+
+                if (recall_scene) {
+                  light_payload = "{\"scene_recall\": " + std::to_string(id(light_on_scene_id)) + "}";
+                } else {
+                  light_payload = "{\"state\":\"ON\"}";
+                }
+                
+                m->publish(light_topic, light_payload);
+                m->publish(fan_topic, "{\"state\":\"ON\"}");
+
+                id(glbl_light_is_on) = true;
+
+                // Re-arm grace timers
+                id(tier2_light_off_timer).execute();
+                id(tier2_fan_off_timer).execute();
+
+                ESP_LOGW("TIER2_EXEC", "Toggle ON -> Light: %s [%s] | Fan: ON", light_topic.c_str(), light_payload.c_str());
+              }
+
             } else {
               ESP_LOGE("TIER2_EXEC", "Critical: Loss of both Core API and Local MQTT!");
             }
           } else {
             ESP_LOGD("TIER2_EXEC", "API connected -> Tier 2 local execution suppressed.");
           }
+      # - lambda: |-
+      #     // Strict Guard: ONLY execute Tier 2 fallback logic if API is truly offline
+      #     if (!id(glbl_api_is_connected)) {
+      #       if (esphome::mqtt::global_mqtt_client != nullptr && esphome::mqtt::global_mqtt_client->is_connected()) {
+      #         auto m = esphome::mqtt::global_mqtt_client;
+              
+      #         std::string light_topic = id(gpe_root_topic) + "/" + id(gpe_light_topic) + "/set";
+      #         std::string fan_topic = id(gpe_root_topic) + "/" + id(gpe_fan_topic) + "/set";
+              
+      #         bool recall_scene = id(gpe_scene_eligible) && id(gpe_use_scene);
+      #         std::string light_payload;
+
+      #         if (recall_scene) {
+      #           light_payload = "{\"scene_recall\": " + std::to_string(id(light_on_scene_id)) + "}";
+      #         } else {
+      #           light_payload = "{\"state\":\"ON\"}";
+      #         }
+              
+      #         m->publish(light_topic, light_payload);
+      #         m->publish(fan_topic, "{\"state\":\"ON\"}");
+              
+      #         ESP_LOGW("TIER2_EXEC", "Published Fallback -> Light: %s [%s] | Fan: ON", light_topic.c_str(), light_payload.c_str());
+
+      #         id(tier2_light_off_timer).execute();
+      #         id(tier2_fan_off_timer).execute();
+      #       } else {
+      #         ESP_LOGE("TIER2_EXEC", "Critical: Loss of both Core API and Local MQTT!");
+      #       }
+      #     } else {
+      #       ESP_LOGD("TIER2_EXEC", "API connected -> Tier 2 local execution suppressed.");
+      #     }
 # Overrides the base stub from smart_switch.yaml
   - id: !extend execute_tier2_double
     mode: single
