@@ -1,0 +1,13 @@
+{
+	"$schema": "https://opencode.ai/config.json",
+	"mcp": {
+		"media_instance": {
+			"type": "remote",
+			"url": "http://10.0.168.222:9584/private_Q8Hfs9ztwMjTe06lhTdWig"
+		},
+		"lighting_instance": {
+			"type": "remote",
+			"url": "http://10.0.168.111:9584/private_aKueoKvonpSdRXoqh7VCKg"
+		}
+	}
+}

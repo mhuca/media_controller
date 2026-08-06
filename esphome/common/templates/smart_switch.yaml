@@ -99,6 +99,8 @@ binary_sensor:
                           area_id: "${area_id}"
                           event_type: ${button}
                           event_value: "press"
+                  else:
+                    # Tier 2: Local fallback (API disconnected)
                     - script.execute: execute_tier2_activation
 
   # Generic Template Motion Hook (Overridden or published to by area implementations)
@@ -115,6 +117,14 @@ binary_sensor:
     device_class: door
     internal: true
     lambda: 'return id(glbl_door_is_open);'
+
+  # Ingested/Virtual Light Sensor
+  - id: light_sensor
+    name: "Light Sensor"
+    platform: template
+    device_class: light
+    internal: true
+    lambda: 'return id(glbl_light_is_on);'
 
 # -----------------------------------------------------------------------------
 # Globals & State Tracking
@@ -137,6 +147,10 @@ globals:
     restore_value: true
     initial_value: "300"
   - id: glbl_door_is_open
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  - id: glbl_light_is_on
     type: bool
     restore_value: no
     initial_value: "false"
